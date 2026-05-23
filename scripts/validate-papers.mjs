@@ -10,6 +10,29 @@ const categoryLabels = new Map(categoryItems.map((item) => [item.slug, item.labe
 const required = ["slug", "title", "authors", "year", "venue", "category", "categoryLabel", "tags", "summary"];
 const errors = [];
 
+function englishWords(text) {
+  return String(text)
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\\[a-zA-Z]+\{[^}]*\}/g, "")
+    .match(/\b[A-Za-z][A-Za-z0-9'’.-]*\b/g) || [];
+}
+
+function cjkCount(text) {
+  return (String(text).match(/[\u4e00-\u9fff]/g) || []).length;
+}
+
+function hasLongEnglishRun(text) {
+  const normalized = String(text).replace(/\s+/g, " ");
+  const runs = normalized.match(/(?:\b[A-Za-z][A-Za-z0-9'’.-]*\b[\s,;:()[\]\/&+-]*){10,}/g) || [];
+  return runs.some((run) => (run.match(/\b[A-Za-z][A-Za-z0-9'’.-]*\b/g) || []).length >= 10);
+}
+
+function allowEnglishHeavy(item) {
+  return ["Authors", "Institutions", "Title"].includes(item.section)
+    || item.kind === "code"
+    || item.kind === "equation";
+}
+
 if (!fs.existsSync(contentDir)) {
   errors.push("缺少 content/papers 目录。");
 } else {
@@ -51,11 +74,23 @@ if (!fs.existsSync(contentDir)) {
         }
         if (String(item.translation || "").includes("中文翻译：")) errors.push(`${slug}: reading[${index}] translation 不能包含“中文翻译：”前缀`);
         if (String(item.translation || "").includes("引用：")) errors.push(`${slug}: reading[${index}] translation 不应翻译或携带引用标记`);
+        if (/\[cite:\s*[^\]]+\]|\\cite[tp]?\{[^}]+\}/i.test(String(item.translation || ""))) errors.push(`${slug}: reading[${index}] translation 不应包含 cite 引用键`);
+        if (/待翻译|待精译|占位|自动抽取预览|后续补充|本段主要说明|本段围绕|TODO/i.test(String(item.translation || ""))) errors.push(`${slug}: reading[${index}] translation 不应包含制作说明或占位词`);
         if (/% --- expanded .+ ---/.test(String(item.sourceText || item.translation || ""))) errors.push(`${slug}: reading[${index}] 不应包含 TeX 展开标记`);
         if (item.kind === "algorithm") {
           const source = String(item.sourceText || "");
           const hasAlgorithmBody = source.split(/\r?\n/).length > 1 && /(Require|Ensure|for |while |if |procedure |return |←)/i.test(source);
           if (!hasAlgorithmBody) errors.push(`${slug}: reading[${index}] algorithm 不能只有标题，必须包含原文算法步骤`);
+        }
+        if (!allowEnglishHeavy(item) && !["code", "equation"].includes(item.kind || "paragraph")) {
+          const sourceWords = englishWords(item.sourceText).length;
+          const zhCount = cjkCount(item.translation);
+          const latinCount = (String(item.translation || "").match(/[A-Za-z]/g) || []).length;
+          const totalLetters = latinCount + zhCount;
+          if (sourceWords >= 12 && zhCount < 12) errors.push(`${slug}: reading[${index}] translation 中文量过少，疑似未完整翻译`);
+          if (sourceWords >= 20 && zhCount < Math.min(80, Math.ceil(sourceWords * 0.55))) errors.push(`${slug}: reading[${index}] translation 中文覆盖不足，疑似半翻译`);
+          if (totalLetters > 0 && String(item.translation || "").length > 80 && latinCount / totalLetters > 0.38) errors.push(`${slug}: reading[${index}] translation 英文占比过高，疑似复制原文`);
+          if (hasLongEnglishRun(item.translation)) errors.push(`${slug}: reading[${index}] translation 含连续英文长句，疑似未翻译`);
         }
       }
     }

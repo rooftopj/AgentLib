@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { renderInlineText } from "./InlineText";
 
 type ConceptTabsProps = {
   tabs: string;
@@ -34,7 +35,7 @@ export default function ConceptTabs({ tabs, panels }: ConceptTabsProps) {
           </button>
         ))}
       </div>
-      <p>{active?.body}</p>
+      <p>{active?.body ? renderInlineText(active.body) : null}</p>
     </section>
   );
 }

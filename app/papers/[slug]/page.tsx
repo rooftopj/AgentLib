@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ReactNode } from "react";
-import katex from "katex";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AlgorithmBlock from "@/components/AlgorithmBlock";
 import CodeBlock from "@/components/CodeBlock";
 import ConceptTabs from "@/components/ConceptTabs";
+import { renderInlineText, spaceMixedText } from "@/components/InlineText";
 import MathBlock from "@/components/MathBlock";
 import { publicPath } from "@/lib/public-path";
 import { getPaper, papers } from "@/lib/papers";
@@ -73,7 +73,7 @@ function CalloutBlock({ title, body, tone = "accent" }: { title: string; body: s
   return (
     <aside className={`explainer-callout tone-${tone}`}>
       <strong>{title}</strong>
-      <p>{renderInline(body)}</p>
+      <p>{renderInlineText(body)}</p>
     </aside>
   );
 }
@@ -88,11 +88,11 @@ function SplitBlock({ leftTitle, left, rightTitle, right }: {
     <section className="split-block">
       <div>
         <h3>{leftTitle}</h3>
-        <p>{renderInline(left)}</p>
+        <p>{renderInlineText(left)}</p>
       </div>
       <div>
         <h3>{rightTitle}</h3>
-        <p>{renderInline(right)}</p>
+        <p>{renderInlineText(right)}</p>
       </div>
     </section>
   );
@@ -108,7 +108,7 @@ function StepFlow({ steps, descriptions }: { steps: string; descriptions?: strin
         <div className="step-flow-item" key={`${step}-${index}`}>
           <span>{index + 1}</span>
           <strong>{step}</strong>
-          {descriptionItems[index] ? <p>{renderInline(descriptionItems[index])}</p> : null}
+          {descriptionItems[index] ? <p>{renderInlineText(descriptionItems[index])}</p> : null}
         </div>
       ))}
     </section>
@@ -157,49 +157,6 @@ function PaperCredits({ paper }: { paper: NonNullable<ReturnType<typeof getPaper
   );
 }
 
-function renderInlineMath(formula: string) {
-  const html = katex.renderToString(formula, {
-    displayMode: false,
-    throwOnError: false,
-    strict: "ignore",
-  });
-  return <span className="inline-math" dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
-function spaceMixedText(text: string) {
-  return text
-    .replace(/([\u4e00-\u9fff])([A-Za-z0-9])/g, "$1 $2")
-    .replace(/([A-Za-z0-9])([\u4e00-\u9fff])/g, "$1 $2");
-}
-
-function renderInline(text: string): ReactNode[] {
-  const parts: ReactNode[] = [];
-  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|==[^=]+==|\$[^$\n]+\$)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) parts.push(spaceMixedText(text.slice(lastIndex, match.index)));
-    const token = match[0];
-    const key = `${parts.length}-${match.index}`;
-
-    if (token.startsWith("**")) {
-      parts.push(<strong key={key}>{renderInline(token.slice(2, -2))}</strong>);
-    } else if (token.startsWith("`")) {
-      parts.push(<code key={key}>{token.slice(1, -1)}</code>);
-    } else if (token.startsWith("==")) {
-      parts.push(<mark key={key}>{renderInline(token.slice(2, -2))}</mark>);
-    } else if (token.startsWith("$")) {
-      parts.push(<span key={key}>{renderInlineMath(token.slice(1, -1))}</span>);
-    }
-
-    lastIndex = pattern.lastIndex;
-  }
-
-  if (lastIndex < text.length) parts.push(spaceMixedText(text.slice(lastIndex)));
-  return parts;
-}
-
 function renderExplainer(markdown: string) {
   const lines = markdown.split(/\r?\n/);
   const elements: ReactNode[] = [];
@@ -210,7 +167,7 @@ function renderExplainer(markdown: string) {
 
   function flushParagraph() {
     if (paragraph.length > 0) {
-      elements.push(<p key={`p-${elements.length}`}>{renderInline(paragraph.join(" "))}</p>);
+      elements.push(<p key={`p-${elements.length}`}>{renderInlineText(paragraph.join(" "))}</p>);
       paragraph = [];
     }
   }
@@ -219,7 +176,7 @@ function renderExplainer(markdown: string) {
     if (list.length > 0) {
       elements.push(
         <ul key={`ul-${elements.length}`}>
-          {list.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{renderInline(item)}</li>)}
+          {list.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{renderInlineText(item)}</li>)}
         </ul>
       );
       list = [];
@@ -227,7 +184,7 @@ function renderExplainer(markdown: string) {
     if (orderedList.length > 0) {
       elements.push(
         <ol key={`ol-${elements.length}`}>
-          {orderedList.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{renderInline(item)}</li>)}
+          {orderedList.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{renderInlineText(item)}</li>)}
         </ol>
       );
       orderedList = [];

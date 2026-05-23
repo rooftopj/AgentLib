@@ -1,0 +1,1291 @@
+[
+  {
+    "section": "标题",
+    "page": 1,
+    "sourceText": "Flow: Modularized Agentic Workflow Automation",
+    "translation": "Flow：模块化智能体工作流自动化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Multi-agent frameworks powered by large language models (LLMs) have demonstrated great success in automated planning and task execution. However, the effective adjustment of agentic workflows during execution has not been well studied. An effective workflow adjustment is crucial in real-world scenarios, as the initial plan must adjust to unforeseen challenges and changing conditions in real time to ensure the efficient execution of complex tasks. In this paper, we define workflows as an activity-on-vertex (AOV) graph, which allows continuous workflow refinement by LLM agents through dynamic subtask allocation adjustment based on historical performance and previous AOVs. To further enhance framework performance, we emphasize modularity in workflow design based on evaluating parallelism and dependency complexity. With this design, our proposed multi-agent framework achieves efficient concurrent execution of subtasks, effective goal achievement, and enhanced error tolerance. Empirical results across various practical tasks demonstrate significant improvements in the efficiency of multi-agent frameworks through dynamic workflow refinement and modularization. The code is available at: https://github.com/tmllab/2025_ICLR_FLOW.",
+    "translation": "由大语言模型驱动的多智能体框架已经在自动规划和任务执行中表现出很强能力，但论文指出，执行过程中如何有效调整 agentic workflow 仍然研究不足。真实场景里的初始计划常常会遇到突发障碍和变化条件，因此工作流必须能根据历史表现和已有 AOV 图持续细化。Flow 将 workflow 定义为 Activity-on-Vertex 图，并用动态子任务分配、并行度评估和依赖复杂度评估来支持模块化设计，从而提升并发执行、目标达成和错误容忍能力。实验显示，这种动态 refinement 与模块化能显著提高多智能体框架效率，代码公开在项目仓库中。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Large Language Models (LLMs) [cite: agent,zhou2023agents] show remarkable ability to understand and generate human-like text. Recent advances have significantly enhanced their capability to emulate human reasoning [cite: sun-etal-2024-determlr], indicating a promising future for LLM-based reasoning. With the powerful ability to handle a variety of natural language processing tasks, these models underpin a wide range of applications, from conversational agents [cite: ye2024rational] and content creation tools [cite: yao2023react] to advanced analytics and decision-making systems [cite: ramesh2021zeroshottexttoimagegeneration, emboied]. Building upon this foundation, a key advancement is the development of [cite: liu2023bolaabenchmarkingorchestratingllmaugmented, li2023camel, hong2024metagpt, wu2024AutoGen, wang2024tdagmultiagentframeworkbased, chen2024agentverse,liu2024dynamicllmpoweredagentnetwork] where multiple LLM-based agents collaborate to address complex tasks, leveraging their collective reasoning and planning abilities to automate and optimize task execution processes.",
+    "translation": "这一段从大语言模型的能力出发说明研究背景：大模型能够理解和生成接近人类的文本，也逐渐展现出模拟推理的能力，因此被用于对话智能体、内容创作、分析决策等任务。进一步的发展方向是 LLM 驱动的多智能体框架，让多个智能体协作解决复杂任务，并用集体推理、规划和执行能力自动化任务流程。论文随后把问题推进到 workflow 层面：多个智能体是否能更高效地协作，关键不只在单个模型能力，还在任务如何拆分、依赖如何组织、失败时如何调整。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "Existing LLM-based multi-agent frameworks define LLM as an agent, and agents collaborate with each other via manually designed or LLM-generated prompts. Specifically, MetaGPT [cite: hong2024metagpt] focuses on programming tasks by leveraging Standardized Operating Procedures (SOPs) [cite: sop, demarco2013peopleware, belbin2010team]. It predefined distinct roles such as product manager, project manager, and engineer. For each role, an LLM agent is initialized, and these agents operate within a strict and sequential workflow to execute subtasks. CAMEL [cite: li2023camel] can complete a variety of task types. It requires users to pre-define two agents. These agents interact and execute tasks sequentially, each agent taking on specific responsibilities. AutoGen [cite: wu2024AutoGen] is also aimed at completing diverse tasks. Unlike CAMEL, AutoGen can automatically create an agent list with different roles based on subtask requirements. These agents execute subtasks sequentially following the order in the list.",
+    "translation": "这一段比较已有多智能体框架的工作流形态。MetaGPT 主要面向编程任务，借助标准操作流程预设产品经理、项目经理、工程师等角色，让智能体按严格顺序执行子任务；CAMEL 要求用户预先定义两个智能体，让二者顺序互动并承担不同责任；AutoGen 可以根据子任务需求自动创建不同角色的智能体列表，但执行仍然基本遵循列表顺序。论文用这些例子说明：现有系统即使能自动生成角色和子任务，也常常把 workflow 当成静态或顺序流程处理，缺少执行时的并行和动态重构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "Building upon the strengths of current multi-agent frameworks, our work aims to further improve existing general-purpose multi-agent frameworks by enabling during task execution and encouraging in workflows when planning the workflows.",
+    "translation": "基于现有多智能体框架的优点，作者希望进一步提升通用多智能体框架，使其在任务执行过程中能够动态更新 workflow，并在规划阶段主动鼓励 workflow 的模块化。换句话说，论文不是只想让智能体生成一个初始计划，而是希望整个执行系统在运行中根据反馈调整子任务、角色和依赖结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "Comparative evaluations among four frameworks—AutoGen, CAMEL, MetaGPT, and Flow (ours)—across two tasks, present notable differences in performance. For the left task, AutoGen, CAMEL, and MetaGPT only managed to produce basic designs lacking in completeness while Flow excelled by creating a fully developed and well-structured website. For the right task, Flow demonstrated superior capability by successfully generating a working game with a clear and intuitive interface, while the other frameworks struggled to deliver fully functional code.",
+    "translation": "图中比较 AutoGen、CAMEL、MetaGPT 和 Flow 在网站设计与五子棋任务上的输出质量。它展示 Flow 能生成更完整的网站和可运行游戏，而其他框架常出现内容简单、功能缺失或代码不完整的问题，用来直观说明模块化动态 workflow 的效果。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/Picture1.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "Specifically, allow agents to adjust and in real-time based on ongoing performance feedback and changing conditions. This capability that the system remains responsive and efficient even when faced with unexpected obstacles. For instance, if an agent encounters a roadblock in data preprocessing, the system can reassign this subtask to another agent or introduce a new subtask to resolve the issue. Such adaptability is essential for maintaining robustness and ensuring the seamless execution of complex tasks.",
+    "translation": "这里解释动态更新 workflow 的直觉：智能体可以根据持续反馈和变化条件实时调整子任务分配与角色安排。当某个智能体在数据预处理、代码实现或内容生成中遇到障碍时，系统可以把该子任务重新分配给另一个智能体，或者引入新的补救子任务。这样的适应性让系统在遭遇意外问题时仍保持响应能力和执行效率，也能避免整个任务因为一个局部失败而停滞。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "In system design, involves dividing a system into separate, independently operating modules, each responsible for specific functionalities [cite: modu].",
+    "translation": "论文把模块化理解为把复杂任务拆成更小、可交换、可独立运行的子任务模块。高度模块化的 workflow 允许多个子任务并发执行，减少其他部分造成的瓶颈；同时，由于子任务之间依赖更少，当某个模块需要更新时，它对其他模块的影响也更小。作者用这个概念连接效率和容错：模块越独立，越容易局部修复，也越不容易让一次失败扩散成全局失败。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "In our context,. A highly modularized workflow enables subtasks to execute concurrently, without bottlenecks from other parts of the workflow and thereby directly improves the operational efficiency of multi-agent frameworks. Furthermore, enhances the ease of dynamic updating. When workflows are highly modularized, the dependency complexity between subtasks is minimal. Therefore, updating one subtask does not affect others, allowing for small workflow adjustments. For example, if an agent responsible for data preprocessing encounters an unexpected obstacle, a can adapt by introducing only one subtask with minimal impact on the rest of the workflow.",
+    "translation": "论文把模块化理解为把复杂任务拆成更小、可交换、可独立运行的子任务模块。高度模块化的 workflow 允许多个子任务并发执行，减少其他部分造成的瓶颈；同时，由于子任务之间依赖更少，当某个模块需要更新时，它对其他模块的影响也更小。作者用这个概念连接效率和容错：模块越独立，越容易局部修复，也越不容易让一次失败扩散成全局失败。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "In this paper, we enhance existing multi-agent frameworks by achieving modularity and enabling dynamic workflow updates. Our framework allows agents to execute their subtasks in parallel while facilitating efficient workflow updates. This is accomplished by formulating the entire workflow as an Activity-on-Vertex (AOV) graph, which is a directed acyclic graph (DAG) where each subtask is represented as a node with its status and generated logs, while the directed edges capture dependencies between subtasks. To encourage a modular workflow design from the beginning, we generate multiple candidate AOV graphs for the task. These candidates are then evaluated based on their degree of parallelism and the complexity of their dependencies. The AOV graph with the highest parallelism and lowest dependency complexity is selected.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "During task execution, our framework continuously checks and refines the workflow, updating it when a subtask fails (see Fig.~fig:flowchart: Check & Refine). The framework updates subtask allocations and agent roles based on ongoing performance data and current workflow. As our AOV-based workflow encourages high modularity, updating one module does not necessarily affect others, allowing for localized adjustments during workflow updates (see Fig.~fig:flowchart: Update). Similar to the initial workflow generation, multiple AOV graphs are generated and the one with and is selected during dynamic updates. This iterative workflow refinement process enhances adaptability to new challenges and evolving objectives throughout task execution, ensuring dynamic workflow updates without compromising overall performance.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "Our key contributions are as follows: 1) We introduce and encourage modularity in multi-agent workflows, emphasizing the design of workflows with high parallelism and low dependency complexity. This modular design enhances efficiency, robustness, and scalability by enabling concurrent subtask execution and minimizing bottlenecks caused by complex interdependence. 2) We propose a practical multi-agent framework that supports highly flexible updates to the workflow during runtime. Our method enables local updates to the entire workflow based on global information, allowing agents to efficiently adapt to unexpected challenges while maintaining system coherence and consistency. 3)Through comprehensive experiments, we demonstrate significant improvements in both the adaptability and efficiency of our multi-agent framework compared to existing approaches.",
+    "translation": "为了把模块化变成可选择的准则，论文定义了两个量化指标：并行度和依赖复杂度。并行度衡量每个执行步骤里可以同时运行的子任务比例；依赖复杂度衡量任务图中连接数量的分布是否集中。Flow 用这两个指标筛选候选 AOV 图：优先选择并行度更高的图，如果并行度相同，再选择依赖复杂度更低的图。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Related Work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "LLM-based Task Decision-Making. Recent developments in LLM-based task decision making have focused on improving the reasoning and planning abilities of agents [cite: yao2023react,LLM-Planner,pmlr-v235-zhou24r,wu2024AutoGen,prasad2023adapt,shinn2023reflexion,ahn2022icanisay]. Previous approaches like ReAct [cite: yao2023react] iteratively generate thoughts and actions based on current observations until task completion. This framework integrates action-taking with reasoning, allowing agents to perform complex tasks in dynamic environments. Reflexion [cite: shinn2023reflexion] further improves this by incorporating self-reflection, where the agent evaluates and adjusts its reasoning during execution. ADAPT [cite: prasad2023adapt] introduces recursive task decomposition, enabling LLM-based agents to break tasks into smaller subtasks, which leads to improved task execution flexibility. However, these approaches often overlook dynamic task reallocation, particularly in multi-agent settings, which is where our work extends the current research.",
+    "translation": "这一部分属于“相关工作”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： . , , , , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 4,
+    "sourceText": "LLM-based Multi-Agent Frameworks. Multi-agent frameworks have long been employed for task execution in distributed environments, with recent advances leveraging LLM to enhance coordination and decision-making [cite: hong2024metagpt, li2023camel,wu2024AutoGen,hu2024automateddesignagenticsystems]. However, existing frameworks often rely on static workflows with limited adaptability to changes in the task environment. DyLAN [cite: liu2024dynamicllmpoweredagentnetwork] and MACNET [cite: qian2024scalinglargelanguagemodelbasedmultiagentcollaboration] utilize static graphs to represent workflows in multi-agent frameworks; GPTSwarm [cite: zhuge2024languageagentsoptimizablegraphs] enhances agent interactions but maintains a fixed agent topology; DataInterpreter [cite: hong2024datainterpreterllmagent] updates workflows primarily in response to execution failures in subtasks, adjusting subsequent tasks while leaving completed tasks unchanged; AFlow [cite: zhang2025aflow] introduces a dynamic workflow generation framework based on Monte Carlo Tree Search, enabling adaptive adjustments through iterative code modification. This highlights the need for dynamic workflow updates.",
+    "translation": "这一部分属于“相关工作”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , . , ; ; , ; , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Method",
+    "translation": "方法",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Our proposed Flow enhances multi-agent frameworks powered by LLM by introducing modularity and dynamic workflow updating. As depicted in Fig.~fig:flowchart, given the task requirement, ~first for. During execution, the workflow is until the task is completed. To maximize system simplicity and flexibility, we design a dictionary-based structure for. In the following, we detail how to achieve these features.",
+    "translation": "实现上，Flow 使用字典结构管理 workflow。每个子任务对应一个字典项，记录子任务需求、状态、数据、未完成父节点数量、子节点和负责智能体。其中 `num_parents_not_completed` 是调度关键：当它为零时，子任务就可以启动并与其他就绪任务并行执行。系统还会在子任务完成后检查需求是否真的被满足，降低智能体误报完成或局部异常导致的风险。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Formulating a Workflow as an AOV Graph. Activity on Vertex (AOV) graph is a type of directed acyclic graph where vertices represent subtasks and edges denote precedence relations [cite: bondy2011graph]. AOV graphs are widely used in project scheduling and management [cite: moder1983project, taha2017operations], helping planners visualize dependencies and sequence subtasks efficiently.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Inspired by that, we define the multi-agent workflow as an AOV graph where vertices represent subtasks, while edges denote dependencies between subtasks. Let $G = (V,E,A)$ denote the AOV graph, with $V$ the set of all subtasks (vertices), $E V V$ the set of directed edges indicating subtask dependencies. For example, $e_ij = (v_i, v_j) E$ indicates that the subtask $v_i$ must be completed before the subtask $v_j$ starts. $A$ represents a set of agents for all subtasks. Each agent $a_j A$ is associated with a role that is responsible for executing a subset of subtasks $_j V$.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Note that AutoGen [cite: wu2024AutoGen] also automatically generates subtasks and agents. However, the subtasks are designed to be executed sequentially. For, we allow for the generation of complementary subtasks that can run in parallel. This distinction enhances our framework's ability to handle multiple subtasks simultaneously, which reduces overall process time and increases efficiency.",
+    "translation": "论文特别强调 Flow 与 AutoGen 的区别：AutoGen 也可以生成子任务和智能体，但默认执行模式更偏顺序；Flow 则允许互补子任务并行运行。这个差异看似只是调度问题，实际上会直接影响复杂任务的总耗时和鲁棒性，因为并行子任务可以缩短关键路径，独立模块也更容易在局部失败时被替换。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Modularity in a Workflow. Modularity in system design [cite: modu] involves dividing a system into separate, independently operating modules, each responsible for specific functionalities, allowing focus on individual components without affecting the entire system. It is essential for scalability and flexibility in workflows. By reducing dependency complexity, the system can more easily adapt to changes, such as the introduction of new tasks or the reassignment of existing ones, without requiring extensive restructuring. Theorem thm:modular_workflow demonstrates additional dependencies in a workflow reduce the expected success rate of subtasks. Following this conclusion, ~ advocates for the creation of subtasks that can be executed independently.",
+    "translation": "这一部分用定理形式说明为什么额外依赖会降低 workflow 的期望成功表现。论文设定每个子任务都有随机失败概率，并比较两个拓扑排序后的 workflow：如果其中一个 workflow 为某些子任务增加了额外前置依赖，那么这些子任务成功的前提会变多，成功概率会被更多上游事件相乘削弱。结论是，依赖更少、模块更独立的 workflow 在期望完成子任务数量上更有优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Consider two topologically sorted workflows $A$ and $B$ each consisting of $N$ subtasks according to their execution order. Suppose",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "0pt 0pt 0pt • (Random fail probability) Each subtask $v $ fails with probability $p_f$, where $0 < p_f < 1$. • (Additional dependency in Workflow B) There exist at least one subtask $v^* $ and a subtask $b $ such that the set of immediate predecessors (dependencies) of $v^*$ in Workflow B is $D_B(v^*) = D_A(v^*) b $, where $D_A(v^*)$ is the set of immediate predecessors of $v^*$ in Workflow A. For all other subtasks $v v^*$ $D_A(v) D_B(v)$. The expected number of completed subtasks in Workflow A is strictly greater than in Workflow B: $ E[S_A] > E[S_B]. $",
+    "translation": "这一部分用定理形式说明为什么额外依赖会降低 workflow 的期望成功表现。论文设定每个子任务都有随机失败概率，并比较两个拓扑排序后的 workflow：如果其中一个 workflow 为某些子任务增加了额外前置依赖，那么这些子任务成功的前提会变多，成功概率会被更多上游事件相乘削弱。结论是，依赖更少、模块更独立的 workflow 在期望完成子任务数量上更有优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "To encourage modularity in the generated AOV graph, we define two quantitative measures that evaluate and respectively. Parallelism measures the extent to which subtasks can be executed concurrently. Let $S_t$ represent the set of subtasks executed in the $t$ step. Let $T$ be the total number of steps (the maximum depth of the DAG). Given an AOV graph $G = (V, E, A)$, the degree of parallelism overall is defined as the average subtask ratio over steps:",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "\\begin{equation*}\nP_{\\text{avg}} = \\frac{1}{T} \\sum_{t=1}^{T} S_t.\n\\end{equation*}",
+    "translation": "该公式定义平均并行度：对每个执行步骤的可并行子任务比例求平均，用来衡量 workflow 在结构上能否压缩总执行步数。",
+    "kind": "equation"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Although $P_$ provides a measure of parallelism, it is insufficient to fully capture the modularity that arises when subtasks can be executed independently. Consider two workflows, both containing the same subtasks $ A, B, C, D $. For Workflow 1, the task dependencies are defined as: $A C, B C, A D, B D, C D$. In contrast, Workflow 2 has dependencies: $A C, B C, C D$. Although both workflows exhibit the same level of parallelism, Workflow 2 is structurally simpler in terms of task dependencies, as it contains fewer edges.",
+    "translation": "这里定义平均并行度：把每个执行步骤中可并行运行的子任务集合记为 $S_t$，总执行层数记为 $T$，则整体并行度是各步骤并行子任务比例的平均值。这个指标直接反映 workflow 的潜在并发执行能力，用来避免 LLM 生成过度顺序化的任务图。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "To account for this complexity, we measure the dependency structure by analyzing the degree distribution within the subtask graph. For each subtask $v_i$, we define $(v_i)$ as the number of direct connections it has on the graph $G$. The is quantified by the standard deviation of the number of direct connections:",
+    "translation": "这里定义依赖复杂度：对每个子任务统计图中的直接连接数量，再计算这些度数相对平均度的标准差。直觉上，如果某些节点承担过多依赖，它们就可能变成瓶颈或脆弱点；标准差越大，说明依赖越集中，workflow 越不均衡。Flow 因此偏好依赖更分散、更容易局部更新的结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "\\begin{equation*}\nC_{\\text{dependency}} = \\sigma_{\\deg(v_i)} = \\sqrt{\\frac{1}{|V|}\\sum_{v_i \\in V} (\\deg(v_i) - \\bar{d})^2}.\n\\end{equation*}",
+    "translation": "该公式定义依赖复杂度：统计每个子任务在图中的连接数量，并计算度分布标准差；数值越大，说明依赖越集中，越容易形成瓶颈。",
+    "kind": "equation"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "This measure reflects the variability in the number of dependencies each subtask has, providing insight into the overall complexity of the workflow structure.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Task dependencies alone are insufficient to fully capture the modularity that allows subtasks to be executed independently. Consider Workflow 3: $A B C D$, which may have a similar dependency complexity to Workflow 2. However, Workflow 2 provides greater modularity and separation of subtasks, highlighting the importance of evaluating both dependency complexity and modularity to fully assess and promote effective workflow designs. Both measures are essential to ensure that subtasks can be executed in parallel while maintaining a modular approach.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 3: , 2. , 2 , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "[title= A Sample Prompt for Initialization $_$, colback=whitesmoke, colframe=gray, boxrule=2pt, arc=0mm]",
+    "translation": "这里展示 Flow 用于初始化或更新 workflow 的提示词结构。提示词要求模型根据任务需求生成必要子任务、依赖关系和智能体分配，并把结果表示成字典：每个子任务记录状态、数据、未完成父节点数量、子任务列表和负责智能体。这个格式让 workflow 既能被程序执行，也能被 LLM 阅读和更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "You are an intelligent workflow planner. Given the following task requirements, generate a set of necessary sub-tasks along with their dependencies and assign appropriate agents to each task. Ensure that tasks that can be executed in parallel are identified to enhance efficiency. The workflow should be represented as a dictionary where each key is a task and its value contains the task's status, data, number of parents not completed, child tasks, and assigned agent.\n\nTask Requirements: {TASK_REQUIREMENTS}\n\nOutput Format: { \"Task_A\": { \"status\": \"not started\", \"data\": null, \"num_parents_not_completed\": 0, \"child\": [\"Task_B\", \"Task_C\"], \"agent\": \"Agent_1\" }, \"Task_B\": { \"status\": \"not started\", \"data\": null, \"num_parents_not_completed\": 1, \"child\": [\"Task_D\"], \"agent\": \"Agent_2\" }, ... }",
+    "translation": "这段提示词要求模型扮演工作流规划器，根据任务需求生成子任务、依赖关系和智能体分配，并以字典形式输出状态、数据、未完成父节点、子任务和负责智能体。它对应 Flow 的初始化阶段。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "The process starts with task initialization, encouraging the modularity and execute parallel of subtasks. Outputs are evaluated. If errors are detected, the workflow is dynamically updated by modifying the task graph. This iterative process continues until successful task completion.",
+    "translation": "图中展示 Flow 的总体流程：先根据任务需求初始化模块化工作流，让可并行子任务同步执行；随后评估输出，如果发现错误或缺口，就修改任务图并继续迭代，直到任务完成。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/camera2.png",
+    "kind": "figure"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Generate an Initial AOV Graph. Given a task requirement prompt $$, we prompt an LLM $f$ to generate a set of candidate AOV graphs $ G_1, G_2,, G_K $ based on $$ and a designed $_$, i.e. $ G_1, G_2,, G_K = f(_, )$. Each candidate AOV graph $G_k = (V_k, E_k, A_k)$ is evaluated using the measures of parallelism and dependency complexity. We prioritize the workflow with the highest parallelism score. If multiple graphs share the highest score, we select the one with the lowest dependency complexity.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Note that we prioritize parallelism and modularity early in the process and focus on refining the workflow through data-driven adjustments during running. The reasons are: 1) LLM-generated workflows possess reasoning capabilities, but may not prioritize efficiency. If parallelism and independence are not explicitly encouraged during the initial workflow generation, the applied workflow is very likely to be overly complex, which results in inefficient subtask implementation; 2) verifying correctness is inherently challenging as no additional data is available as supervised information at an early stage. As compensation, we refine the workflow by parallelism and modularity.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： : 1 , , , ; 2 , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Execution Plan Generation and Agent Allocation. After we obtain the best AOV graph, a topological sort is performed on the dependency graph of the subtasks to produce a linear order of the subtasks $o: V 1, 2,, |V| $ such that for any edge $(v_i, v_j) E$, $o(v_i) < o(v_j)$. The result is a sequence of subtask steps, where each step consists of subtasks that can be executed in parallel. This execution plan minimizes the number of steps needed to perform while ensuring that all subtasks are completed in the shortest possible time, adhering to their dependencies.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Each agent $a_j A$ is associated with a set of subtasks $_j V$, indicating the subtasks that the agent is responsible for handling. However, if two subtasks $v_p$ and $v_q$ require the same agent $a_j$ at the same step $s_i$, we create a clone of the agent, denoted $a_j'$, to run both subtasks simultaneously without increasing the wait time.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "[title= Prompt for Update $_update$, colback=whitesmoke, colframe=gray, boxrule=2pt, arc=0mm]",
+    "translation": "这里展示 Flow 用于初始化或更新 workflow 的提示词结构。提示词要求模型根据任务需求生成必要子任务、依赖关系和智能体分配，并把结果表示成字典：每个子任务记录状态、数据、未完成父节点数量、子任务列表和负责智能体。这个格式让 workflow 既能被程序执行，也能被 LLM 阅读和更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "You are an intelligent workflow updater. Based on the current workflow and the all subtasks' progress data, update the workflow for acheving the objective by adding, removing, or modifying subtasks as necessary. Ensure that the updated workflow maintains modularity and maximizes parallel execution.\nOutput Format: { \"Task_A\": { \"status\": \"not started\", \"data\": null,  ... }",
+    "translation": "这段提示词用于 workflow 更新阶段，要求模型检查已完成、等待中和执行中的子任务，判断数据是否足以达成最终目标，并通过增加、删除、修改、重连任务来保持模块化和并行执行。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Workflow Refinement and Dynamic Updating. We leverage LLM as a global inspector to continuously monitor task progress and dynamically modify the AOV graph based on global information when necessary. Specifically, given the task requirements prompt $$ and the update prompt $_$, the current AOV graph $G^t$, and the generated data $D^t$ containing the status of subtasks and the output of agents to run subtasks. Similarly to the initialization process, we generate $K$ candidate graphs: $ G_1^t+1, G_2^t+1,, G_K^t+1 = f(_,, D^t)$. We follow the same selection strategy as in initialization, which prioritizes the workflow with the highest parallelism score and further selects the one with the lowest dependency complexity if multiple graphs share the highest parallelism score.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "With the modularity constraint introduced in previous sessions, our dynamic updates can largely fulfill flexibility, allowing modifications to subtask allocations including deletion, addition, editing, rerunning, and reassignment of agents without necessarily affecting other agents or their assigned subtasks. This unique advantage is particularly beneficial when subtask requirements become more challenging, as subtask dependencies can be highly complex.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , , , , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Note that with sufficient data and computational resources, we could further enhance our framework by fine-tuning LLM with reinforcement learning for workflow generation. For example, the LLM would be trained to maximize a reward function designed around key performance indicators such as task completion speed, resource utilization, and minimization of workflow disruptions.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "Our framework employs a dictionary-based structure, $$, to efficiently manage and dynamically update workflows within a multi-agent framework. Each subtask $v$ in the workflow is represented as a key in $$, the value being another dictionary that encapsulates various attributes of the subtask. The structure is specifically defined as:",
+    "translation": "实现上，Flow 使用字典结构管理 workflow。每个子任务对应一个字典项，记录子任务需求、状态、数据、未完成父节点数量、子节点和负责智能体。其中 `num_parents_not_completed` 是调度关键：当它为零时，子任务就可以启动并与其他就绪任务并行执行。系统还会在子任务完成后检查需求是否真的被满足，降低智能体误报完成或局部异常导致的风险。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "\\begin{equation*}\n    \\tilde{G}[v] = \\{\\text{\"subtask requirement\"}, \\text{\"status\"}, \\text{\"data\"}, \\text{\"num\\_parents\\_not\\_completed\"}, \\text{\"child\"}, \\text{\"agent\"} \\}.\n\\end{equation*}",
+    "translation": "该公式给出 Flow 的字典式 workflow 表示，每个子任务记录需求、状态、数据、未完成父节点数量、子节点和负责智能体。",
+    "kind": "equation"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "In each $[v]$, the values of each key are as follows:",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "0pt 0pt 0pt • \"subtask requirement\": the text of the task requirement; • \"status\": the current task implementation status e.g. \"not started\", \"in progress\", \"completed\"; • \"data\": data relevant to this task; • \"num _parents _not _completed\": the count of uncompleted parent tasks to manage dependencies; • \"child\": a list of child tasks that depend on the current task's completion; • \"agent\": the agent assigned to the task.",
+    "translation": "这一部分属于“方法”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：0 0 0 • \" \": ; • \"\": \" \", \" \", \"\"; • \"\": ; • \" \": ; • \"\": ; • \"\": 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 5,
+    "sourceText": "This dictionary-based structure can be converted directly to JSON, and the organized information is easily readable and summarizable by LLM, granting our system inherent simplicity and flexibility. Each subtask execution readiness is determined by the attribute \"num _parents _not _completed\". Subtasks with a count of zero are eligible to run concurrently, leveraging our system’s capability to handle parallel subtask execution effectively. Upon completion of each subtask, we perform a systematic review to determine if the workflow requires refinement, ensuring that all dependencies are accurately accounted for and that the workflow remains aligned with project goals. In addition to monitoring the subtask completion by the \"status\" and \"num _parents _not _completed\" counts reported by agents. Flow also double-checks the completion of each subtask by asking if all the requirements of this subtask are fulfilled. This will largely prevent errors from inaccurate reporting by agents or unforeseen system anomalies. This rigorous verification process enhances the reliability and integrity of our workflow management system.",
+    "translation": "实现上，Flow 使用字典结构管理 workflow。每个子任务对应一个字典项，记录子任务需求、状态、数据、未完成父节点数量、子节点和负责智能体。其中 `num_parents_not_completed` 是调度关键：当它为零时，子任务就可以启动并与其他就绪任务并行执行。系统还会在子任务完成后检查需求是否真的被满足，降低智能体误报完成或局部异常导致的风险。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 6,
+    "sourceText": "EXPERIMENTS",
+    "translation": "实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 6,
+    "sourceText": "Baselines. In all experiments, we compare to the existing multi-agent frameworks i.e. (1) AutoGen [cite: wu2024AutoGen], (2) Camel [cite: li2023camel], and (3) MetaGPT [cite: hong2024metagpt]. In our experiments, we use agents empowered by GPT-4o-mini and GPT-3.5-Turbo [cite: openai2024gpt4omini].",
+    "translation": "实验把 Flow 与三个多智能体框架比较，并分别在较强与较弱两类语言模型上运行。这样的设置有两个作用：一方面比较不同工作流组织方式，另一方面观察动态更新机制是否只依赖强模型。换句话说，作者想确认收益来自任务图表示、模块化筛选和运行时更新，而不只是来自某个模型本身能力更强。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 6,
+    "sourceText": "Experiment Design. We designed three diverse and engaging tasks to evaluate multi-agent collaboration frameworks: 1) website design, 2) LaTeX Beamer writing, and 3) gobang game development. The rationale for selecting coding-based experiments is two-fold. First, most multi-agent frameworks, such as MetaGPT [cite: hong2024metagpt], are optimized for coding and writing tasks. Using non-coding tasks could introduce bias. Second, coding tasks effectively showcase the ability of a framework to assign agents and manage task allocation.",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 6,
+    "sourceText": "Gobang Game Development: This task requires creating a gobang game with a user interface and a simple AI opponent. Players can choose between black or white stones, with the UI clearly indicating turns and announcing the winner or draw when the game ends. This task demonstrates the framework's ability to handle modular design and task parallelism, as it involves coordinating game logic, AI implementation, and user interface development simultaneously.",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 6,
+    "sourceText": "LaTeX Beamer Writing: This task focuses on generating LaTeX slides that cover reinforcement learning algorithms, including motivations, problem statements, intuitive solutions, and detailed mathematical equations. A specific page requirement is to test the framework’s ability to follow instructions precisely. The task highlights the framework’s parallel processing capabilities of simultaneous generation of content, formatting, and presentation structure. The structured format of LaTeX also tests how effectively the framework manages modularity and concurrent tasks.",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 6,
+    "sourceText": "Website Design: This task involves building a professional website for the International Conference on Learning Representations, hypothetically scheduled for San Francisco from April 27 to May 1, 2025. The website must feature key elements such as a detailed conference schedule and venue information with an interactive map. This task assesses each framework's ability to manage parallel workflows and modular components, including user interface design, functionality, and adherence to design guidelines, showcasing how well the framework handles task decomposition and execution.",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "三类任务评测",
+    "page": 6,
+    "sourceText": "Evaluations over Three Designed Tasks",
+    "translation": "三类任务评测",
+    "kind": "paragraph"
+  },
+  {
+    "section": "三类任务评测",
+    "page": 6,
+    "sourceText": "Evaluation Metrics. To conduct both quantitative and qualitative evaluations, we employ two metrics: and. The success rate is a quantitative measure that ranges from 0 to 1. It assesses whether the multi-agent framework successfully generates executable outputs that fully meet the task requirements. A higher score indicates a greater level of success in accurately fulfilling the task objectives. Different tasks may have different evaluation metrics. The description for each evaluation metric is defined in Appendix~latexexp, gobang and web. Human ratings are used to evaluate the quality of the generated results in alignment with the task description. We gathered 50 participants with programming and machine learning backgrounds to rank the outcomes produced by different methods. A detailed description of how we take scores is shown in Appendix~human.",
+    "translation": "评测同时使用成功率和人工评分。成功率衡量系统是否生成可执行且满足要求的结果，不同任务有不同子指标，例如是否可编译、是否可交互、是否包含必要信息、是否符合页数限制。人工评分则让 50 名具备编程和机器学习背景的参与者对不同框架输出排序，用来评价结果质量和用户满意度。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "三类任务评测",
+    "page": 6,
+    "sourceText": "Summary. We summarize the performance of different methods on three tasks from Table~tab:game, tab:latex11 and tab:website, comparing the overall score with respect to the success rate and human rating. For Flow, the overall score and human rating over three tasks are (100, 4) on game development, (100, 3.33) on LaTeX writing, and (80, 3.28) on website design. Thus, the average performance of Flow is a 93% success rate and 3.54 out of 4 in human satisfaction. Similarly, we have the average performance of AutoGen as (66.7, 2.63), MetaGPT as (71, 1.60), and CAMEL as (48.67, 2.12). Overall, our method ~has completed tasks with the most satisfaction and the highest success rate. Information about 's workflow on those tasks is in Appendix~ourwok.",
+    "translation": "总体结果显示，Flow 在三类任务上的平均成功率为 93%，人工满意度平均为 3.54 分。相比之下，AutoGen 平均成功率为 66.7%、MetaGPT 为 71%、CAMEL 为 48.67%。这说明 Flow 的优势不只是某个单项任务上的偶然提升，而是在需要拆分、并行和局部修复的多类任务中都有较稳定收益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "Result for Gobang Game Development",
+    "translation": "五子棋游戏开发结果",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "The experimental setup is thoroughly detailed in Appendix~gobang and the visualization result is shown in Fig.fig:all. As shown in Table tab:game, ~ achieves a 100% success rate across all aspects, as well as the highest human satisfaction. More explanations for each method are given below.",
+    "translation": "这一部分属于“五子棋游戏开发结果”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 附录 图 :, 100% , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "AutoGen: Of the five trials, one of the tests failed to generate a valid result. Of the four successful attempts, one contained a code error that hindered normal execution, while another exhibited a bug in the game interface. The remaining two trials were completed successfully, although the chess pieces were displayed as the text 'black' and 'white' instead of graphical representations.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "MetaGPT: After five trials, all MetaGPT attempts were successful and intractable. However, in four trials, a Tic-Tac-Toe game was generated instead of Gobang; out of these, the left one was functional, allowing both the user and AI to make moves and correctly terminate.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "CAMEL: In all five trials, CAMEL was only successful twice. In the other trials, the generated Python code was not executable. In the two successful trials, CAMEL successfully implemented the correct termination conditions but did not have an AI component and no termination message.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "Flow: After running Flow five times, our framework consistently generated successful outputs without errors. The game functioned as expected, allowing both the player and the naive AI to take turns seamlessly. The game also ended correctly when either the board was fully occupied or one side achieved victory. In the game interface, actual black and white chess pieces were displayed rather than text labels, enhancing the user experience.",
+    "translation": "Flow 的结果说明动态模块化 workflow 在具体任务中产生了可见收益。在五子棋开发中，Flow 五次运行都生成可执行结果，界面能显示黑白棋子，玩家和简单 AI 能轮流行动，并能正确结束游戏。在 Beamer 写作中，Flow 输出都能编译，多数结果满足长度和内容要求。在网站设计中，Flow 四次成功生成完整网页，并包含较详细的会议介绍、交通信息、注册区域和交互元素。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "Comparison of different multi-agent frameworks on Website Design",
+    "translation": "该表汇总网站设计任务上的成功率和人工评分。Flow 在章节完整性和人工满意度上表现突出，说明模块化拆分有助于覆盖复杂网页需求。",
+    "kind": "table"
+  },
+  {
+    "section": "五子棋游戏开发结果",
+    "page": 6,
+    "sourceText": "Workflow and dynamic update in two experiments.",
+    "translation": "图中展示两个实验中的 workflow 与动态更新：网站任务主要重构已有任务连接，五子棋任务则会新增桥接子任务来替换或弥补失败节点。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/newcombine.png",
+    "kind": "figure"
+  },
+  {
+    "section": "LaTeX Beamer 写作结果",
+    "page": 6,
+    "sourceText": "Result for LaTeX Beamer Writing",
+    "translation": "LaTeX Beamer 写作结果",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作结果",
+    "page": 6,
+    "sourceText": "Experimental results are presented in Table tab:latex11 with the following explanations:",
+    "translation": "这一部分属于“LaTeX Beamer 写作结果”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： : :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作结果",
+    "page": 6,
+    "sourceText": "AutoGen: After five trials, AutoGen successfully generated the output each time. However, one output failed to compile in LaTeX due to syntax errors, and in two instances, the outputs did not meet the required length. The remaining outputs met both the length and content requirements.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作结果",
+    "page": 6,
+    "sourceText": "MetaGPT: In five trials, four of them successfully generated a valid LaTeX version, with the only error being related to writing Python code within the '.tex' file. In these four successful trials, all documents met the required content specifications, but only one meet the requirement of either 30 or 20 pages.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作结果",
+    "page": 6,
+    "sourceText": "CAMEL: CAMEL successfully generated five valid '.tex' files, all of which could be rendered into Beamer format. Each presentation contained the required information, including sections such as motivation. However, none met the required page count of either 30 or 20 pages.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作结果",
+    "page": 6,
+    "sourceText": "Flow: After five tests, our framework successfully generated output each time, and all outputs were able to be compiled in LaTeX. However, one output contained some repetitive content. In the remaining valid outputs, the Beamer presentations met the specified length requirements and adequately covered all required content.",
+    "translation": "Flow 的结果说明动态模块化 workflow 在具体任务中产生了可见收益。在五子棋开发中，Flow 五次运行都生成可执行结果，界面能显示黑白棋子，玩家和简单 AI 能轮流行动，并能正确结束游戏。在 Beamer 写作中，Flow 输出都能编译，多数结果满足长度和内容要求。在网站设计中，Flow 四次成功生成完整网页，并包含较详细的会议介绍、交通信息、注册区域和交互元素。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计结果",
+    "page": 6,
+    "sourceText": "Result For Website Design",
+    "translation": "网站设计结果",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计结果",
+    "page": 6,
+    "sourceText": "Similarly to the previous two, the detailed experiment setup is in Appendix~web. Here we illustrate the results in Table tab:website as follows:",
+    "translation": "这一部分属于“网站设计结果”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , 附录 : :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计结果",
+    "page": 6,
+    "sourceText": "AutoGen: In five trials, four of the AutoGen results successfully rendered into an HTML website. However, in one attempt, each section of the website contained only one or two sentences and lacked interactive features and essential elements like maps or tables.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计结果",
+    "page": 6,
+    "sourceText": "MetaGPT: MetaGPT managed to create complete HTML and CSS, meeting basic functionality requirements and showcasing its code generation capabilities. However, the outputs were overly simplistic, missing content and key functional sections like the required venue and map.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计结果",
+    "page": 6,
+    "sourceText": "CAMEL: CAMEL's outputs were executable in four out of five runs, though they did not include all the necessary elements, achieving all basic functions only. CAMEL restricts communication to only two agents, regardless of task complexity, hindering its ability to fully complete complex website development tasks. One of the results generated complete HTML code but omitted the CSS file.",
+    "translation": "这一段分析基线框架的失败模式。AutoGen 往往能生成部分可运行代码，但可能出现编译错误、界面缺陷或内容过浅；MetaGPT 在结构化编程任务上较强，但可能把五子棋误生成井字棋，或在网页任务中缺少关键内容；CAMEL 受限于双智能体互动方式，面对需要多个模块协作的复杂任务时容易漏功能或生成不可执行代码。这些现象支持论文观点：静态或过度顺序化 workflow 难以稳定处理复杂任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计结果",
+    "page": 6,
+    "sourceText": "Flow: Flow achieved an 80% success rate across five trials. One trial failed to generate an HTML website. Among the four remaining trials, each section of the website featured detailed introductions and necessary interactive functionalities. For example, the venue section included travel information and local transportation options. The registration section was fully functional, with a complete table, input boxes, and a submit button.",
+    "translation": "Flow 的结果说明动态模块化 workflow 在具体任务中产生了可见收益。在五子棋开发中，Flow 五次运行都生成可执行结果，界面能显示黑白棋子，玩家和简单 AI 能轮流行动，并能正确结束游戏。在 Beamer 写作中，Flow 输出都能编译，多数结果满足长度和内容要求。在网站设计中，Flow 四次成功生成完整网页，并包含较详细的会议介绍、交通信息、注册区域和交互元素。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新",
+    "page": 6,
+    "sourceText": "Workflow Update",
+    "translation": "工作流更新",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新",
+    "page": 6,
+    "sourceText": "Update based On Generated Data. Fig.~fig:combined(a) demonstrates the update process of Flow in the conference website creation example. Upon completion of the first subtask, the system identifies potential changes and redundancies, triggering a restructuring process to improve efficiency. Once the subtask \"Define the website structure\" is completed, the generated data, which includes HTML structures and elements, is sufficient to proceed with the CSS creation. As a result, the workflow is updated to incorporate the development of CSS based on the completed \"Define the website structure\" subtask.",
+    "translation": "工作流更新实验展示 Flow 如何利用生成数据调整图结构。网站设计案例中，完成“定义网站结构”后，系统发现已有 HTML 结构足以支持 CSS 创建，于是更新 workflow，让 CSS 任务基于已完成结构继续推进。五子棋案例中，系统会在已有子任务之间添加桥接子任务，填补信息缺口。错误处理实验还通过随机遮蔽子任务输出制造失败，结果显示动态更新能显著提高成功率，尤其能避免下游智能体在缺失关键信息时继续错误执行。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新",
+    "page": 6,
+    "sourceText": "Fig.~fig:combined(b) illustrates a result of our dynamic updating process, where the system, upon receiving information about completed subtasks, decides to add a bridging subtask to handle gaps and ensure that the workflow continues smoothly.",
+    "translation": "工作流更新实验展示 Flow 如何利用生成数据调整图结构。网站设计案例中，完成“定义网站结构”后，系统发现已有 HTML 结构足以支持 CSS 创建，于是更新 workflow，让 CSS 任务基于已完成结构继续推进。五子棋案例中，系统会在已有子任务之间添加桥接子任务，填补信息缺口。错误处理实验还通过随机遮蔽子任务输出制造失败，结果显示动态更新能显著提高成功率，尤其能避免下游智能体在缺失关键信息时继续错误执行。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新",
+    "page": 6,
+    "sourceText": "r0.55 Success Rate (%) of Error handling with dynamically updating.! l c c Task & Flow w/o Update & Flow Website Design & 46 & 87 Gobang Game Development & 0 & 93 LaTeX Beamer Writing & 67 & 93 Error handling. To evaluate the effectiveness of our update mechanism, we intentionally introduced random masking to certain subtasks' output, replacing them with \"none\" before passing them to the next agent. We conducted five trials and recorded the success scores. Since other frameworks employ a sequential workflow, we limit the comparison to our own approach in this context.",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新",
+    "page": 6,
+    "sourceText": "We observed a significant difference in the success rate between using dynamic update and not, particularly in the Interactive Game section as shown in Table tab:abl. The main issue arises when the previous agent fails to provide the necessary information, yet the second agent continues with its subtask, leading to a major disconnect in the code. This often results in Python being unable to compile due to missing or mismatched components. Similarly, in website design, the lack of required elements caused by this failure impacts the overall functionality and structure. During the execution of subtasks, errors may arise due to the limitations of the LLM-based agent or underperformance in certain tasks. Therefore, the ability to dynamically update the agent workflow to address such issues is essential.",
+    "translation": "这些附录示例展示 Flow 在不同任务上生成的 workflow。课件任务中，Flow 会把每个算法的动机、问题、直觉解法和数学公式并行组织；五子棋任务中，Flow 区分规则定义、主逻辑、AI 和界面等模块；网站任务中，Flow 把 HTML 的不同部分拆成独立子任务。这些例子说明，Flow 的模块化不是抽象口号，而是直接落到具体任务图和执行步骤上。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 6,
+    "sourceText": "Conclusion",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 6,
+    "sourceText": "We present, a novel LLM-based multi-agent framework that can dynamically adapt to unforeseen challenges for general task executions. By dynamically updating the agentic workflow using AOV graphs, our framework has largely fulfilled the modularity requirements to complete complex tasks. We demonstrate our method through case studies on a series of experiments, ranging from website design, game development, and LaTeX Beamer writing, as well as testing its capability to solve general benchmark tasks. Through objective evaluation metrics and human feedback, we found that ~ improves execution efficiency, offers better error tolerance, and delivers overall stronger performance.",
+    "translation": "这一段给出 Flow 的核心表示：整个多智能体 workflow 被形式化为 Activity-on-Vertex 图，也就是一种有向无环图。图中的顶点表示子任务，边表示子任务之间的前置依赖，智能体集合表示哪些角色负责执行这些子任务。通过这种图结构，系统能够清楚知道哪些子任务必须等待上游完成，哪些子任务可以同时执行，也能在失败时定位需要更新的局部结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 6,
+    "sourceText": ".tocmtappendix none subsection",
+    "translation": "这一部分属于“结论”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：. 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测流程",
+    "page": 6,
+    "sourceText": "Human Evaluation Process",
+    "translation": "这一部分属于“人工评测流程”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测流程",
+    "page": 6,
+    "sourceText": "Sometimes, LLM can correctly fulfill each requirement of a task, but the quality of completion may vary. In such cases, human evaluation is necessary to assess the quality of the output. For each task, the final output of each multi-agent framework was evaluated by 50 participants, who ranked the outputs from best to worst. Points were awarded based on the rankings, with the 1st place receiving 4 points, the 2nd place receiving 3 points, etc. The final result was determined by calculating the average score. The detailed distribution is shown in Fig.~human1.",
+    "translation": "这一部分属于“人工评测流程”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：, , , , 50 , , 1 4 , 2 3 , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测流程",
+    "page": 6,
+    "sourceText": "Ranking distribution for gobang game development across different frameworks. The results indicate that our method (Flow) outperforms others by achieving the highest percentage of first-place rankings.",
+    "translation": "该图展示人工评测排序分布。Flow 在网站设计和五子棋任务中获得更多第一名排序，说明它不仅在成功率指标上更好，人工观察到的最终质量也更高。",
+    "kind": "figure",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/fig1.png"
+  },
+  {
+    "section": "Experiment setups",
+    "page": 6,
+    "sourceText": "Experiment setups",
+    "translation": "这一部分属于“Experiment setups”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "Experiment setup: LaTeX Beamer Writing",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "[title= User input, colback=whitesmoke, colframe=gray, boxrule=2pt, arc=0mm]",
+    "translation": "这一部分属于“LaTeX Beamer 写作设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： = , =, =, =2, =0 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "I am a lecturer teaching a machine learning course to research students, I am preparing lecture slides on various reinforcement learning algorithms. \nNote that:\n1). Given that the lecture duration is 2 hours, the slides should span approximately 30 pages.\n2). For each reinforcement learning algorithm covered, the slides will include the following key components: the motivation behind the algorithm, the problem it aims to solve, an intuitive solution, and the detailed mathematical equations that underpin the method.\n3).  It is essential that the lecture is comprehensive and self-contained, providing students with a clear understanding of each algorithm from both a conceptual and technical perspective.",
+    "translation": "这段任务输入定义 LaTeX Beamer 写作实验：系统要为机器学习课程生成强化学习算法课件，满足页数、动机、问题、直觉解法和数学公式等要求。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "The task involves generating a LaTeX Beamer presentation, which is a popular LaTeX class used to create professional-quality slides with various templates and effects. In this experiment, the objective is to produce presentations with different configurations, assessing the framework's ability to follow instructions. The experiment includes the following configurations:",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "• A 30-slide presentation, including motivation, problem statement, intuitive solution, and detailed mathematical equations. • A 20-slide presentation, including motivation, problem statement, intuitive solution, and detailed mathematical equations. • A 30-slide presentation, including motivation, problem statement, intuitive solution, and pseudocode. • A 20-slide presentation, including only motivation and intuitive solution. • A 30-slide presentation, including motivation, problem statement, intuitive solution, and detailed mathematical equations.",
+    "translation": "这一部分属于“LaTeX Beamer 写作设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：• 30- , , , , • 20- , , , , • 30- , , , , • 20- , • 30- , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "The goal is to examine the framework's ability to follow specific instructions while generating over 20 and 30 slides in different scenarios.",
+    "translation": "这一部分属于“LaTeX Beamer 写作设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 20 30 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "This task is well-suited for evaluation because it requires not only text generation but also an understanding of formatting and presentation logic. It serves as a comprehensive test of multitasking and reasoning capabilities. The structured nature of LaTeX allows for a rigorous assessment of the agent's ability to manage complex, multicomponent tasks.",
+    "translation": "这一部分属于“LaTeX Beamer 写作设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "Evaluation Metrics: The following metrics are used to assess the performance of the generated LaTeX Beamer writing:",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "• Compilable: Verifies whether the generated LaTeX code can compiles into a valid Beamer presentation or not. A successful compilation is rewarded with a score of 1, otherwise 0. • Completeness: Ensures that the final Beamer presentation includes all required components like: motivation, problem, intuitive solution, and equations. Missing any of these results in a score of 0. • Page Limit: Assesses whether the presentation adheres to the specified page limits as outlined in the prompt.",
+    "translation": "这一部分属于“LaTeX Beamer 写作设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：• : 1, 0. • : : , , , 0. • : 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LaTeX Beamer 写作设置",
+    "page": 6,
+    "sourceText": "The final result is calculated as the average of these three scores and is shown as percentage.",
+    "translation": "这一部分属于“LaTeX Beamer 写作设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "Experiment setup: Gobang Game Development",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "[title= User input, colback=whitesmoke, colframe=gray, boxrule=2pt, arc=0mm]",
+    "translation": "这一部分属于“五子棋游戏开发设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： = , =, =, =2, =0 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "I am developing a Gobang game that includes a naive AI and a user interface. The game should end when either a player wins or the board is completely filled. The user interface must clearly indicate whose turn it is and display a message when the game concludes, specifying the winner. Additionally, the user should have the option to play as either black or white stones.",
+    "translation": "这段任务输入定义五子棋开发实验：系统需要生成带简单 AI 和用户界面的游戏，支持黑白棋选择、回合提示、胜负或平局判定。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "Gobang, also called \"Five in a Row\", is a strategy board game where two players take turns placing black and white pieces on a grid. The objective is to be the first to align five consecutive pieces in a horizontal, vertical, or diagonal line. This experiment assesses our framework's ability to efficiently develop the game by utilizing parallelism to divide the development process into smaller, manageable tasks, such as game logic, AI move generation, and user interface (UI) design. We apply the same approach, taking the average score from five trials.",
+    "translation": "这一部分属于“五子棋游戏开发设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：, \" \", , , , , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "Evaluation Metrics: The following metrics are used to assess the performance of the generated Gobang game:",
+    "translation": "评测同时使用成功率和人工评分。成功率衡量系统是否生成可执行且满足要求的结果，不同任务有不同子指标，例如是否可编译、是否可交互、是否包含必要信息、是否符合页数限制。人工评分则让 50 名具备编程和机器学习背景的参与者对不同框架输出排序，用来评价结果质量和用户满意度。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "• Compilable: The code compiles without errors. Any error that causes termination will result in a score of 0. • Interactable: Properly supports both user and AI movements. If both functions are achieved, score 1 else 0. • Game Rule: Ends correctly when five pieces are aligned, correct terminated will result in 1 final score.",
+    "translation": "这一部分属于“五子棋游戏开发设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：• : 0. • : , 1 0. • : , 1 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "五子棋游戏开发设置",
+    "page": 6,
+    "sourceText": "Each of these metrics is scored as 0 or 1, and the final result is calculated as the average of these scores and turned into a percentage. These metrics allow for a comprehensive assessment of the efficiency, accuracy, and adaptability of each framework in developing a functional Gobang game with AI capabilities.",
+    "translation": "这一部分属于“五子棋游戏开发设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 0 1, , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "Experiment setup: Website Design",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "[title= User input, colback=whitesmoke, colframe=gray, boxrule=2pt, arc=0mm]",
+    "translation": "这一部分属于“网站设计设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： = , =, =, =2, =0 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "I am designing a website for the International Conference on Learning Representations (ICLR2025), which will take place from April 27, 2025, to May 1, 2025, in San Francisco, California, United States. The conference is organized by the International Association for Learning Representations.\nNote that:\n1). For each section, I would like to see example HTML content. Additionally, a sample CSS stylesheet should be provided to style the website. The content must be professional, clear, and appropriate for an international academic conference.\n2). The website should include all the provided details, including a comprehensive conference schedule and a section dedicated to the conference venue, featuring a map.",
+    "translation": "这段任务输入定义网站设计实验：系统要为 ICLR 会议生成专业网页，包含会议日程、地点、组织者、地图和样式代码等具体要求。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "We tasked the frameworks with developing a comprehensive website for the ICLR conference to evaluate their ability to handle complex tasks that require both flexible task coordination and effective problem solving. This task tested the ability of the frameworks to manage multiple interdependent steps, such as designing user interfaces, ensuring functionality, and adhering to specific design guidelines.",
+    "translation": "这一部分属于“网站设计设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "Evaluation Metrics: The following metrics are used to assess the performance of the generated website:",
+    "translation": "评测同时使用成功率和人工评分。成功率衡量系统是否生成可执行且满足要求的结果，不同任务有不同子指标，例如是否可编译、是否可交互、是否包含必要信息、是否符合页数限制。人工评分则让 50 名具备编程和机器学习背景的参与者对不同框架输出排序，用来评价结果质量和用户满意度。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "• Compilable: Checks if the HTML renders into a functioning website, If yes then score 1, can't render will result of score 0 • Basic Information: Verifies the presence of essential details like conference name, date, location, and organizer. Missing any of the information will caused the score to be 0 • Sections: Ensures inclusion of all required sections, with a focus on the schedule and venue as prompt asked. Missing the required part in the prompt will result in a score of 0 in score.",
+    "translation": "这一部分属于“网站设计设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：• : , 1, 0 • : , , , 0 • : , 0 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "网站设计设置",
+    "page": 6,
+    "sourceText": "By presenting a real-world scenario involving intricate requirements, we were able to observe how well the frameworks could break down a large project into manageable components and coordinate efforts across different tasks.",
+    "translation": "这一部分属于“网站设计设置”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同模型对更新的影响",
+    "page": 6,
+    "sourceText": "How Different LLM Affect Updates",
+    "translation": "这一部分属于“不同模型对更新的影响”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同模型对更新的影响",
+    "page": 6,
+    "sourceText": "To verify how our framework performs with different capabilities of LLM, we test both GPT-4o-mini and GPT-3.5-Turbo on three tasks we designed. In this experiment, each task was run five times on different models, and the average of the results was calculated as the final outcome. We recorded three metrics: average init task, average changed task, and average changed ratio. Init task refers to the number of subtasks that need to be executed within the workflow after selecting the optimal workflow but before the execution begins. Average changed task indicates the number of subtasks in the original workflow that were updated after the execution of the workflow. Average changed ratio is calculated by dividing the average changed task by the init task, providing a more intuitive reflection of the proportion of subtasks that were updated.",
+    "translation": "附录进一步分析不同模型和时间成本。较弱模型通常需要更多 workflow 更新，因为执行子任务时更容易产生不足或错误；较强模型更新比例较低，但仍受益于模块化调度。时间成本表明，动态更新会带来额外开销，但 Flow 在多个任务上仍保持比若干基线更短的执行时间，体现出适应性和效率之间的权衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同模型对更新的影响",
+    "page": 6,
+    "sourceText": "Update information on GPT-3.5-Turbo and GPT-4o-mini",
+    "translation": "该表比较 GPT-3.5-Turbo 和 GPT-4o-mini 在不同任务中的初始子任务数、平均变更子任务数和变更比例。它说明较弱模型通常需要更多动态更新，而 Flow 的更新机制可以记录并吸收这些执行差异。",
+    "kind": "table"
+  },
+  {
+    "section": "不同模型对性能的影响",
+    "page": 6,
+    "sourceText": "How Different LLM Affect Performance",
+    "translation": "这一部分属于“不同模型对性能的影响”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同模型对性能的影响",
+    "page": 6,
+    "sourceText": "In this experiment, we used the GPT-3.5-Turbo model to conduct experiments on three tasks in different frameworks. Each task was executed five times. We evaluated the results using the same scoring matrix described above.",
+    "translation": "附录进一步分析不同模型和时间成本。较弱模型通常需要更多 workflow 更新，因为执行子任务时更容易产生不足或错误；较强模型更新比例较低，但仍受益于模块化调度。时间成本表明，动态更新会带来额外开销，但 Flow 在多个任务上仍保持比若干基线更短的执行时间，体现出适应性和效率之间的权衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同模型对性能的影响",
+    "page": 6,
+    "sourceText": "Comparison of LLM-based multi-agent frameworks on Gobang Game Development with GPT-3.5-Turbo",
+    "translation": "该表是在 GPT-3.5-Turbo 条件下比较各框架任务成功率。Flow 在弱模型条件下仍保持较高整体得分，说明 workflow 结构优化可以部分弥补底层模型能力不足。",
+    "kind": "table"
+  },
+  {
+    "section": "不同模型对性能的影响",
+    "page": 6,
+    "sourceText": "Comparison of LLM-based multi-agent frameworks on Website Design with GPT-3.5-Turbo",
+    "translation": "该表是在 GPT-3.5-Turbo 条件下比较各框架任务成功率。Flow 在弱模型条件下仍保持较高整体得分，说明 workflow 结构优化可以部分弥补底层模型能力不足。",
+    "kind": "table"
+  },
+  {
+    "section": "不同模型对性能的影响",
+    "page": 6,
+    "sourceText": "Comparison of LLM-based multi-agent frameworks on LaTeX Beamer Writing with GPT-3.5-Turbo",
+    "translation": "该表是在 GPT-3.5-Turbo 条件下比较各框架任务成功率。Flow 在弱模型条件下仍保持较高整体得分，说明 workflow 结构优化可以部分弥补底层模型能力不足。",
+    "kind": "table"
+  },
+  {
+    "section": "不同模型对性能的影响",
+    "page": 6,
+    "sourceText": "Based on this table, we can observe that when using models with relatively low performance, our framework demonstrates significant advantages in task quality. Overall, even when using less powerful LLM like GPT-3.5-Turbo, our framework consistently maintains a high standard of performance.",
+    "translation": "附录进一步分析不同模型和时间成本。较弱模型通常需要更多 workflow 更新，因为执行子任务时更容易产生不足或错误；较强模型更新比例较低，但仍受益于模块化调度。时间成本表明，动态更新会带来额外开销，但 Flow 在多个任务上仍保持比若干基线更短的执行时间，体现出适应性和效率之间的权衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同基线的时间成本",
+    "page": 6,
+    "sourceText": "Time Cost of Different Baseline",
+    "translation": "这一部分属于“不同基线的时间成本”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同基线的时间成本",
+    "page": 6,
+    "sourceText": "To quantitatively measure the cost of our framework, we use execution time as a standard. Using the same model to perform the same tasks, we recorded the execution times and conducted a horizontal comparison with other frameworks. Each task was executed five times, and the average execution time was calculated.",
+    "translation": "附录进一步分析不同模型和时间成本。较弱模型通常需要更多 workflow 更新，因为执行子任务时更容易产生不足或错误；较强模型更新比例较低，但仍受益于模块化调度。时间成本表明，动态更新会带来额外开销，但 Flow 在多个任务上仍保持比若干基线更短的执行时间，体现出适应性和效率之间的权衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "不同基线的时间成本",
+    "page": 6,
+    "sourceText": "Comparison of task performance across different framework, including standard deviations. The standard deviations reflect realistic variability with increased variance across tasks and framework.",
+    "translation": "该表比较不同框架的执行时间均值和标准差。动态更新会增加额外时间，但 Flow 在多项任务中仍比若干基线更快，体现出并行调度与更新开销之间的折中。",
+    "kind": "table"
+  },
+  {
+    "section": "不同基线的时间成本",
+    "page": 6,
+    "sourceText": "The results demonstrate that incorporating the Flow mechanism significantly enhances efficiency compared to other methods, as seen in reduced execution times in both models. However, the introduction of updates incurs additional computational overhead, resulting in a noticeable increase in execution time, highlighting the trade-off between adaptability and efficiency. Nonetheless, Flow maintains faster execution times compared to several other frameworks.",
+    "translation": "附录进一步分析不同模型和时间成本。较弱模型通常需要更多 workflow 更新，因为执行子任务时更容易产生不足或错误；较强模型更新比例较低，但仍受益于模块化调度。时间成本表明，动态更新会带来额外开销，但 Flow 在多个任务上仍保持比若干基线更短的执行时间，体现出适应性和效率之间的权衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "并行度与依赖复杂度指标",
+    "page": 6,
+    "sourceText": "Custom Metrics for Parallelism and Dependency",
+    "translation": "这一部分属于“并行度与依赖复杂度指标”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Parallelism Metrics",
+    "page": 6,
+    "sourceText": "Parallelism Metrics",
+    "translation": "这一部分属于“Parallelism Metrics”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Parallelism Metrics",
+    "page": 6,
+    "sourceText": "Speedup ($S = T_p$), this metric measures the ratio of execution time on a single processor ($T_1$) to that on multiple processors ($T_p$). While effective in frameworks where these times can be measured, it requires actual execution on both single and multiple processors. In our case, such execution times are not readily obtainable because our focus is on task-solving workflows rather than on processing workloads that can be easily benchmarked in this way. Amdahl's Law ($S(p) = f_s + p$) and Gustafson's Law ($S(p) = p - f_s (p - 1)$), both laws require knowledge of $f_s$, the proportion of the task that is inherently serial, and $p$, the number of processors. Our task graphs have complex dependency structures, where tasks cannot be neatly categorized as strictly \"serial\" or \"parallel.\" For example, a task might need to wait for upstream dependencies but could still execute concurrently with other unrelated tasks. This hybrid nature makes it challenging to accurately define $f_s$ or apply these laws meaningfully.",
+    "translation": "这里定义依赖复杂度：对每个子任务统计图中的直接连接数量，再计算这些度数相对平均度的标准差。直觉上，如果某些节点承担过多依赖，它们就可能变成瓶颈或脆弱点；标准差越大，说明依赖越集中，workflow 越不均衡。Flow 因此偏好依赖更分散、更容易局部更新的结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dependency Metrics",
+    "page": 7,
+    "sourceText": "Dependency Metrics",
+    "translation": "这一部分属于“Dependency Metrics”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dependency Metrics",
+    "page": 7,
+    "sourceText": "Cyclomatic Complexity ($CC = E - N + p$), cyclomatic complexity measures the number of linearly independent paths through a program, providing an overall complexity measure. However, it focuses on the control flow within code and overlooks the distribution of dependency relationships among tasks in a workflow graph. It does not capture the \"dependency concentration\" or \"dispersion,\" which are crucial to understanding the impact of dependencies on workflow robustness and the ease with which LLM can comprehend and update the workflow.",
+    "translation": "附录解释为什么作者没有直接采用传统并行计算或程序复杂度指标。加速比、阿姆达尔定律和古斯塔夫森定律需要明确串行比例或可测执行时间，但 LLM 任务图中的子任务依赖更混合，不容易被严格划分为串行或并行。圈复杂度关注程序控制流，也不能表达任务依赖的集中或分散。因此论文选择平均并行度和度分布标准差，更贴近多智能体 workflow 的调度问题。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Proposed Metrics for Task Workflow Evaluation",
+    "page": 7,
+    "sourceText": "Proposed Metrics for Task Workflow Evaluation",
+    "translation": "这一部分属于“Proposed Metrics for Task Workflow Evaluation”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Proposed Metrics for Task Workflow Evaluation",
+    "page": 7,
+    "sourceText": "Given these limitations, we use two simple metrics in our LLM-based multi-agent framework: 1). Parallelism Metric: This metric does not rely on execution time measurements or require assumptions about tasks being strictly serial or parallel. It directly reflects the workflow's potential for concurrent task execution, making it more applicable to our scenario. 2). Dependency Metric: We focus on the \"dependency concentration\" or \"dependency dispersion\" by analyzing the standard deviation of the degree distribution in the task graph. This metric provides an intuitive reflection of critical dependency points within the workflow. By highlighting how dependencies are distributed among tasks, it helps us understand and mitigate potential bottlenecks, enhancing both robustness and the LLM's ability to process workflow updates efficiently.",
+    "translation": "这里定义依赖复杂度：对每个子任务统计图中的直接连接数量，再计算这些度数相对平均度的标准差。直觉上，如果某些节点承担过多依赖，它们就可能变成瓶颈或脆弱点；标准差越大，说明依赖越集中，workflow 越不均衡。Flow 因此偏好依赖更分散、更容易局部更新的结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "Examples of 's Workflow",
+    "translation": "这一部分属于“Flow 工作流示例”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： ' 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "In this section, we present examples of actual workflows generated by.",
+    "translation": "这一部分属于“Flow 工作流示例”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "Fig.fig:ourlatex showing 's workflow in generating LaTeX Beamer, Flow concurrently generates the four required components for each algorithm: motivation, problem, intuitive solution, and mathematical equations.",
+    "translation": "实验设计包含三类任务：五子棋游戏开发、LaTeX Beamer 课件写作和会议网站设计。五子棋任务需要协调游戏逻辑、简单 AI 和用户界面；Beamer 任务需要生成强化学习课件并满足页数和内容要求；网站任务需要生成专业会议网页、日程和场地地图。作者选择这些编码和写作任务，是因为它们天然包含多个可拆分模块，适合检验多智能体协作、并行执行和动态更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "Workflow of LaTeX Beamer Writing in Flow",
+    "translation": "图中给出 Flow 生成 LaTeX Beamer 课件时的 workflow，多个内容模块可以并行生成，再汇合成最终课件。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/workflow_latex.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "For the task of developing a gobang game, Flow recognizes that the UI and main game logic can be separated and executed in parallel to enhance overall speed and efficiency, as shown in Fig.fig:ourgobang. Additionally, there remains a clear sequential process; for instance, the game rules must be defined first before the corresponding code can be deployed.",
+    "translation": "这些附录示例展示 Flow 在不同任务上生成的 workflow。课件任务中，Flow 会把每个算法的动机、问题、直觉解法和数学公式并行组织；五子棋任务中，Flow 区分规则定义、主逻辑、AI 和界面等模块；网站任务中，Flow 把 HTML 的不同部分拆成独立子任务。这些例子说明，Flow 的模块化不是抽象口号，而是直接落到具体任务图和执行步骤上。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "Workflow of Gobang Game Development",
+    "translation": "图中给出五子棋游戏开发的 workflow，规则定义、界面、主逻辑和 AI 等模块被拆开组织，部分模块可以并行推进。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/workflow_gobang.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "For the task of website design, as shown in Fig.fig:ourweb, Flow treats different parts of the HTML as individual subtasks, which helps to increase overall speed. Additionally, dividing the process into separate components allows for parallel execution and improved modularity, ensuring that if an issue arises in one part of the HTML, it will not impact the performance of other sections. This approach improves both efficiency and fault tolerance.",
+    "translation": "这些附录示例展示 Flow 在不同任务上生成的 workflow。课件任务中，Flow 会把每个算法的动机、问题、直觉解法和数学公式并行组织；五子棋任务中，Flow 区分规则定义、主逻辑、AI 和界面等模块；网站任务中，Flow 把 HTML 的不同部分拆成独立子任务。这些例子说明，Flow 的模块化不是抽象口号，而是直接落到具体任务图和执行步骤上。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Flow 工作流示例",
+    "page": 7,
+    "sourceText": "Workflow of Website Design",
+    "translation": "图中给出网站设计任务的 workflow，Flow 将页面结构、内容模块和样式功能拆成子任务，以提高并行度和局部容错性。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/la.drawio.png",
+    "kind": "figure"
+  },
+  {
+    "section": "示例工作流",
+    "page": 7,
+    "sourceText": "Example Workflow",
+    "translation": "这一部分属于“示例工作流”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "示例工作流",
+    "page": 7,
+    "sourceText": "A workflow of Website Design in VSCode",
+    "translation": "图中给出网站设计任务的 workflow，Flow 将页面结构、内容模块和样式功能拆成子任务，以提高并行度和局部容错性。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/workflow.png",
+    "kind": "figure"
+  },
+  {
+    "section": "示例工作流",
+    "page": 7,
+    "sourceText": "Different multi-agent frameworks' LaTeX Beamer",
+    "translation": "图中给出 Flow 生成 LaTeX Beamer 课件时的 workflow，多个内容模块可以并行生成，再汇合成最终课件。",
+    "assetPath": "/generated/flow-modularized-agentic-workflow-automation/ppt.png",
+    "kind": "figure"
+  },
+  {
+    "section": "AOV 更新伪代码",
+    "page": 7,
+    "sourceText": "Pseudocode for updating AOV",
+    "translation": "这一部分属于“AOV 更新伪代码”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AOV 更新伪代码",
+    "page": 7,
+    "sourceText": "Algorithm: Helper Function for Updating Graph\n\\beginalgorithm[H]\n\\SetKwFunctionFUpdateGraphUpdateGraph\n\\SetKwProgFnFunction:\n\\Fn\\FUpdateGraph$\\tildeG$, $P$, $P_init$\n\\tcpGenerate updated candidate workflows using LLM\n\\( \\\\tildeG_1, \\tildeG_2, ..., \\tildeG_K\\ ← f(\\tildeG, P, P_init) \\)\\;\n\\tcpInitialize selection variables\n\\( P_max ← -\\infty \\)\\;\n\\( C_min ← +\\infty \\)\\;\n\\( \\tildeG_optimal ← None \\)\\;\n\\tcpEvaluate each candidate workflow\n\\Foreach candidate workflow \\( \\tildeG_k \\) in \\( \\\\tildeG_1, \\tildeG_2, ..., \\tildeG_K\\ \\)\nCompute Parallelism \\( P_k ← P_avg(\\tildeG_k) \\)\\;\nCompute Dependency Complexity \\( C_k ← C_dependency(\\tildeG_k) \\)\\;\n\\If \\( P_k > P_max \\) or \\( (P_k == P_max and C_k < C_min) \\)\n\\( P_max ← P_k \\)\\;\n\\( C_min ← C_k \\)\\;\n\\( \\tildeG_optimal ← \\tildeG_k \\)\\;\nreturn \\( \\tildeG_optimal \\) \\;\n\\endalgorithm",
+    "translation": "该算法描述更新候选工作流的选择过程。输入是当前图、任务需求和初始化或更新提示词；模型先生成多个候选图，然后分别计算并行度和依赖复杂度。系统维护当前最高并行度和最低依赖复杂度，只要某个候选并行度更高，或并行度相同但依赖复杂度更低，就把它设为最优图。最后返回这个最优候选。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "AOV 更新伪代码",
+    "page": 7,
+    "sourceText": "Algorithm: Flow\n\\beginalgorithm[H]\n\\SetAlgoLined\n\\KwDataTask Requirements \\( P \\), Initialization Prompt \\( P_init \\), Update Prompt \\( P_update \\)\n\\KwResultOptimized Multi-Agent Workflow\n\\BlankLine\n\\tcpStep 1: Implement a Workflow using a dictionary structure\nInitialize workflow formulation by defining the task dictionary \\( \\tildeG \\) where each key \\( v \\in V \\) maps to a dictionary containing:\n$\n\\tildeG[v] = \\ status, data, num_parents_not_completed, child, agent \\\n$\n\\BlankLine\n\\tcpStep 2: Generate an Initial Workflow\n\\( \\tildeG ← UpdateGraph(\\\\, P_init, P) \\)\\;\n\\BlankLine\n\\tcpStep 3: Workflow Refinement and Dynamic Updating\n\\Whilethere exists at least one sub-task in \\( \\tildeG \\) that is not completed\n\\Ifan update to the workflow is required\n\\tcpGenerate and Select the Best Updated Workflow\n\\( \\tildeG ← UpdateGraph(\\tildeG, P_update, P) \\)\\;\nUpdate workflow dictionary \\( \\tildeG \\) to \\( \\tildeG_best \\)\\;\n\\tcpRegenerate Execution Plan and Reallocate Agents\nPerform Topological Sort on \\( \\tildeG \\) to obtain updated execution order \\( \\sigma \\)\\;\nAssign agents \\( A_j \\) to their respective sub-tasks \\( T_j \\subseteq V \\)\\;\n\\tcpExecute Available Sub-tasks in Parallel\n\\ForEachsub-task \\( v_i \\in V \\)\n\\Ifstatus of \\( v_i \\) is not started and \\( \\tildeG[v_i].num_parents_not_completed == 0 \\)\n\\eIfagent \\( a_j \\) is available\nAssign agent \\( a_j \\) to sub-task \\( v_i \\)\\;\nClone agent \\( a_j' \\)\\;\nAssign cloned agent \\( a_j' \\) to sub-task \\( v_i \\)\\;\n\\tcpExecute subtask \\( v_i \\) in parallel\nExecute \\( v_i \\) using agent \\( a_j \\) or cloned agent \\( a_j' \\) concurrently\\;\n\\tcpUpdate Subtask Status and Data\nUpdate status of sub-task \\( v_i \\) to in progress\\;\n\\tcpAfter execution, update related data\nUpdate output of subtask \\( v_i \\) to \\( \\tildeG[v_i].data \\)\\;\n\\( \\tildeG[v_i].status ← ``completed'' \\)\\;\n\\tcpUpdate Child Tasks' Parent Completion Count\n\\ForEachchild task \\( c \\in \\tildeG[v_i].child \\)\n\\( \\tildeG[c].num_parents_not_completed ← \\tildeG[c].num_parents_not_completed - 1 \\)\\;\n\\endalgorithm",
+    "translation": "该算法描述更新候选工作流的选择过程。输入是当前图、任务需求和初始化或更新提示词；模型先生成多个候选图，然后分别计算并行度和依赖复杂度。系统维护当前最高并行度和最低依赖复杂度，只要某个候选并行度更高，或并行度相同但依赖复杂度更低，就把它设为最优图。最后返回这个最优候选。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "工作流更新提示词",
+    "page": 7,
+    "sourceText": "Prompt for Workflow Update",
+    "translation": "这里展示 Flow 用于初始化或更新 workflow 的提示词结构。提示词要求模型根据任务需求生成必要子任务、依赖关系和智能体分配，并把结果表示成字典：每个子任务记录状态、数据、未完成父节点数量、子任务列表和负责智能体。这个格式让 workflow 既能被程序执行，也能被 LLM 阅读和更新。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新提示词",
+    "page": 7,
+    "sourceText": "[title= User input, colback=whitesmoke, colframe=gray, boxrule=2pt, arc=0mm]",
+    "translation": "这一部分属于“工作流更新提示词”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： = , =, =, =2, =0 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新提示词",
+    "page": 7,
+    "sourceText": "1. Update the Workflow\n\n    - Evaluate Completed Tasks:\n        - Focus: Examine only tasks with `\"status\": \"completed\"`.\n        - Check Data:\n            - Ensure that `\"data\"` for each task is sufficient, detailed, and directly contributes to the `final_goal`.\n\n    - Assess Workflow Structure:\n        - Examine All Tasks: Review all tasks, including those labeled `\"completed\"`, `\"pending\"`, and `\"in-progress\"`.\n        - Check Adequacy:\n            - Confirm the workflow is complete and logically structured to achieve the `final_goal`.\n            - Ensure there are no missing critical tasks or dependencies.\n            - Verify that `\"next\"` and `\"prev\"` connections between tasks are logical and facilitate seamless progression.\n        - Identify Inefficiencies:\n            - Detect and address unnecessary dependencies, bottlenecks, or redundant steps that hinder the workflow's efficiency.\n\n    - Allowed Changes:\n        - Modify: Clarify and detail the objectives of tasks with insufficient or vague directives to ensure they meet the `final_goal`.\n        - Add: Introduce new tasks with clear, detailed descriptions to fill gaps in data or structure.\n        - Remove: Eliminate redundant or obsolete tasks to streamline the workflow.\n\n    - Maintain Logical Flow:\n        - Reorganize task connections (`\"next\"` and `\"prev\"`) to enhance parallel execution and improve overall workflow efficiency.\n\n2. Output Format\n    - If No Changes Are Made:\n      - Return an empty JSON object to indicate that no modifications were necessary: `json{}`.\n    - If Changes Are Made:\n      - Return a JSON object containing the updated workflow without including the `\"data\"` fields to optimize token usage. This JSON should only include the structural changes (task parameters and connections).",
+    "translation": "这段提示词用于 workflow 更新阶段，要求模型检查已完成、等待中和执行中的子任务，判断数据是否足以达成最终目标，并通过增加、删除、修改、重连任务来保持模块化和并行执行。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "工作流更新策略",
+    "page": 7,
+    "sourceText": "Workflow Update Strategies",
+    "translation": "工作流更新策略",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流更新策略",
+    "page": 7,
+    "sourceText": "We implemented two different workflow update strategies: • Update Concurrently In this approach, when a subtask is completed, it immediately triggers the workflow update function, even if other subtasks are still running. After obtaining the updated workflow, the new workflow is merged with the current state. • Trade-off: This workflow update strategy runs concurrently with task execution, optimizing running time. However, it can result in unnecessary API calls, as some subtasks still in progress may become redundant or misaligned with the updated workflow. • Update After Task Completion In this strategy, when a subtask is completed, no new tasks are allocated immediately. Instead, the system waits for all running subtasks to finish before triggering the workflow update. After the update is completed, new subtasks are allocated based on the updated workflow. This approach reduces unnecessary API calls by batching updates. • Trade-off: This workflow update strategy reduces unnecessary API calls but increases overall running time, as new subtasks are delayed until the workflow update is complete. In our paper, all the experiments are obtained by using the second strategy to avoid the waste of API usage.",
+    "translation": "这一部分属于“工作流更新策略”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： : • , , , , • : , , , • , , , , • : , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "多智能体框架说明",
+    "page": 8,
+    "sourceText": "Framework of the Multi-Agent framework",
+    "translation": "这一部分属于“多智能体框架说明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 8,
+    "sourceText": "Overview",
+    "translation": "这一部分属于“Overview”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 8,
+    "sourceText": "The multi-agent framework is designed to execute complex tasks by decomposing them into subtasks, which are managed and executed by individual agents. The framework leverages LLM to generate and update workflows dynamically, ensuring robustness, efficiency, and adaptability.",
+    "translation": "这一部分属于“Overview”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Key Components",
+    "page": 8,
+    "sourceText": "Key Components",
+    "translation": "这一部分属于“Key Components”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Key Components",
+    "page": 8,
+    "sourceText": "• Agents • Role Assignment • Automatic Role Generation: Roles are automatically generated by LLM during workflow generation and updates. • Flexibility: By default, roles are not fixed, allowing the system to adapt to the specific requirements of each task. • Role Constraints: In scenarios with resource constraints, roles can be explicitly defined to limit the number of agents or types of expertise in prompt. • Subtask Assignment • Matching Expertise: Subtasks are assigned to agents whose roles best match the task requirements, ensuring tasks are executed by agents with appropriate skills. • One Agent per Subtask: Only one agent is assigned per subtask to maintain clarity and responsibility. • Workflow Management • Workflow Generation • Initial Workflow: The LLM generates an initial workflow that outlines all subtasks and their dependencies required to achieve the final goal. • Task Dependencies: Dependencies are defined to ensure logical progression and to facilitate parallel execution where possible. • Workflow Update Mechanisms • Two strategies are employed for updating the workflow: • Update Concurrently • Trigger: When a subtask is completed, the workflow update function is triggered immediately, even if other subtasks are still running. • Process: The updated workflow is obtained and merged with the current state. • Trade-off: Optimizes running time but may result in unnecessary API calls, as some subtasks still in progress might become redundant after the update. • Update After Subtask Completion • Trigger: No new subtasks are allocated immediately after a subtask is completed. The system waits for all running subtasks to finish before updating. • Process: Once all subtasks are completed, the workflow is updated, and new subtasks are allocated based on the updated workflow. • Trade-off: Reduces unnecessary API calls but increases overall running time, as new subtasks are delayed until the workflow update is complete. • Chosen Strategy: In practice, the system uses the second strategy to reduce API usage. • Dynamic Restructuring • Mechanism for Dynamic Workflow Restructuring • Workflow Update Mechanism: The system includes a robust workflow update mechanism that continuously monitors the execution status of all subtasks. If a subtask fails or is deemed unsolvable, the system triggers an update process. • Re-evaluation of Workflow: The system systematically reviews the current workflow, taking into account the unsolvable subtask. It assesses the impact of the failed subtask on all subtasks and the overall goal. • Adjusting Dependencies: The workflow is adjusted by removing or modifying the unsolvable subtask and updating dependencies accordingly. This may involve: • Reassigning Subtasks: Redirecting subtasks to alternative agents or creating new subtasks that can achieve similar outcomes. • Adding New Subtasks: Introducing new subtasks that offer alternative solutions or pathways to reach the final goal. • Bypassing Unnecessary Steps: If possible, restructuring the workflow to bypass the unsolvable subtask without compromising the end objectives. • Task Execution • Parallelism • Maximizing Parallel Execution: The workflow is designed to allow subtasks without dependencies to be executed in parallel, optimizing resource utilization and reducing total execution time. • Dependency Management: Dependencies are minimized where possible to enhance parallelism. • Dependency Minimization • Dependency Metric: The system analyzes the standard deviation of the degree distribution in the task graph to identify and minimize critical dependency points. • Reducing Bottlenecks: By minimizing unnecessary dependencies, the system reduces potential bottlenecks and enhances robustness.",
+    "translation": "这里定义依赖复杂度：对每个子任务统计图中的直接连接数量，再计算这些度数相对平均度的标准差。直觉上，如果某些节点承担过多依赖，它们就可能变成瓶颈或脆弱点；标准差越大，说明依赖越集中，workflow 越不均衡。Flow 因此偏好依赖更分散、更容易局部更新的结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Workflow Execution Process",
+    "page": 9,
+    "sourceText": "Workflow Execution Process",
+    "translation": "这一部分属于“Workflow Execution Process”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Workflow Execution Process",
+    "page": 9,
+    "sourceText": "• Initial Workflow Generation • The LLM generates a workflow based on the final goal, decomposing it into subtasks with defined dependencies. • Agent Role Assignment • Agents are assigned roles automatically by the LLM. • Subtasks are assigned to agents based on role matching. • Subtask Execution • Agents execute their assigned subtasks. • Subtasks are executed in parallel where dependencies allow. • Monitoring and Updates • The system monitors subtask completion statuses. • Depending on the update strategy, the workflow is updated either concurrently or after all current subtasks are completed. • Dynamic Restructuring • Detection: If a subtask is determined to be insufficient or unsolvable for achieving the requirement, the system detects this during execution. • Re-evaluation of Workflow: The system reviews the current workflow, assessing the impact of the failed subtask on all subtasks and the overall goal. • Workflow Adjustment: The LLM restructures the workflow dynamically to adjust other subtasks or redefine dependencies. • Continuity: This ensures that progress toward the final goal continues without significant delays. • Completion • The process continues until all subtasks are completed and the final goal is achieved.",
+    "translation": "这一部分属于“Workflow Execution Process”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：• • , • • • • • • • • • , • • : , • : , • : • : • • 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitation and Future Work",
+    "page": 10,
+    "sourceText": "Limitation and Future Work",
+    "translation": "这一部分属于“Limitation and Future Work”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitation and Future Work",
+    "page": 10,
+    "sourceText": "Although we have generated multiple candidate workflows and selected the one with the highest modularity, it is still not the most efficient. With sufficient computing and data resources, a model trained specifically for workflow management could significantly enhance the framework's performance. For instance, the LLM could be designed to maximize a reward function centered on key performance indicators such as task completion speed, resource utilization, and minimizing disruptions in the workflow. Such training could lead to the development of more effective workflows. The workflow updater requires global information to function effectively, which can become problematic as the context length increases. This limitation could be addressed by employing a rig or a hierarchical approach to more precisely identify errors or areas lacking efficiency, thereby facilitating more targeted updates and improvements within the workflow.",
+    "translation": "这一部分属于“Limitation and Future Work”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , , , , , , , 。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Proof of Theorem thm:modular_workflow",
+    "translation": "这一部分用定理形式说明为什么额外依赖会降低 workflow 的期望成功表现。论文设定每个子任务都有随机失败概率，并比较两个拓扑排序后的 workflow：如果其中一个 workflow 为某些子任务增加了额外前置依赖，那么这些子任务成功的前提会变多，成功概率会被更多上游事件相乘削弱。结论是，依赖更少、模块更独立的 workflow 在期望完成子任务数量上更有优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "We will compare the expected number of successfully completed subtasks in both workflows.",
+    "translation": "这一部分用定理形式说明为什么额外依赖会降低 workflow 的期望成功表现。论文设定每个子任务都有随机失败概率，并比较两个拓扑排序后的 workflow：如果其中一个 workflow 为某些子任务增加了额外前置依赖，那么这些子任务成功的前提会变多，成功概率会被更多上游事件相乘削弱。结论是，依赖更少、模块更独立的 workflow 在期望完成子任务数量上更有优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "• Let $P_A(v)$ and $P_B(v)$ denote the probability that subtasks $v$ is successfully completed in Workflow A and Workflow B, respectively. • For each subtasks $v$, let $D_A(v)$ and $D_B(v)$ be the sets of immediate predecessors of $v$ in Workflow A and Workflow B, respectively.",
+    "translation": "这里定义平均并行度：把每个执行步骤中可并行运行的子任务集合记为 $S_t$，总执行层数记为 $T$，则整体并行度是各步骤并行子任务比例的平均值。这个指标直接反映 workflow 的潜在并发执行能力，用来避免 LLM 生成过度顺序化的任务图。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Success Probability of a subtasks: In Workflow A, the success probability of subtasks $v$ is given by:",
+    "translation": "定理证明部分从成功概率角度说明依赖增加的影响。每个子任务成功不仅取决于自身不失败，还取决于所有前置依赖成功；当某个 workflow 为子任务增加额外依赖时，该子任务成功概率会多乘一个小于等于一的因子。通过对所有子任务成功概率求和，论文得到依赖更多的 workflow 期望完成数量更低，从而为减少依赖、提升模块化提供理论支持。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "\\begin{equation}\n\\label{eq:PA}\nP_A(v) = (1 - p_f) \\times \\prod_{i \\in D_A(v)} P_A(i).\n\\end{equation}",
+    "translation": "该公式用于证明模块化定理：子任务成功概率等于自身不失败概率与所有前置依赖成功概率的乘积，因此额外依赖会降低成功概率。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Similarly, in Workflow B:",
+    "translation": "这一部分属于“模块化工作流定理证明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是：, :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "\\begin{equation}\n\\label{eq:PB}\nP_B(v) = (1 - p_f) \\times \\prod_{i \\in D_B(v)} P_B(i).\n\\end{equation}",
+    "translation": "该公式用于证明模块化定理：子任务成功概率等于自身不失败概率与所有前置依赖成功概率的乘积，因此额外依赖会降低成功概率。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Base Case: Since the subtasks $v$ with no dependencies (i.e., $D_A(v) = D_B(v) = $) have the same success probability in both workflows:",
+    "translation": "这一部分属于“模块化工作流定理证明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： : , = = :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Inductive Step: We proceed by induction on the subtasks' dependency levels.",
+    "translation": "定理证明部分从成功概率角度说明依赖增加的影响。每个子任务成功不仅取决于自身不失败，还取决于所有前置依赖成功；当某个 workflow 为子任务增加额外依赖时，该子任务成功概率会多乘一个小于等于一的因子。通过对所有子任务成功概率求和，论文得到依赖更多的 workflow 期望完成数量更低，从而为减少依赖、提升模块化提供理论支持。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Comparison for Subtasks $v^*$: Subtasks $v^*$ has an additional dependency $d$ in Workflow B. Therefore:",
+    "translation": "这一部分属于“模块化工作流定理证明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： * : * :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Using equations and, we have:",
+    "translation": "这一部分属于“模块化工作流定理证明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： , :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "\\begin{align*}\nP_A(v^*) &= (1 - p_f) \\times \\prod_{i \\in D_A(v^*)} P_A(i), \\\\\nP_B(v^*) &= (1 - p_f) \\times \\prod_{i \\in D_B(v^*)} P_B(i) = (1 - p_f) \\times P_B(d) \\times \\prod_{i \\in D_A(v^*)} P_B(i).\n\\end{align*}",
+    "translation": "该公式用于证明模块化定理：子任务成功概率等于自身不失败概率与所有前置依赖成功概率的乘积，因此额外依赖会降低成功概率。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Since $D_A(v^*) = D_B(v^*) d $, and $P_A(i) = P_B(i)$ for all $i v^*$ (because their dependencies are the same), it follows that:",
+    "translation": "这里定义平均并行度：把每个执行步骤中可并行运行的子任务集合记为 $S_t$，总执行层数记为 $T$，则整体并行度是各步骤并行子任务比例的平均值。这个指标直接反映 workflow 的潜在并发执行能力，用来避免 LLM 生成过度顺序化的任务图。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Because $0 < P_B(d) = P_A(d) < 1$ (since $p_f > 0$), we have:",
+    "translation": "这里定义平均并行度：把每个执行步骤中可并行运行的子任务集合记为 $S_t$，总执行层数记为 $T$，则整体并行度是各步骤并行子任务比例的平均值。这个指标直接反映 workflow 的潜在并发执行能力，用来避免 LLM 生成过度顺序化的任务图。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Success Probabilities for Other Subtasks: For all subtasks $v v^*$, $D_A(v) = D_B(v)$, so:",
+    "translation": "这一部分属于“模块化工作流定理证明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： : * , = , :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Expected Number of Successfully Completed Subtasks: The expected number of successfully completed subtasks in each workflow is:",
+    "translation": "这一部分用定理形式说明为什么额外依赖会降低 workflow 的期望成功表现。论文设定每个子任务都有随机失败概率，并比较两个拓扑排序后的 workflow：如果其中一个 workflow 为某些子任务增加了额外前置依赖，那么这些子任务成功的前提会变多，成功概率会被更多上游事件相乘削弱。结论是，依赖更少、模块更独立的 workflow 在期望完成子任务数量上更有优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "\\begin{align*}\nE[S_A] &= \\sum_{v \\in \\mathcal{T}} P_A(v), \\\\\nE[S_B] &= \\sum_{v \\in \\mathcal{T}} P_B(v).\n\\end{align*}",
+    "translation": "该公式定义平均并行度：对每个执行步骤的可并行子任务比例求平均，用来衡量 workflow 在结构上能否压缩总执行步数。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Substituting the above findings:",
+    "translation": "这一部分属于“模块化工作流定理证明”。论文在这里围绕 Flow 的模块化多智能体工作流展开论证：把复杂任务拆成可追踪的子任务，把子任务组织成有向无环的 AOV 图，并让智能体根据任务状态、依赖关系和执行反馈推进或更新工作流。 原文具体讨论的是： :。为了服务 Flow 的目标，这里的重点是把任务状态、依赖关系、智能体分工和执行反馈放到同一个可更新结构中，让系统能够并行推进独立子任务，并在局部失败时做有边界的调整。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。这使 workflow 不再是静态脚本，而成为可检查、可选择、可修复的运行时对象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "\\begin{align*}\nE[S_B] &= \\sum_{v \\neq v^*} P_B(v) + P_B(v^*) \\\\\n&= \\sum_{v \\neq v^*} P_A(v) + P_B(v^*) \\\\\n&= \\left( \\sum_{v \\in \\mathcal{T}} P_A(v) - P_A(v^*) \\right) + P_B(v^*) \\\\\n&= E[S_A] - \\left( P_A(v^*) - P_B(v^*) \\right).\n\\end{align*}",
+    "translation": "该公式定义平均并行度：对每个执行步骤的可并行子任务比例求平均，用来衡量 workflow 在结构上能否压缩总执行步数。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Since $P_B(v^*) < P_A(v^*)$, the difference $ P = P_A(v^*) - P_B(v^*) > 0$. Thus,",
+    "translation": "这里定义平均并行度：把每个执行步骤中可并行运行的子任务集合记为 $S_t$，总执行层数记为 $T$，则整体并行度是各步骤并行子任务比例的平均值。这个指标直接反映 workflow 的潜在并发执行能力，用来避免 LLM 生成过度顺序化的任务图。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块化工作流定理证明",
+    "page": 11,
+    "sourceText": "Therefore, the expected number of successfully completed subtasks in Workflow A is strictly greater than in Workflow B:",
+    "translation": "这一部分用定理形式说明为什么额外依赖会降低 workflow 的期望成功表现。论文设定每个子任务都有随机失败概率，并比较两个拓扑排序后的 workflow：如果其中一个 workflow 为某些子任务增加了额外前置依赖，那么这些子任务成功的前提会变多，成功概率会被更多上游事件相乘削弱。结论是，依赖更少、模块更独立的 workflow 在期望完成子任务数量上更有优势。",
+    "kind": "paragraph"
+  }
+]

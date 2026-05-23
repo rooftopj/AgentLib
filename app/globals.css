@@ -617,6 +617,9 @@ mark {
 }
 
 .inline-math {
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: -0.08em;
   color: var(--ink);
   white-space: nowrap;
 }
@@ -762,6 +765,7 @@ mark {
 }
 
 .concept-tabs p {
+  max-width: none;
   margin-bottom: 0;
 }
 
@@ -867,9 +871,13 @@ mark {
 }
 
 .content-section p,
-.callout p,
-.math-block p {
+.callout p {
   max-width: 72ch;
+  color: var(--muted);
+}
+
+.math-block p {
+  max-width: none;
   color: var(--muted);
 }
 

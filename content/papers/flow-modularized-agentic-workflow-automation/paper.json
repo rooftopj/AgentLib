@@ -1,0 +1,103 @@
+{
+  "slug": "flow-modularized-agentic-workflow-automation",
+  "title": "Flow: Modularized Agentic Workflow Automation",
+  "authors": [
+    "Boye Niu",
+    "Yiliao Song",
+    "Kai Lian",
+    "Yifan Shen",
+    "Yu Yao",
+    "Kun Zhang",
+    "Tongliang Liu"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Boye Niu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yiliao Song",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Kai Lian",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yifan Shen",
+      "institutionIds": [
+        3
+      ]
+    },
+    {
+      "name": "Yu Yao",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Kun Zhang",
+      "institutionIds": [
+        3,
+        4
+      ]
+    },
+    {
+      "name": "Tongliang Liu",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "University of Sydney",
+      "translation": "悉尼大学"
+    },
+    {
+      "id": 2,
+      "name": "University of Adelaide",
+      "translation": "阿德莱德大学"
+    },
+    {
+      "id": 3,
+      "name": "Mohamed bin Zayed University of Artificial Intelligence",
+      "translation": "穆罕默德·本·扎耶德人工智能大学"
+    },
+    {
+      "id": 4,
+      "name": "Carnegie Mellon University",
+      "translation": "卡内基梅隆大学"
+    }
+  ],
+  "institutions": [
+    "University of Sydney",
+    "University of Adelaide",
+    "Mohamed bin Zayed University of Artificial Intelligence",
+    "Carnegie Mellon University"
+  ],
+  "year": 2025,
+  "venue": "arXiv",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "Flow",
+    "AOV 图",
+    "模块化 workflow",
+    "动态工作流更新",
+    "多智能体协作",
+    "并行执行"
+  ],
+  "summary": "Flow 将多智能体任务执行流程表示为 Activity-on-Vertex 图，用并行度和依赖复杂度筛选初始 workflow，并在执行过程中根据子任务状态、历史数据和失败信号动态更新任务图。论文强调模块化设计，让子任务尽量并行且降低依赖集中度，从而提升效率、容错性和可维护性；在 Gobang 游戏开发、LaTeX Beamer 写作和网站设计任务中，Flow 相比 AutoGen、CAMEL、MetaGPT 获得更高成功率和人工评分。",
+  "arxivId": "2501.07834",
+  "arxivUrl": "https://arxiv.org/abs/2501.07834",
+  "sourcePath": "assets/papers/arXiv-2501.07834v2",
+  "codeUrl": "https://github.com/tmllab/2025_ICLR_FLOW"
+}
