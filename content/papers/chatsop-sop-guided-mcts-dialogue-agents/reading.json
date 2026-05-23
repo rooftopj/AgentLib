@@ -1,0 +1,1717 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "ChatSOP: An SOP-Guided MCTS Planning Framework for Controllable LLM Dialogue Agents",
+    "translation": "ChatSOP：面向可控 LLM 对话智能体的 SOP 引导 MCTS 规划框架",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Authors",
+    "page": 1,
+    "sourceText": "Zhigen Li, Jianxiang Peng, Yanmeng Wang, Yong Cao, Tianhao Shen, Minghui Zhang, Linxi Su, Shang Wu, Yihang Wu, Yuqian Wang, Ye Wang, Wei Hu, Jianfeng Li, Shaojun Wang, Jing Xiao, Deyi Xiong",
+    "translation": "Zhigen Li、Jianxiang Peng、Yanmeng Wang、Yong Cao、Tianhao Shen、Minghui Zhang、Linxi Su、Shang Wu、Yihang Wu、Yuqian Wang、Ye Wang、Wei Hu、Jianfeng Li、Shaojun Wang、Jing Xiao、Deyi Xiong",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Institutions",
+    "page": 1,
+    "sourceText": "1. College of Intelligence and Computing, Tianjin University, Tianjin, China\n2. Ping An Technology\n3. Tübingen AI Center, University of Tübingen",
+    "translation": "1. College of Intelligence and Computing, Tianjin University, Tianjin, China：天津大学智能与计算学部，中国天津\n2. Ping An Technology：平安科技\n3. Tübingen AI Center, University of Tübingen：图宾根大学图宾根 AI 中心",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Dialogue agents powered by Large Language Models (LLMs) show superior performance in various tasks. Despite the better user understanding and human-like responses, their lack of controllability remains a key challenge, often leading to unfocused conversations or task failure. To address this, we introduce Standard Operating Procedure (SOP) to regulate dialogue flow. Specifically, we propose ChatSOP, a novel SOP-guided Monte Carlo Tree Search (MCTS) planning framework designed to enhance the controllability of LLM-driven dialogue agents. To enable this, we curate a dataset comprising SOP-annotated multi-scenario dialogues, generated using a semi-automated role-playing system with GPT-4o and validated through strict manual quality control. Additionally, we propose a novel method that integrates Chain of Thought reasoning with supervised fine-tuning for SOP prediction and utilizes SOP-guided Monte Carlo Tree Search for optimal action planning during dialogues. Experimental results demonstrate the effectiveness of our method, such as achieving a 27.95% improvement in action accuracy compared to baseline models based on GPT-3.5 and also showing notable gains for open-source models. Dataset and codes are publicly available.",
+    "translation": "由大语言模型（LLM）驱动的对话智能体在多种任务中表现优异。尽管它们更善于理解用户、生成接近人类的回复，但可控性不足仍然是关键挑战，常常导致对话发散或任务失败。为了解决这一问题，论文引入标准操作流程（SOP）来规范对话流。具体而言，论文提出 ChatSOP：一个由 SOP 引导的蒙特卡洛树搜索（MCTS）规划框架，用来提升 LLM 对话智能体的可控性。为支撑这一框架，作者构建了一个包含 SOP 标注、多场景对话的数据集，该数据集通过 GPT-4o 半自动角色扮演系统生成，并经过严格人工质量控制。论文还提出一种新方法：结合思维链推理和监督微调预测 SOP，并在对话过程中使用 SOP-guided MCTS 进行最优动作规划。实验结果证明该方法有效，例如相比基于 GPT-3.5 的基线，动作准确率提升 27.95%，开源模型上也有明显收益。数据集和代码已公开。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Task-oriented dialogue agents are essential for applications such as hotel booking, technical support, and customer service [cite: ouyang2022training, moradshahi2023x].",
+    "translation": "任务型对话智能体对于酒店预订、技术支持和客户服务等应用非常重要。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Recent advancements leverage Large Language Models' (LLMs) in-context learning ability to improve understanding, generate human-like responses, and adapt to diverse domains [cite: liu-etal-2024-lara, yi2024survey].",
+    "translation": "近期进展利用大语言模型（LLM）的上下文学习能力来提升理解、生成类人回复，并适配不同领域。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "However, despite the enhanced intelligence powered by LLMs, a key challenge that persists in current dialogue agents is the lack of controllability [cite: achiam2023gpt, hadi2024large]. For instance, as illustrated in Figure fig: cogd_example right panel, activating a credit card requires a specific sequence of steps—verifying personal information, creating a password, and activating the account. Omitting any step could result in task failure. Therefore, developing effective mechanisms to ensure greater control and goal-directed actions is crucial for LLM-based task-oriented dialogue agents.",
+    "translation": "然而，尽管 LLM 提升了对话智能体的智能水平，当前系统仍然面临一个核心挑战：缺乏可控性。以信用卡激活为例，这类任务要求按照特定顺序完成个人信息验证、密码创建和账户激活；漏掉任意一步都可能导致任务失败。因此，对基于 LLM 的任务型对话智能体来说，设计有效机制来保证更强控制和目标导向动作非常关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "The pipeline of our task-oriented dialogue agent, includes three components: task definition, offline prediction of standard operating procedure (SOP), and online planning of the action path by SOP-guided MCTS (SGM), where control demands are highlighted in orange. The right panel is an example of dialogue following the SOP for bank credit card activation.",
+    "translation": "图表说明：The pipeline of our 面向任务的 dialogue agent, includes three components: task definition, offline prediction of standard operating procedure (SOP), and online planning of the action path by SOP-guided MCTS (SGM), where control demands are highlighted in orange. The right panel is an example of dialogue following the SOP for bank credit card activation.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/exa_11.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "To address this challenge, we introduce a Standard Operating Procedure (SOP) to regulate the dialogue flow strictly following the task process. Specifically, we propose ChatSOP, an SOP-guided Monte Carlo Tree Search planning framework designed to enhance the controllability of LLM-driven dialogue agents. Unlike methods relying on manually annotated dialogue flows or training data, our approach requires only user-provided task definitions and goals, enabling autonomous planning for better generalizability at low cost.",
+    "translation": "为应对这一挑战，论文引入标准操作流程（SOP），让对话流严格遵循任务过程。具体而言，作者提出 ChatSOP：一个由 SOP 引导的蒙特卡洛树搜索规划框架，用于增强 LLM 对话智能体的可控性。不同于依赖人工标注对话流或训练数据的方法，这一方案只需要用户提供任务定义和目标，就能以较低成本进行自主规划，并获得更好的泛化能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "To define procedures required by specific tasks, we first introduce standard operating procedure (SOP) to control the dialogue states inspired by the traditional dialogue framework [cite: anantha2020open, zhu2022solving], and construct a dataset designed for multi-scenario conversations, consisting of task descriptions, controlled SOP, and complete dialogues. This dataset is constructed through a four-step role-playing system utilizing GPT-4o, combined with human validation and modification to ensure intermediate dialogue control and data quality. To the best of our knowledge, this is the first dataset that provides SOP intermediate annotations, which could also be explored to evaluate general-purpose LLM agents.",
+    "translation": "To define procedures required by specific tasks, we first introduce standard operating procedure (SOP) to control the dialogue states inspired by the traditional dialogue framework [cite: anantha2020open, zhu2022solving], and construct a 数据集 designed for multi-scenario conversations, consisting of task descriptions, controlled SOP, and complete dialogues.。这数据集 is constructed through a four-step 角色扮演 system utilizing GPT-4o, combined with human validation and modification to ensure intermediate dialogue control and data quality.。To the best of our knowledge, this is the first 数据集 that provides SOP intermediate annotations, which could also be explored to evaluate general-purpose LLM agents.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "To enable dialogue agents to plan with SOP, we propose a novel approach that integrates Chain of Thought (CoT) with supervised fine-tuning for predicting the SOP and utilizes SOP guiding Monte Carlo Tree Search (MCTS) to identify the optimal dialogue action that satisfies the predicted SOP for online planning. Intuitively, as illustrated in Figure fig: cogd_example, our pipeline consists of offline planning for SOP predictions and online action path execution with SOP controls, given the user-defined task and target output. For a comprehensive evaluation, we conduct both automatic and human assessments to measure the accuracy of overall actions, as well as their controllability and proactivity.",
+    "translation": "To enable 对话智能体 to plan with SOP, we propose a novel approach that integrates 思维链 (CoT) with 监督微调 for predicting the SOP and utilizes SOP guiding 蒙特卡洛树搜索 (MCTS) to identify the optimal dialogue action that satisfies the predicted SOP for online planning.。Intuitively, as illustrated in Figure fig: cogd_example, our pipeline consists of offline planning for SOP predictions and online action path execution with SOP controls, given the user-defined task and target output.。For a comprehensive 评估, we conduct both automatic and human assessments to measure the accuracy of overall actions, as well as their 可控性 and proactivity.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Experimental results demonstrate that our method achieves significant improvements in task success rate, with a 27.95% increase in overall action accuracy compared to baseline based on GPT-3.5. Additionally, for open-source models, larger models yield substantially better results, as evidenced by the performance gap between Llama3-70B (78.35%) and Llama3-8B (46.85%), highlighting their ability differences in dialogue tasks.",
+    "translation": "Experimental results demonstrate that our method achieves significant improvements in task success rate, with a 27.95% increase in overall action accuracy compared to 基线 based on GPT-3.5.。Additionally, for open-source models, larger models yield substantially better results, as evidenced by the performance gap between Llama3-70B (78.35%) and Llama3-8B (46.85%), highlighting their ability differences in dialogue tasks.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "In summary, we make three main contributions: 1) We construct the first SOP-annotated dataset, developed through a semi-automatic role-playing framework with manual review, specifically designed to support research on controllable dialogue agents; 2) We propose a planning-based framework that integrates SOP and MCTS to enhance the controllability of LLM task-oriented dialogue; 3) Extensive experiments with both automatic and human evaluation demonstrate the utility of our dataset and the effectiveness of our method, achieving superior performance in offline SOP prediction and online dialogue planning.",
+    "translation": "In summary, we make three main contributions: 1) We construct the first SOP-annotated 数据集, developed through a semi-automatic 角色扮演 framework with manual review, specifically designed to support research on controllable 对话智能体; 2) We propose a planning-based framework that integrates SOP and MCTS to enhance the 可控性 of LLM 面向任务的 dialogue; 3) Extensive experiments with both automatic and 人工评测 demonstrate the utility of our 数据集 and the effectiveness of our method, achieving superior performance in offline SOP prediction and online dialogue planning.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 1,
+    "sourceText": "Related Work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 1,
+    "sourceText": "Dialogue Agents. Existing approaches to dialogue agents can be categorized into four groups: conversational question answering (CQA) [cite: singhal2023towards, zhuang2024toolqa], open-domain dialogue (ODD) [cite: ouyang2022training], task-oriented dialogue (TOD) [cite: quan2020risawoz, moradshahi2023x], and conversational recommender systems (CRS) [cite: zhang2021kers, wang2023target]. CQA and ODD passively respond to users with knowledgeable or engaging conversations. TOD provides functional services following a structured process driven by training data [cite: budzianowski2018multiwoz, quan2020risawoz]. CRS plans dialog actions to guide conversations toward given goals [cite: wu2019proactive] but often fails to handle complex tasks requiring strict sequential constraints [cite: akyar2012standard, zhou2023agents].",
+    "translation": "Dialogue Agents.。Existing approaches to 对话智能体 can be categorized into four groups: conversational question answering (CQA) [cite: singhal2023towards, zhuang2024toolqa], open-domain dialogue (ODD) [cite: ouyang2022training], 面向任务的 dialogue (TOD) [cite: quan2020risawoz, moradshahi2023x], and conversational recommender systems (CRS) [cite: zhang2021kers, wang2023target].。CQA and ODD passively respond to users with knowledgeable or engaging conversations.。TOD provides functional services following a structured process driven by training data [cite: budzianowski2018multiwoz, quan2020risawoz].。CRS plans dialog actions to guide conversations toward given goals [cite: wu2019proactive] but often fails to handle complex tasks requiring strict sequential constraints [cite: akyar2012standard, zhou2023agents].。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 1,
+    "sourceText": "Dialogue Planning. Previous studies focuses on subgoal generation [cite: zhang2021kers], the next round of dialogue transition strategy [cite: tang2019target], hierarchical strategy [cite: kishinami2022target]. Recent work explores planning dialogue paths using basic knowledge, goal-oriented dialogue planning frameworks, and proactive transitions between dialogue stages [cite: wang2022follow].",
+    "translation": "Dialogue Planning.。Previous studies focuses on subgoal generation [cite: zhang2021kers], the next round of dialogue transition strategy [cite: tang2019target], hierarchical strategy [cite: kishinami2022target].。Recent work explores planning dialogue paths using basic knowledge, goal-oriented dialogue planning frameworks, and proactive transitions between dialogue stages [cite: wang2022follow].。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 1,
+    "sourceText": "Existing research employs greedy single-turn prediction strategies but ignores the interdependencies of global policies, resulting in uncontrollability from the perspective of global conversation [cite: wang2023dialogue]. Thus, we propose a SOP-guided planning approach to address this issue.",
+    "translation": "Existing research employs greedy single-turn prediction strategies but ignores the interdependencies of global policies, resulting in un可控性 from the perspective of global conversation [cite: wang2023dialogue].。Thus, we propose a SOP-guided planning approach to address this issue.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 1,
+    "sourceText": "Planning and Reasoning of LLMs. LLMs show prowess in planning and reasoning. Examples include Chain-of-Thought [cite: wei2022chain], its variants [cite: kojima2022large], Self-Consistency [cite: wang2022self], Least-to-most Prompting [cite: zhou2022least] and Self-Assessment ~[cite: paul2023refiner,welleck2022generating,shinn2023reflexion]. Recent efforts have used more complex reasoning processes, offering new avenues to improve and optimize the reasoning process. For example, yao2023tree apply heuristic-based search methods, such as depth-first and breadth-first search, to discover optimized reasoning pathways. zhu2022solving and hao2023reasoning have introduced MCTS to reason steps for complex math or logical reasoning. Unlike them, we use MCTS for dialogue planning, encoding SOP constraints into its expansion and simulation steps.",
+    "translation": "Planning and Reasoning of LLMs.。LLMs show prowess in planning and reasoning.。Examples include Chain-of-Thought [cite: wei2022chain], its variants [cite: kojima2022large], Self-Consistency [cite: wang2022self], Least-to-most Prompting [cite: zhou2022least] and Self-Assessment [cite: paul2023refiner,welleck2022generating,shinn2023reflexion].。Recent efforts have used more complex reasoning processes, offering new avenues to improve and optimize the reasoning process.。For example, yao2023tree apply heuristic-based search methods, such as depth-first and breadth-first search, to discover optimized reasoning pathways.。zhu2022solving and hao2023reasoning have introduced MCTS to reason steps for complex math or logical reasoning.。Unlike them, we use MCTS for dialogue planning, encoding SOP constraints into its expansion and simulation steps.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "Problem Formulation",
+    "translation": "问题形式化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "In our work, we decompose the dialogue tasks into three steps: task initialization, Standard Operating Procedures (SOPs) prediction, and task execution via dialogue generation based on SOPs.",
+    "translation": "In our work, we decompose the dialogue tasks into three steps: task initialization, 标准操作流程s (SOPs) prediction, and task execution via dialogue generation based on SOPs.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "Task Initialization. When a user specifies a task, we collect the user-defined task profile and associated user information profile, denoted as $p$. These profiles include textual descriptions of the goal of the task, relevant background knowledge, and user-specific information. We define a multi-turn dialogue as $D_t = (u_t, s_t, a_t, r_t) _t=1^T$, where each tuple $(u_t, s_t, a_t, r_t)$ denotes the $t$-th turn of the dialogue. Here, $u_t$ is a user utterance, $s_t$ represents user states, $a_t$ denotes agent actions, and $r_t$ is the agent response utterance. Please refer to Appendix apdx: task_define_example for detailed examples.",
+    "translation": "Task Initialization.。When a user specifies a task, we collect the user-defined task profile and associated user information profile, denoted as $p$.。These profiles include textual descriptions of the goal of the task, relevant background knowledge, and user-specific information.。作者define a multi-turn dialogue as $D_t = (u_t, s_t, a_t, r_t) _t=1^T$, where each tuple $(u_t, s_t, a_t, r_t)$ denotes the $t$-th turn of the dialogue.。Here, $u_t$ is a user utterance, $s_t$ represents user states, $a_t$ denotes agent actions, and $r_t$ is the agent response utterance.。Please refer to Appendix apdx: task_define_example for detailed examples.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "Then, as shown in Figure fig: cogd_example(a), we define the SOP graph $G_t$ as a directed graph, where the vertices are annotated with agent actions $a_t$ and user states $s_t$, and the edges represent the connections between these vertices.",
+    "translation": "Then, as shown in Figure fig: cogd_example(a), we define the SOP graph $G_t$ as a directed graph, where the vertices are annotated with agent actions $a_t$ and user states $s_t$, and the edges represent the connections between these vertices.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "SOP Prediction. As an intermediate step for controlling dialogue generation, SOP prediction is to predict the connections of SOP graph nodes with given user states $s_t$ and agent actions $a_t$, enabling the construction of a complete SOP graph $G$. To do so, we introduce the adjacency List $$ to represent all the connections in the SOP graph. Thus, the task is defined as follows:",
+    "translation": "SOP Prediction.。As an intermediate step for controlling dialogue generation, SOP prediction is to predict the connections of SOP graph nodes with given user states $s_t$ and agent actions $a_t$, enabling the construction of a complete SOP graph $G$.。To do so, we introduce the adjacency List $$ to represent all the connections in the SOP graph.。Thus, the task is defined as follows:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "\\begin{equation}\n    \\hat{m} = \\arg\\max_{m \\in \\mathcal{M}} \\; P( m \\mid s_t, a_t),  \n\\end{equation}",
+    "translation": "公式说明：该公式服务于“问题形式化”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "It is important to emphasize that any modifications or deletions to the SOP graph will result in inaccurate task completion.",
+    "translation": "It is important to emphasize that any modifications or deletions to the SOP graph will result in inaccurate task completion.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "Dialogue Generation. The aim of this task is to first generate user states at turn $t+1$ based on profiles $p$, historical dialogue $D_t$ with the predicted SOP graph $G_t$ and user utterance $u_t+1$:",
+    "translation": "Dialogue Generation.。该aim of this task is to first generate user states at turn $t+1$ based on profiles $p$, historical dialogue $D_t$ with the predicted SOP graph $G_t$ and user utterance $u_t+1$:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "\\begin{equation}\n    \\hat{s}_{t+1} = \\arg\\max_{s_{t+1}} \\; P(s_{t+1} \\mid D_t, p, u_{t+1}, \\mathcal{M})\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“问题形式化”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "Then, we predict the agent action and generate a response at turn $t+1$ as follows:",
+    "translation": "Then, we predict the agent action and generate a response at turn $t+1$ as follows:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "\\begin{equation}\n    \\hat{a}_{t+1} = \\arg\\max_{a_{t+1}} \\; P(a_{t+1} \\mid D_t, p, \\hat{s}_{t+1}, \\mathcal{M})\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“问题形式化”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "\\begin{equation}\n    \\hat{r}_{t+1} = \\arg\\max_{r_{t+1}} \\; P(r_{t+1} \\mid D_t, p, u_{t+1}, \\hat{a}_{t+1}, \\mathcal{M})\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“问题形式化”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "问题形式化",
+    "page": 1,
+    "sourceText": "Overview of our role-playing framework for dataset construction, using GPT-4o to generate synthetic samples, with human review for quality control.",
+    "translation": "图表说明：Overview of our 角色扮演 framework for 数据集 construction, using GPT-4o to generate synthetic samples, with human review for quality control.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/data_flow3.png",
+    "kind": "figure"
+  },
+  {
+    "section": "ChatSOP 数据集",
+    "page": 1,
+    "sourceText": "The ChatSOP Dataset",
+    "translation": "ChatSOP 数据集",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ChatSOP 数据集",
+    "page": 1,
+    "sourceText": "Before introducing our method, we present the creation of an SOP-annotated dialogue dataset, namely SOPDAIL, which includes designing a role-playing framework to simulate diverse scenarios, conducting human annotations to ensure high-quality, and performing a comprehensive dataset analysis.",
+    "translation": "Before introducing our method, we present the creation of an SOP-annotated dialogue 数据集, namely SOPDAIL, which includes designing a 角色扮演 framework to simulate diverse scenarios, conducting human annotations to ensure high-quality, and performing a comprehensive 数据集 analysis.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ChatSOP 数据集",
+    "page": 1,
+    "sourceText": "A comparison between our proposed SOPDAIL and other relevant datasets, where PA indicates whether it includes proactive interaction, CT denotes controllability, and Lang denotes language.",
+    "translation": "表格说明：A comparison between our proposed SOPDAIL and other relevant 数据集s, where PA indicates whether it includes proactive interaction, CT denotes 可控性, and Lang denotes language.。",
+    "kind": "table"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Dataset Curation Framework",
+    "translation": "Dataset Curation Framework",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Inspired by recent studies [cite: wang2023target,sandler2024linguistic] that directly use LLMs to create high-quality dialogue datasets, we introduce a role-playing framework where LLMs simulate various agent roles to generate task-oriented dialogues. As shown in Figure fig: dataflow, our framework follows a four-step curation process: task definition, SOP planning, dialogue path creation, and dialogue generation. The detailed steps are as follows.",
+    "translation": "Inspired by recent studies [cite: wang2023target,sandler2024linguistic] that directly use LLMs to create high-quality dialogue 数据集s, we introduce a 角色扮演 framework where LLMs simulate various agent roles to generate 面向任务的 dialogues.。As shown in Figure fig: dataflow, our framework follows a four-step curation process: task definition, SOP planning, dialogue path creation, and dialogue generation.。该detailed steps are as follows.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Step 1: To satisfy the diversity of our dataset, we curate 53 unique tasks, including activities such as activating a bank card, scheduling appointments, and online shopping, across 32 domains, e.g., shopping, education, hospital, etc. Please refer to Appendix Table domain-task detail for all tasks and domains.",
+    "translation": "Step 1: To satisfy the diversity of our 数据集, we curate 53 unique tasks, including activities such as activating a bank card, scheduling appointments, and online shopping, across 32 domains, e.g., shopping, education, hospital, etc.。Please refer to Appendix Table domain-task detail for all tasks and domains.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Step 2: To generate intermediate SOP annotations for SOP prediction, as defined in, we utilize zero-shot prompting to instruct LLMs in acting as planners to draft SOPs for the specified tasks.",
+    "translation": "Step 2: To generate intermediate SOP annotations for SOP prediction, as defined in, we utilize zero-shot prompting to instruct LLMs in acting as planners to draft SOPs for the specified tasks.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Step 3: We then prompt LLMs to generate multi-turn dialogue paths sampled from the annotated SOPs. To ensure the dialogues reflect proactive interactions and closely mimic real-world scenarios, we assign LLMs the role of screenwriters, instructing them to insert predefined proactive agent actions (e.g., offering help, persuading) and user states (e.g., asking question) into dialogue paths.",
+    "translation": "Step 3: We then prompt LLMs to generate multi-turn dialogue paths sampled from the annotated SOPs.。To ensure the dialogues reflect proactive interactions and closely mimic real-world scenarios, we assign LLMs the role of screenwriters, instructing them to insert predefined proactive agent actions (e.g., offering help, persuading) and user states (e.g., asking question) into dialogue paths.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Step 4: We assign LLMs as scriptwriters to draft dialogues for each agent action and user state, used to evaluate dialogue generation in.",
+    "translation": "Step 4: We assign LLMs as scriptwriters to draft dialogues for each agent action and user state, used to evaluate dialogue generation in.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Curation Framework",
+    "page": 1,
+    "sourceText": "Note: Human annotators are involved in reviewing and refining the LLM-generated annotations in Steps 2-4, ensuring their accuracy and quality. Besides, a user simulator generates a unique user profile and updates the task definition in step 3 and 4, enabling diverse dialogue paths and interactions. Detailed prompts are provided in Appendix all data create prompts.",
+    "translation": "Note: Human annotators are involved in reviewing and refining the LLM-generated annotations in Steps 2-4, ensuring their accuracy and quality.。Besides, a user simulator generates a unique user profile and updates the task definition in step 3 and 4, enabling diverse dialogue paths and interactions.。Detailed prompts are provided in Appendix all data create prompts.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Human Annotation",
+    "page": 1,
+    "sourceText": "Human Annotation",
+    "translation": "Human Annotation",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Human Annotation",
+    "page": 1,
+    "sourceText": "Annotator Selection. We recruited seven annotators with relevant qualifications and expertise to ensure the quality of the annotation process. Before annotation, all participants are trained to gain a thorough understanding of the annotation guidelines.",
+    "translation": "Annotator Selection.。作者recruited seven annotators with relevant qualifications and expertise to ensure the quality of the annotation process.。Before annotation, all participants are trained to gain a thorough understanding of the annotation guidelines.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Human Annotation",
+    "page": 1,
+    "sourceText": "The annotators worked independently but were allowed to provide feedback or reject any doubtful cases. On average, the annotation time was 10.3 minutes per sample, and and annotators were compensated at a rate of $8 per hour.",
+    "translation": "该annotators worked independently but were allowed to provide feedback or reject any doubtful cases.。On average, the annotation time was 10.3 minutes per sample, and and annotators were compensated at a rate of $8 per hour.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Human Annotation",
+    "page": 1,
+    "sourceText": "Annotation Process. We develop an in-house web application as the annotation platform. Participants are required to read the guidelines, pass the pre-annotations, and then perform the actual annotations. Additionally, every instance was assigned to three annotators for cross-annotation validation with an inter-annotator agreement (IAA) score of 0.88, showing high consistency of annotation. Instances with an IAA below 0.95 were excluded. Please refer to Appendix annotator-details for more details.",
+    "translation": "Annotation Process.。作者develop an in-house web application as the annotation platform.。Participants are required to read the guidelines, pass the pre-annotations, and then perform the actual annotations.。Additionally, every instance was assigned to three annotators for cross-annotation validation with an inter-annotator agreement (IAA) score of 0.88, showing high consistency of annotation.。Instances with an IAA below 0.95 were excluded.。Please refer to Appendix annotator-details for more details.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Analysis",
+    "page": 1,
+    "sourceText": "Dataset Analysis",
+    "translation": "Dataset Analysis",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Analysis",
+    "page": 1,
+    "sourceText": "Comparison with Existing Datasets. Table data-compare-table provides a comparison of SOPDAIL against other relevant datasets, highlighting the distinct advantages of our dataset. Notably, SOPDAIL covers 53 tasks across 32 domains, offering a comprehensive and diverse evaluation framework for dialogue agents. Furthermore, this dataset is well-suited for in-context learning with LLMs~[cite: yu2023prompt], as opposed to traditional fine-tuning approaches~[cite: kojima2022large], thus enhancing the efficiency of task deployment. To the best of our knowledge, SOPDAIL is the first Chinese benchmark for proactive and controllable dialogue. We anticipate this dataset will serve as a valuable resource for advancing research on controllable LLM-driven agents.",
+    "translation": "Comparison with Existing Datasets.。Table data-compare-table provides a comparison of SOPDAIL against other relevant 数据集s, highlighting the distinct advantages of our 数据集.。Notably, SOPDAIL covers 53 tasks across 32 domains, offering a comprehensive and diverse 评估 framework for 对话智能体.。Furthermore, this 数据集 is well-suited for in-context learning with LLMs[cite: yu2023prompt], as opposed to traditional fine-tuning approaches[cite: kojima2022large], thus enhancing the efficiency of task deployment.。To the best of our knowledge, SOPDAIL is the first Chinese benchmark for proactive and controllable dialogue.。作者anticipate this 数据集 will serve as a valuable resource for advancing research on controllable LLM-driven agents.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Analysis",
+    "page": 1,
+    "sourceText": "Statistics. Table statistics-table summarizes the statistics of our SOPDAIL. The quantity analysis shows that 74% of the utterances are for controllability, aligning well with the objective of our work. To assess the quality of the dataset, we measured the accuracy of samples after annotation by human experts. Three annotators were invited to evaluate 300 randomly sampled cases, rating each as 1 if it adhered to the instructions and was semantically correct, and 0 otherwise. The results indicate a 0.98 accuracy score, underscoring the high quality of our dataset. Notably, even the raw results achieved a 0.91 accuracy rate, highlighting the superior performance of GPT-4o in this task.",
+    "translation": "Statistics.。Table statistics-table summarizes the statistics of our SOPDAIL.。该quantity analysis shows that 74% of the utterances are for 可控性, aligning well with the objective of our work.。To assess the quality of the 数据集, we measured the accuracy of samples after annotation by human experts.。Three annotators were invited to evaluate 300 randomly sampled cases, rating each as 1 if it adhered to the instructions and was semantically correct, and 0 otherwise.。该results indicate a 0.98 accuracy score, underscoring the high quality of our 数据集.。Notably, even the raw results achieved a 0.91 accuracy rate, highlighting the superior performance of GPT-4o in this task.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Analysis",
+    "page": 1,
+    "sourceText": "The statistics of our SOPDAIL, where ED represents the edit distance used to evaluate the discrepancy between raw results and those after expert corrections. The high accuracy demonstrates the superior performance of LLMs and the high quality of our dataset.",
+    "translation": "表格说明：The statistics of our SOPDAIL, where ED represents the edit distance used to evaluate the discrepancy between raw results and those after expert corrections. The high accuracy demonstrates the superior performance of LLMs and the high quality of our 数据集.。",
+    "kind": "table"
+  },
+  {
+    "section": "方法",
+    "page": 1,
+    "sourceText": "Our Approach",
+    "translation": "方法",
+    "kind": "paragraph"
+  },
+  {
+    "section": "方法",
+    "page": 1,
+    "sourceText": "Diagram of our proposed ChatSOP: before the conversation, task SOP is predicted by an offline planner; during the conversation, the optimal agent action is determined in real-time by an SOP-guided Monte Carlo Tree Search online planner, based on the predicted SOP and executing through four iterative phases.",
+    "translation": "图表说明：Diagram of our proposed ChatSOP: before the conversation, task SOP is predicted by an offline planner; during the conversation, the optimal agent action is determined in real-time by an SOP-guided 蒙特卡洛树搜索 online planner, based on the predicted SOP and executing through four iterative phases.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/framework25.png",
+    "kind": "figure"
+  },
+  {
+    "section": "方法",
+    "page": 1,
+    "sourceText": "In this section, we present the details of our proposed method, beginning with a multi-turn dialogue framework powered by LLMs. We then discuss the fine-tuning method for SOP prediction, followed by leveraging Monte Carlo Tree Search (MCTS) for dialogue generation.",
+    "translation": "In this section, we present the details of our proposed method, beginning with a multi-turn dialogue framework powered by LLMs.。作者then discuss the fine-tuning method for SOP prediction, followed by leveraging 蒙特卡洛树搜索 (MCTS) for dialogue generation.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Framework Overview",
+    "page": 1,
+    "sourceText": "Framework Overview",
+    "translation": "Framework Overview",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Framework Overview",
+    "page": 1,
+    "sourceText": "As illustrated in the left panel of Figure fig: model, the planning-based dialogue agent (ChatSOP) consists of five components: 1) LLMs Module: Responsible for managing and utilizing multiple LLMs to support various functionalities; 2) Dialogue State: Handles the storage and update of task prompts and dialogue history. 3) SOPs Pool: Contains pre-defined SOP vertices and edges; 4) Offline Planner: Constructs an adjacency list to assemble a complete SOP graph from the provided task definition; 5) Online Planner: Generates the dialogue based on the predicted SOP graph.",
+    "translation": "As illustrated in the left panel of Figure fig: model, the planning-based dialogue agent (ChatSOP) consists of five components: 1) LLMs Module: Responsible for managing and utilizing multiple LLMs to support various functionalities; 2) Dialogue State: Handles the storage and update of task prompts and dialogue history.。3) SOPs Pool: Contains pre-defined SOP vertices and edges; 4) Offline Planner: Constructs an adjacency list to assemble a complete SOP graph from the provided task definition; 5) Online Planner: Generates the dialogue based on the predicted SOP graph.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Framework Overview",
+    "page": 1,
+    "sourceText": "Given a task definition from the user, the agent initially retrieves relevant SOP nodes from the SOPs Pool through an iterative search. The Offline Planner is then employed to generate an adjacency list representing a complete SOP graph. Once the graph is constructed, the Dialogue State module is activated to prepare task-specific prompts and manage dialogue history. Finally, the Online Planner generates the dialogue using the SOP graph and the prepared prompts. It is important to note that both the Offline and Online Planners are powered by the LLMs Module. Below, we present the implementation of the offline and online modules.",
+    "translation": "Given a task definition from the user, the agent initially retrieves relevant SOP nodes from the SOPs Pool through an iterative search.。该Offline Planner is then employed to generate an adjacency list representing a complete SOP graph.。Once the graph is constructed, the Dialogue State module is activated to prepare task-specific prompts and manage dialogue history.。Finally, the Online Planner generates the dialogue using the SOP graph and the prepared prompts.。It is important to note that both the Offline and Online Planners are powered by the LLMs Module.。Below, we present the implementation of the offline and online modules.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Offline Planner",
+    "page": 1,
+    "sourceText": "Offline Planner",
+    "translation": "Offline Planner",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Offline Planner",
+    "page": 1,
+    "sourceText": "The objective of this module is to predict the adjacency List $$ based on user states and agent actions, thereby guiding user interactions with the agent. To achieve this, we propose three methods: Direct Adjacency List (DAL), Translation Chain-of-Thought (TCoT), and Supervised Fine-Tuning (SFT). Specifically, DAL employs direct prompting of LLMs to generate an adjacency list in JSON format. Here, an adjacency list represents the connectivity between two vertices, where a value of 1 indicates a connection and 0 indicates no connection. TCoT involves a two-step process: first, the LLMs are prompted to describe each vertice and its child vertices in natural language, including justifications for the relationships; then, the description is translated into an adjacency list in JSON format. Finally, SFT implements fine-tuning on various LLMs, such as LLama and Qwen, to iteratively generate the adjacency vertices for each vertice in the SOP graph. Please refer to Appendix prompt_details for detailed prompt settings.",
+    "translation": "该objective of this module is to predict the adjacency List $$ based on user states and agent actions, thereby guiding user interactions with the agent.。To achieve this, we propose three methods: Direct Adjacency List (DAL), Translation Chain-of-Thought (TCoT), and Supervised Fine-Tuning (SFT).。Specifically, DAL employs direct prompting of LLMs to generate an adjacency list in JSON format.。Here, an adjacency list represents the connectivity between two vertices, where a value of 1 indicates a connection and 0 indicates no connection.。TCoT involves a two-step process: first, the LLMs are prompted to describe each vertice and its child vertices in natural language, including justifications for the relationships; then, the description is translated into an adjacency list in JSON format.。Finally, SFT implements fine-tuning on various LLMs, such as LLama and Qwen, to iteratively generate the adjacency vertices for each vertice in the SOP graph.。Please refer to Appendix prompt_details for detailed prompt settings.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Online Planner",
+    "translation": "Online Planner",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Following the prediction of the SOP graph, we now delve into dialogue generation driven by the online planner module. Specifically, the target is to predict the practical dialogue path, as shown in the right panel of Figure fig: model, where nodes represent dialogue states $d_t$, including both agent actions $a_t$ and user states $s_t$. At each step, the agent is required to predict the next actions based on its working memory. However, direct use of exhaustive search over the entire space can lead to sub-optimal dialogue paths. Thus, in our work, we propose SOP-guided Monte Carlo Tree Search (SGM) to construct the dialogue path, assuring to predict the optimal action through $N$ steps simulations.",
+    "translation": "Following the prediction of the SOP graph, we now delve into dialogue generation driven by the online planner module.。Specifically, the target is to predict the practical dialogue path, as shown in the right panel of Figure fig: model, where nodes represent dialogue states $d_t$, including both agent actions $a_t$ and user states $s_t$.。At each step, the agent is required to predict the next actions based on its working memory.。However, direct use of exhaustive search over the entire space can lead to sub-optimal dialogue paths.。Thus, in our work, we propose SOP-guided 蒙特卡洛树搜索 (SGM) to construct the dialogue path, assuring to predict the optimal action through $N$ steps simulations.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Given the initial dialogue state $d_0$, inspired by hao-etal-2023-reasoning, we propose an iterative process to search for the optimal next action in 4 steps: node selection, node expansion, dialogue simulation, and back-propagation. After $n$ iterations, the optimal next action for $d_0$ is selected. This process continues until the predefined computational budget is reached (e.g., number of iterations), at which point the resultant trajectory can be extracted from the tree. The algorithm is provided in Appendix algorithm mcts. Below, we provide the details of each stage.",
+    "translation": "Given the initial dialogue state $d_0$, inspired by hao-etal-2023-reasoning, we propose an iterative process to search for the optimal next action in 4 steps: node selection, node expansion, dialogue simulation, and back-propagation.。After $n$ iterations, the optimal next action for $d_0$ is selected.。这process continues until the predefined computational budget is reached (e.g., number of iterations), at which point the resultant trajectory can be extracted from the tree.。该算法 is provided in Appendix 算法 mcts.。Below, we provide the details of each stage.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Selection. Starting from the root node (i.e., the initial state $d_0$), a child node is selected at each level of the tree to determine the next state. This process continues until it reaches a leaf node.",
+    "translation": "Selection.。Starting from the root node (i.e., the initial state $d_0$), a child node is selected at each level of the tree to determine the next state.。这process continues until it reaches a leaf node.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "To balance exploration (less-visited nodes) and exploitation (high-value nodes), we employ the Upper Confidence Bounds for Trees (UCT) algorithm [cite: kocsis2006bandit] for child node selection:",
+    "translation": "To balance exploration (less-visited nodes) and exploitation (high-value nodes), we employ the Upper Confidence Bounds for Trees (UCT) 算法 [cite: kocsis2006bandit] for child node selection:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "\\begin{equation}\na_t^* = \\arg\\max_{a_t} \\left[ Q(d_t, a_t) + w \\sqrt{\\frac{\\ln N(d_t)}{N(c(d_t, a_t))}} \\right]\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“Online Planner”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "where $N(d_t)$ denotes the number of times node $d_t$ has been visited in previous iterations, $c(d_t, a_t)$ is the child node of applying $a_t$ in state $d_t$ and $w$ denotes an empirical weight parameter (set to 1 in our experiments) to balance exploration and exploitation. The less a child node has been visited (i.e., the more uncertain the child node is), the higher the second term. The state-action value function $Q(d_t, a_t)$ estimates the expected future reward associated with taking action $a_t$ in state $d_t$:",
+    "translation": "where $N(d_t)$ denotes the number of times node $d_t$ has been visited in previous iterations, $c(d_t, a_t)$ is the child node of applying $a_t$ in state $d_t$ and $w$ denotes an empirical weight parameter (set to 1 in our experiments) to balance exploration and exploitation.。该less a child node has been visited (i.e., the more uncertain the child node is), the higher the second term.。该state-action value function $Q(d_t, a_t)$ estimates the expected future reward associated with taking action $a_t$ in state $d_t$:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "\\begin{equation}\nQ(d_t, a_t) = \\lambda \\cdot \\left( \\mathcal{L}(d_t, a_t) + \\left(1 - \\lambda\\right) \\cdot \\mathrm{T}(d_t, a_t) \\right)\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“Online Planner”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "where $(d_t, a_t) (0 (d_t,a_t) 1) $ function represents the logical rationality of the current action, as assessed by the LLMs. It is computed as the mean of several binary (0 or 1) evaluations derived from prompt-based sampling by the LLMs. The $(d_t, a_t)$ function assigns discrete values to measure task completion: 0.3 for the termination state, 0.7 for the success state, and 0 for others. $$ is a hyperparameter, set to 1 in our experiments, that balances logical rationality and task completion.",
+    "translation": "where $(d_t, a_t) (0 (d_t,a_t) 1) $ function represents the logical rationality of the current action, as assessed by the LLMs.。It is computed as the mean of several binary (0 or 1) 评估s derived from prompt-based sampling by the LLMs.。该$(d_t, a_t)$ function assigns discrete values to measure task completion: 0.3 for the termination state, 0.7 for the success state, and 0 for others.。$$ is a hyperparameter, set to 1 in our experiments, that balances logical rationality and task completion.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Expansion. After a leaf node (non-terminate) is selected, the agent samples $m$ possible dialogue states $d_t$ iteratively for expansion. Notably, we first utilize the local subgraph from SOP graph, then add the next two levels of child nodes connected to the current state node for further expansion. This setting ensures that the agent maintains a balance between constraints and proactivity. Finally, when the selected leaf node is already a terminal node (either a dialogue end node or the maximum search depth has been reached), we will skip the expansion phase and proceed to back-propagation.",
+    "translation": "Expansion.。After a leaf node (non-terminate) is selected, the agent samples $m$ possible dialogue states $d_t$ iteratively for expansion.。Notably, we first utilize the local subgraph from SOP graph, then add the next two levels of child nodes connected to the current state node for further expansion.。这setting ensures that the agent maintains a balance between constraints and proactivity.。Finally, when the selected leaf node is already a terminal node (either a dialogue end node or the maximum search depth has been reached), we will skip the expansion phase and proceed to back-propagation.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Simulation. To estimate the reward generated by future dialogue, we simulate the future dialogue for each expanded state node. To improve efficiency, we follow a process similar to the expansion phase mentioned above, that is, we only simulate downward for candidate dialogue policies that are sampled from LLM and guided by the SOP.",
+    "translation": "Simulation.。To estimate the reward generated by future dialogue, we simulate the future dialogue for each expanded state node.。To improve efficiency, we follow a process similar to the expansion phase mentioned above, that is, we only simulate downward for candidate dialogue policies that are sampled from LLM and guided by the SOP.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "Backpropagation. At the final step, once a terminal state is reached, the $Q$ values are updated along the entire dialogue path. The algorithm terminates when the predetermined total number of iterations is completed. Finally, within the constructed dialogue tree, the child node with the highest $Q$ value of the current node is selected to guide the next turn in the conversation. The details are provided in Algorithm~algorithm mcts in Appendix~sec-algorithm.",
+    "translation": "Backpropagation.。At the final step, once a terminal state is reached, the $Q$ values are updated along the entire dialogue path.。该算法 terminates when the predetermined total number of iterations is completed.。Finally, within the constructed dialogue tree, the child node with the highest $Q$ value of the current node is selected to guide the next turn in the conversation.。该details are provided in Algorithm算法 mcts in Appendixsec-算法.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner",
+    "page": 2,
+    "sourceText": "SOPDAIL dataset statistics for training, validation, and test splits across different domain tasks. SOP Prediction utilizing 5-fold cross-validation.",
+    "translation": "表格说明：SOPDAIL 数据集 statistics for training, validation, and test splits across different domain tasks. SOP Prediction utilizing 5-fold cross-validation.。",
+    "kind": "table"
+  },
+  {
+    "section": "实验",
+    "page": 2,
+    "sourceText": "Experiments",
+    "translation": "实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 2,
+    "sourceText": "We conducted extensive experiments to validate our curated dataset and planning-based dialogue agent with both automatic and human evaluations.",
+    "translation": "作者conducted extensive experiments to validate our curated 数据集 and planning-based dialogue agent with both automatic and 人工评测s.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 2,
+    "sourceText": "Datasets",
+    "translation": "Datasets",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 2,
+    "sourceText": "We split SOPDAIL dataset into training, validation, and test sets, as shown in Table datasplit-table. To evaluate the methods on unseen tasks, we split the data at the task level rather than the dialogue level, thereby avoiding any task overlap between the three sets. Additionally, we employed 5-fold cross-validation for SOP prediction to ensure result validity.",
+    "translation": "作者split SOPDAIL 数据集 into training, validation, and test sets, as shown in Table datasplit-table.。To evaluate the methods on unseen tasks, we split the data at the task level rather than the dialogue level, thereby avoiding any task overlap between the three sets.。Additionally, we employed 5-fold cross-validation for SOP prediction to ensure result validity.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experimental Setting",
+    "page": 2,
+    "sourceText": "Experimental Setting",
+    "translation": "Experimental Setting",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experimental Setting",
+    "page": 2,
+    "sourceText": "Baseline Setting. For SOP prediction, we compare our method (TCoT and SFT) against the baselines DAL. For dialogue generation, we compare our method (SGM) with CoT and CoT+SOP. The LLMs include GPT-3.5-turbo/4o, Qwen1.5-14b/72b-chat, and Llama3-8b/70b-chat, covering both open and closed models across different sizes.",
+    "translation": "Baseline Setting.。For SOP prediction, we compare our method (TCoT and SFT) against the 基线s DAL.。For dialogue generation, we compare our method (SGM) with CoT and CoT+SOP.。该LLMs include GPT-3.5-turbo/4o, Qwen1.5-14b/72b-chat, and Llama3-8b/70b-chat, covering both open and closed models across different sizes.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experimental Setting",
+    "page": 2,
+    "sourceText": "Paramerters. We use the GPT models through the provided API, while for open-source models, we directly load the pre-trained versions from HuggingFace models, experiments on 4 Nvidia A800 GPUs. The inference is performed with a temperature and top-p setting of 0.1. For SFT, we fine-tuned all parameters using 5 epochs, 50 warm steps, 1e-6 learning rate, and 128 batch size. Hyperparameters are in Appendix sec-exper-details",
+    "translation": "Paramerters.。作者use the GPT models through the provided API, while for open-source models, we directly load the pre-trained versions from HuggingFace models, experiments on 4 Nvidia A800 GPUs.。该inference is performed with a temperature and top-p setting of 0.1.。For SFT, we fine-tuned all parameters using 5 epochs, 50 warm steps, 1e-6 learning rate, and 128 batch size.。Hyperparameters are in Appendix sec-exper-details。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experimental Setting",
+    "page": 2,
+    "sourceText": "Evaluation Metrics. We evaluated SOP prediction in terms of graph structure and dialogue usability. For graph structure, we calculated the graph edit distance (GED) and its operation ratio (GEDR) [cite: hagberg2008exploring] needed to match the predicted SOP with the ground truth. For dialogue usability, we measured the precision, recall, and F1 score of the dialogue paths, defining true positives as paths in the predicted SOP that exactly match the ground-truth paths. For dialogue generation, we measured the accuracy of single-turn dialogue actions (Acc T), controllable actions (Acc C), and proactive actions (Acc P) to evaluate the dialogue's controllability and proactivity. The accuracy of the entire dialogue (Acc D) was calculated by dividing the number of correct dialogues (i.e., each turn is correct) by the total number of dialogues.",
+    "translation": "Evaluation Metrics.。作者evaluated SOP prediction in terms of graph structure and dialogue usability.。For graph structure, we calculated the 图编辑距离 (GED) and its operation ratio (GEDR) [cite: hagberg2008exploring] needed to match the predicted SOP with the ground truth.。For dialogue usability, we measured the 精确率, 召回率, and F1 score of the dialogue paths, defining true positives as paths in the predicted SOP that exactly match the ground-truth paths.。For dialogue generation, we measured the accuracy of single-turn dialogue actions (Acc T), controllable actions (Acc C), and proactive actions (Acc P) to evaluate the dialogue's 可控性 and proactivity.。该accuracy of the entire dialogue (Acc D) was calculated by dividing the number of correct dialogues (i.e., each turn is correct) by the total number of dialogues.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "Main Results",
+    "translation": "Main Results",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "Results for SOP prediction, where Pre and Rec are precision and recall, while GED and GEDR are the graph edit distance and its editing ratio, showing that SFT significantly outperforms the baselines.",
+    "translation": "表格说明：Results for SOP prediction, where Pre and Rec are 精确率 and 召回率, while GED and GEDR are the 图编辑距离 and its editing ratio, showing that SFT significantly outperforms the 基线s.。",
+    "kind": "table"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "More analysis results: (a)-(b) presenting human evaluation results for Llama3-70b and GPT-4o models based on the five proposed metrics; (c)-(d) comparing ToT with our method (SGM) through both automatic and human evaluations, demonstrating the superiority of our approach; and (e)-(f) providing two case studies to further illustrate the advantages of our method.",
+    "translation": "图表说明：More analysis results: (a)-(b) presenting 人工评测 results for Llama3-70b and GPT-4o models based on the five proposed metrics; (c)-(d) comparing ToT with our method (SGM) through both automatic and 人工评测s, demonstrating the superiority of our approach; and (e)-(f) providing two case studies to further illustrate the advantages of our method.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/case_study_agent.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "SOP Prediction Table task1-table presents the results of our methods (TCoT and SFT) compared to DAL. The TCoT outperforms the baseline DAL on most metrics, particularly showing significant improvements in recall and F1 scores. This indicates that TCoT's predicted SOP has a stronger advantage in dialogue usability.",
+    "translation": "SOP Prediction Table task1-table presents the results of our methods (TCoT and SFT) compared to DAL.。该TCoT outperforms the 基线 DAL on most metrics, particularly showing significant improvements in 召回率 and F1 scores.。这indicates that TCoT's predicted SOP has a stronger advantage in dialogue usability.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "Similarly, our SFT method also shows significant improvements over all metrics and models. Notably, the fine-tuned Qwen1.5-72b achieves the highest score, even surpassing GPT-4o (77.00 vs 71.85 in F1 score), underscoring the effectiveness of our proposed dataset.",
+    "translation": "Similarly, our SFT method also shows significant improvements over all metrics and models.。Notably, the fine-tuned Qwen1.5-72b achieves the highest score, even surpassing GPT-4o (77.00 vs 71.85 in F1 score), underscoring the effectiveness of our proposed 数据集.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "Dialogue Generation For dialogue action generation, as shown in Table task2-table, our method (SGM) substantially outperforms the baseline methods across all metrics and models. GPT-3.5 based agent achieves a score of 76.52 compared to 48.57 by the baseline. Additionally, larger models demonstrate better performance, with GPT-4o achieving the highest scores, particularly excelling in controllable action generation with a score of 91.19. These findings highlight the effectiveness of our proposed method in tackling such challenging multi-scenrio dataset and generating dialogues.",
+    "translation": "Dialogue Generation For dialogue action generation, as shown in Table task2-table, our method (SGM) substantially outperforms the 基线 methods across all metrics and models.。GPT-3.5 based agent achieves a score of 76.52 compared to 48.57 by the 基线.。Additionally, larger models demonstrate better performance, with GPT-4o achieving the highest scores, particularly excelling in controllable action generation with a score of 91.19.。These findings highlight the effectiveness of our proposed method in tackling such challenging multi-scenrio 数据集 and generating dialogues.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main Results",
+    "page": 2,
+    "sourceText": "Automatic evaluation results of dialogue generation. T, C, P, and D denote turn, controllable, proactive, and dialogue, respectively.",
+    "translation": "表格说明：Automatic 评估 results of dialogue generation. T, C, P, and D denote turn, controllable, proactive, and dialogue, respectively.。",
+    "kind": "table"
+  },
+  {
+    "section": "Human Evaluations",
+    "page": 2,
+    "sourceText": "Human Evaluations",
+    "translation": "Human Evaluations",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Human Evaluations",
+    "page": 2,
+    "sourceText": "To further assess the quality of generated utterances, we conducted a human evaluation to measure the proportion of accurate control actions, proactive actions, and knowledge accuracy in each single-turn on 100 dialogues sampled from compare models. Besides, from a broader dialogue perspective, we further proposed two additional metrics: goal success rate, defined as correct actions, correct knowledge and goal achieved, and logical coherence score, defined as logic correct and consistent to history, both scored on a scale from 0 to 1. Detailed definitions are listed in Appendix manually_evaluate. The evaluation was conducted by the same annotators previously described in $$human_evaluation.",
+    "translation": "To further assess the quality of generated utterances, we conducted a 人工评测 to measure the proportion of accurate control actions, proactive actions, and knowledge accuracy in each single-turn on 100 dialogues sampled from compare models.。Besides, from a broader dialogue perspective, we further proposed two additional metrics: goal success rate, defined as correct actions, correct knowledge and goal achieved, and logical coherence score, defined as logic correct and consistent to history, both scored on a scale from 0 to 1.。Detailed definitions are listed in Appendix manually_evaluate.。该评估 was conducted by the same annotators previously described in $$human_评估.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Human Evaluations",
+    "page": 2,
+    "sourceText": "As illustrated in Figure case_fig(a)-(b), we compare the performance of our method with the baseline across two models. For Llama3-70b, our method demonstrates significantly superior performance, with particularly notable improvements in controllability, goal success rate, and coherence. For GPT-4o, while the baseline model already achieves strong results, our method can still enhance scores across multiple dimensions, underscoring its effectiveness. Notably, in the knowledge dimension, all methods achieve consistently high scores, indicating that the models possess sufficient knowledge to support task-oriented dialogues effectively.",
+    "translation": "As illustrated in Figure case_fig(a)-(b), we compare the performance of our method with the 基线 across two models.。For Llama3-70b, our method demonstrates significantly superior performance, with particularly notable improvements in 可控性, goal success rate, and coherence.。For GPT-4o, while the 基线 model already achieves strong results, our method can still enhance scores across multiple dimensions, underscoring its effectiveness.。Notably, in the knowledge dimension, all methods achieve consistently high scores, indicating that the models possess sufficient knowledge to support 面向任务的 dialogues effectively.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Analysis and Case Study",
+    "page": 2,
+    "sourceText": "Analysis and Case Study",
+    "translation": "Analysis and Case Study",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Analysis and Case Study",
+    "page": 2,
+    "sourceText": "To evaluate the performance of different tree search algorithms, we implemented Tree-of-Thought (ToT) for comparison with MCTS. Figures case_fig(c)-(d) show that our approach yields superior results in both automatic and human evaluations. Moreover, incorporating SOP with ToT enhances performance, emphasizing the consistent benefits of SOP integration. Additionally, in terms of cost-effectiveness, our approach consumed 9 times more tokens than the CoT and improved goal success by 30%; nonetheless, it was still more efficient than ToT. For more analysis, see Appendix B.",
+    "translation": "To evaluate the performance of different tree search 算法s, we implemented Tree-of-Thought (ToT) for comparison with MCTS.。Figures case_fig(c)-(d) show that our approach yields superior results in both automatic and 人工评测s.。Moreover, incorporating SOP with ToT enhances performance, emphasizing the consistent benefits of SOP integration.。Additionally, in terms of cost-effectiveness, our approach consumed 9 times more tokens than the CoT and improved goal success by 30%; nonetheless, it was still more efficient than ToT.。For more analysis, see Appendix B.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Analysis and Case Study",
+    "page": 2,
+    "sourceText": "Furthermore, Figures case_fig(e)-(f) provide case studies comparing the dialogue actions selected and responses generated by different methods in the same contexts. In the first case, verifying identity is a prerequisite before checking in. After applying SOP, both CoT and ours select actions aligned with SOP guidelines. However, in scenarios where the optimal action is absent from the SOP, such as proactive persuasion in the second case, CoT+SOP fails to continue the persuasion attempt. In contrast, our method can leverage simulation and deeper dialogue path exploration to select a more goal-oriented action, resulting in a more effective persuasion strategy.",
+    "translation": "Furthermore, Figures case_fig(e)-(f) provide case studies comparing the dialogue actions selected and responses generated by different methods in the same contexts.。In the first case, verifying identity is a prerequisite before checking in.。After applying SOP, both CoT and ours select actions aligned with SOP guidelines.。However, in scenarios where the optimal action is absent from the SOP, such as proactive persuasion in the second case, CoT+SOP fails to continue the persuasion attempt.。In contrast, our method can leverage simulation and deeper dialogue path exploration to select a more goal-oriented action, resulting in a more effective persuasion strategy.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 2,
+    "sourceText": "Conclusion",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 2,
+    "sourceText": "In this paper, we present a planning-based framework, high-quality benchmark dataset, and an unsupervised algorithm that encodes SOP constraints into Monte Carlo Tree Search for controllable dialogue agents. Based on LLMs without additional training, our approach offers a better controllable solution for enterprise-level dialogue systems.",
+    "translation": "在本文中，作者围绕“结论”提出并验证相应的方法。Based on LLMs without additional training, our approach offers a better controllable solution for enterprise-level dialogue systems.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "局限性",
+    "page": 2,
+    "sourceText": "Limitations",
+    "translation": "局限性",
+    "kind": "paragraph"
+  },
+  {
+    "section": "局限性",
+    "page": 2,
+    "sourceText": "Hallucinations Our approach is based on the context learning of LLMs, such as ChatGPT and GPT-4. As LLMs may produce outputs containing hallucinations [cite: bang2023multitask], our system might provide information beyond the task definition. We intend to enhance the veracity of responses through post-processing steps, such as training a dedicated safety model and incorporating checks and revisions into the post-processing phase.",
+    "translation": "Hallucinations Our approach is based on the context learning of LLMs, such as ChatGPT and GPT-4.。As LLMs may produce outputs containing hallucinations [cite: bang2023multitask], our system might provide information beyond the task definition.。作者intend to enhance the veracity of responses through post-processing steps, such as training a dedicated safety model and incorporating checks and revisions into the post-processing phase.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "局限性",
+    "page": 2,
+    "sourceText": "Runtime One significant limitation of our method is the runtime. The more exhaustive the tree search is (e.g. increasing n or k), the more likely the algorithm is to find the optimal dialogue policy. However, this comes at the cost of longer simulation times, which may impact the overall user experience. We believe that parallelizing the tree search or reusing portions of the simulated subtrees could help to speed up the runtime. We anticipate that with the advancement of LLMs research, the speed of inference will continue to improve.",
+    "translation": "Runtime One significant limitation of our method is the runtime.。该more exhaustive the tree search is (e.g.。increasing n or k), the more likely the 算法 is to find the optimal dialogue policy.。However, this comes at the cost of longer simulation times, which may impact the overall user experience.。作者believe that parallelizing the tree search or reusing portions of the simulated subtrees could help to speed up the runtime.。作者anticipate that with the advancement of LLMs research, the speed of inference will continue to improve.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "伦理声明",
+    "page": 2,
+    "sourceText": "Ethics Statement",
+    "translation": "伦理声明",
+    "kind": "paragraph"
+  },
+  {
+    "section": "伦理声明",
+    "page": 2,
+    "sourceText": "Given the independent behavior of agents in goal-oriented dialogue, it's imperative to scrutinize ethical implications. Our approach does not force the agent to achieve a specified goal, nor does it force the user to accept the agent's request. Instead, our work highlights the criticality of directing agents to adhere to human-defined limitations. While our measures are potent, we advocate for the stringent regulation of goal signals, particularly when implementing goal-oriented dialogue systems in specialized fields. Currently, the targeting process must uphold factual accuracy, respect user privacy norms, and comply with societal laws.",
+    "translation": "Given the independent behavior of agents in goal-oriented dialogue, it's imperative to scrutinize ethical implications.。论文的approach does not force the agent to achieve a specified goal, nor does it force the user to accept the agent's request.。Instead, our work highlights the criticality of directing agents to adhere to human-defined limitations.。While our measures are potent, we advocate for the stringent regulation of goal signals, particularly when implementing goal-oriented dialogue systems in specialized fields.。Currently, the targeting process must uphold factual accuracy, respect user privacy norms, and comply with societal laws.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "附录",
+    "page": 2,
+    "sourceText": "Appendix",
+    "translation": "附录",
+    "kind": "paragraph"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "Task Definition",
+    "translation": "任务定义",
+    "kind": "paragraph"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "Task Definition for dialogue should include the definitions of fields $task _profile$, $user _profile$, $agent _action$, and $user _state$. The definitions of these fields are as follows: • $task _profile$: Task information for providing business content, accomplishment goals, and relevant background knowledge to Agents. The example is as follows:",
+    "translation": "Task Definition for dialogue should include the definitions of fields $task _profile$, $user _profile$, $agent _action$, and $user _state$.。该definitions of these fields are as follows: • $task _profile$: Task information for providing business content, accomplishment goals, and relevant background knowledge to Agents.。该example is as follows:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "Task profile prompt setting.",
+    "translation": "图表说明：Task profile prompt setting.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/json_1.png",
+    "kind": "figure"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "• $user _profile$: The information about user business and personal information held by agents generally comes from the company's user management system. This information is used for identity verification or providing personalized services in conversations. The following is a example:",
+    "translation": "• $user _profile$: The information about user business and personal information held by agents generally comes from the company's user management system.。这information is used for identity verification or providing personalized services in conversations.。该following is a example:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "User profile prompt setting.",
+    "translation": "图表说明：User profile prompt setting.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/json_2.png",
+    "kind": "figure"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "• $agent _action$: Summary of key actions to be carried out during the process of agent dialogue, intended to guide and constrain the content of the agent's dialogue in accordance with business regulations. Typically corresponds to the node names in the SOP or the strategy names of proactive dialogue. Here are some examples:",
+    "translation": "• $agent _action$: Summary of key actions to be carried out during the process of agent dialogue, intended to guide and constrain the content of the agent's dialogue in accordance with business regulations.。Typically corresponds to the node names in the SOP or the strategy names of proactive dialogue.。Here are some examples:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "Agent actions setting.",
+    "translation": "图表说明：Agent actions setting.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/json_3.png",
+    "kind": "figure"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "• $user _state$: The status of the task summary from the user's final response combined with the preceding dialogue, serves as a prompt for the agent to select the optimal next action. This typically corresponds to the user node in the SOP or the proactive dialogue state of the user. The following are examples:",
+    "translation": "• $user _state$: The status of the task summary from the user's final response combined with the preceding dialogue, serves as a prompt for the agent to select the optimal next action.。这typically corresponds to the user node in the SOP or the proactive dialogue state of the user.。该following are examples:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "任务定义",
+    "page": 2,
+    "sourceText": "User States setting.",
+    "translation": "图表说明：User States setting.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/json_4.png",
+    "kind": "figure"
+  },
+  {
+    "section": "SOP 定义",
+    "page": 2,
+    "sourceText": "SOP Definition",
+    "translation": "SOP 定义",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SOP 定义",
+    "page": 2,
+    "sourceText": "Standardized operating procedures (SOP) is a directed graph where vertexes are $agent _action$ and $user _state$, and the edges indicate the connections between these nodes. The SOP is established by business experts to standardize the essential business processing steps. Omitting or altering these steps can result in a violation or error. For instance, in the \"Activate Credit Card Invitation\" task, the agent must first \"verify the user's identity\" and confirm that the user is a \"cardholder\" before introducing the \"activation activity.\" Conversely, steps that do not impact the business process, such as the user \"asking questions\" and the agent \"resolving doubts,\" should not be included in the SOP. When actions are included in the SOP, they are referred to as controllable actions; otherwise, they are termed proactive actions. Figure fig: task_define shows an example of SOP graph. The adjacency list representation of the SOP is as follows:",
+    "translation": "Standardized operating procedures (SOP) is a directed graph where vertexes are $agent _action$ and $user _state$, and the edges indicate the connections between these nodes.。该SOP is established by business experts to standardize the essential business processing steps.。Omitting or altering these steps can result in a violation or error.。For instance, in the \"Activate Credit Card Invitation\" task, the agent must first \"verify the user's identity\" and confirm that the user is a \"cardholder\" before introducing the \"activation activity.\" Conversely, steps that do not impact the business process, such as the user \"asking questions\" and the agent \"resolving doubts,\" should not be included in the SOP.。When actions are included in the SOP, they are referred to as controllable actions; otherwise, they are termed proactive actions.。Figure fig: task_define shows an example of SOP graph.。该adjacency list representation of the SOP is as follows:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SOP 定义",
+    "page": 3,
+    "sourceText": "The adjacency list representation of the SOP.",
+    "translation": "图表说明：The adjacency list representation of the SOP.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/json_5.png",
+    "kind": "figure"
+  },
+  {
+    "section": "SOP 定义",
+    "page": 3,
+    "sourceText": "Picture fig: task_define is an example of a SOP definition.",
+    "translation": "Picture fig: task_define is an example of a SOP definition.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SOP 定义",
+    "page": 3,
+    "sourceText": "An example of SOP definition.",
+    "translation": "图表说明：An example of SOP definition.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/task1_task_define.png",
+    "kind": "figure"
+  },
+  {
+    "section": "数据构建细节",
+    "page": 3,
+    "sourceText": "Dataset Curation Details",
+    "translation": "数据构建细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "数据构建细节",
+    "page": 3,
+    "sourceText": "Screenshot of the annotation tool.",
+    "translation": "图表说明：Screenshot of the annotation tool.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/step4annotation_tool.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts of Role-Playing Framework",
+    "page": 3,
+    "sourceText": "Prompts of Role-Playing Framework",
+    "translation": "Prompts of Role-Playing Framework",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompts of Role-Playing Framework",
+    "page": 3,
+    "sourceText": "The prompts for step 2, 3, and 4 are shown in prompt_details.",
+    "translation": "该prompts for step 2, 3, and 4 are shown in prompt_details.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotators and Annotations",
+    "page": 3,
+    "sourceText": "Annotators and Annotations",
+    "translation": "Annotators and Annotations",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotators and Annotations",
+    "page": 3,
+    "sourceText": "I. Annotation Recruiter Selection Process. We recruited annotators from a Chinese university and renowned enterprises through a three-stage selection process, ultimately choosing seven qualified annotators. The specific recruitment process includes three steps: • Qualification Selection Candidates must have a bachelor's degree or above, and background knowledge in NLP, and preference is given to those with annotation experience. • Trial Annotation Candidates who pass the qualification selection are provided with uniform training. After the training, they perform trial annotations on a small-scale dataset, and the results are assessed for compliance with the annotation rules (for details, see annotation-guidelines-details). • Diversity Selection From those who pass the trial annotation, we select individuals from different university majors and professional departments to increase diversity.",
+    "translation": "I.。Annotation Recruiter Selection Process.。作者recruited annotators from a Chinese university and renowned enterprises through a three-stage selection process, ultimately choosing seven qualified annotators.。该specific recruitment process includes three steps: • Qualification Selection Candidates must have a bachelor's degree or above, and background knowledge in NLP, and preference is given to those with annotation experience.。• Trial Annotation Candidates who pass the qualification selection are provided with uniform training.。After the training, they perform trial annotations on a small-scale 数据集, and the results are assessed for compliance with the annotation rules (for details, see annotation-guidelines-details).。• Diversity Selection From those who pass the trial annotation, we select individuals from different university majors and professional departments to increase diversity.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotators and Annotations",
+    "page": 4,
+    "sourceText": "II. Measures to Ensure Dialogue Quality and Consistency Implement Unified Training by integrating a Training Manual, Meeting Clarifications, and Examples. Conduct pilot annotations to identify and resolve issues during the trial annotation period. Timely communication, feedback, and discussion during the process, promptly supplement and update the training manual, and re-examine the annotated results. Additionally, every instance was assigned to three annotators for cross-annotation validation with an inter-annotator agreement (IAA).",
+    "translation": "II.。Measures to Ensure Dialogue Quality and Consistency Implement Unified Training by integrating a Training Manual, Meeting Clarifications, and Examples.。Conduct pilot annotations to identify and resolve issues during the trial annotation period.。Timely communication, feedback, and discussion during the process, promptly supplement and update the training manual, and re-examine the annotated results.。Additionally, every instance was assigned to three annotators for cross-annotation validation with an inter-annotator agreement (IAA).。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotators and Annotations",
+    "page": 4,
+    "sourceText": "III. Compensation. On average, the annotation time was 10.3 minutes per sample, and the compensation was $8 per hour.",
+    "translation": "III.。Compensation.。On average, the annotation time was 10.3 minutes per sample, and the compensation was $8 per hour.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "Annotation Guidelines",
+    "translation": "Annotation Guidelines",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "All annotators used the annotation tool for marking, and a screenshot of the annotation tool is shown in Figure annotation_tool_fig. The complete annotation guideline includes numerous definitions and examples, with detailed formatting as shown above apdx: task_define_example. Below is a brief explanation of the key annotation fields and important considerations.",
+    "translation": "All annotators used the annotation tool for marking, and a screenshot of the annotation tool is shown in Figure annotation_tool_fig.。该complete annotation guideline includes numerous definitions and examples, with detailed formatting as shown above apdx: task_define_example.。Below is a brief explanation of the key annotation fields and important considerations.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "Step 1 annotation guidelines. Task 1 requires annotating the task definition. The task should come from various domains in the real world, and the task process can be described with core steps using SOP. The task can be completed in the form of a dialogue between the agent and the user. Content to be annotated:",
+    "translation": "Step 1 annotation guidelines.。Task 1 requires annotating the task definition.。该task should come from various domains in the real world, and the task process can be described with core steps using SOP.。该task can be completed in the form of a dialogue between the agent and the user.。Content to be annotated:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "• Task Profile: Provide the agent with relevant business knowledge about this dialogue task, which must include \"agent _identity\", \"agent _goal\" and \"success _mark\". Additional necessary business knowledge can be supplemented. • User Profile: Provide the agent with information about the user, who is the subject of this task dialogue, such as their name, etc. • Agent Action: The dialogue actions that the agent can choose to facilitate the completion of the task. • User State: The task status is achieved based on the information provided by the user during the dialogue process.",
+    "translation": "• Task Profile: Provide the agent with relevant business knowledge about this dialogue task, which must include \"agent _identity\", \"agent _goal\" and \"success _mark\".。Additional necessary business knowledge can be supplemented.。• User Profile: Provide the agent with information about the user, who is the subject of this task dialogue, such as their name, etc.。• Agent Action: The dialogue actions that the agent can choose to facilitate the completion of the task.。• User State: The task status is achieved based on the information provided by the user during the dialogue process.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "Step 2 annotation guidelines. Task 2 requires the creation of SOP for the tasks defined in Task 1. The following should be annotated: • SOP Vertexes: Selected from agent actions and user states, used to define the core SOP diagram that needs to be followed. • SOP: The interconnections between the nodes in the SOP diagram. It starts with \"Agent.Start\" and ends with \"Agent.PoliteEnd\", meaning that the leaf nodes have only one.",
+    "translation": "Step 2 annotation guidelines.。Task 2 requires the creation of SOP for the tasks defined in Task 1.。该following should be annotated: • SOP Vertexes: Selected from agent actions and user states, used to define the core SOP diagram that needs to be followed.。• SOP: The interconnections between the nodes in the SOP diagram.。It starts with \"Agent.Start\" and ends with \"Agent.PoliteEnd\", meaning that the leaf nodes have only one.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "Step 3 annotation guidelines. The dialogue path is a sequence of interactive actions generated by the LLM based on the SOP, representing a specific user completing a conversation in a particular setting. It is necessary to check whether the dialogue actions in the path follow the order in the core SOP. At the same time, for agent actions that are not part of the SOP, it is necessary to check whether they reflect the agent's proactivity, that is, whether the agent is striving to guide the conversation toward the task goal.",
+    "translation": "Step 3 annotation guidelines.。该dialogue path is a sequence of interactive actions generated by the LLM based on the SOP, representing a specific user completing a conversation in a particular setting.。It is necessary to check whether the dialogue actions in the path follow the order in the core SOP.。At the same time, for agent actions that are not part of the SOP, it is necessary to check whether they reflect the agent's proactivity, that is, whether the agent is striving to guide the conversation toward the task goal.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Annotation Guidelines",
+    "page": 4,
+    "sourceText": "Step 4 annotation guidelines. Annotators need to correct the dialogue content and dialogue actions (task status) to ensure they are consistent with the background knowledge provided for the task, comply with the constraints of the SOP, and adhere to common sense. Additionally, they should correct the grammatical correctness and fluency of the dialogue.",
+    "translation": "Step 4 annotation guidelines.。Annotators need to correct the dialogue content and dialogue actions (task status) to ensure they are consistent with the background knowledge provided for the task, comply with the constraints of the SOP, and adhere to common sense.。Additionally, they should correct the grammatical correctness and fluency of the dialogue.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "List of Tasks in 32 Domains",
+    "page": 4,
+    "sourceText": "List of Tasks in 32 Domains",
+    "translation": "List of Tasks in 32 Domains",
+    "kind": "paragraph"
+  },
+  {
+    "section": "List of Tasks in 32 Domains",
+    "page": 4,
+    "sourceText": "All domains and tasks are shown in Table domain-task detail.",
+    "translation": "All domains and tasks are shown in Table domain-task detail.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "List of Tasks in 32 Domains",
+    "page": 4,
+    "sourceText": "Domains and tasks Details.",
+    "translation": "表格说明：Domains and tasks Details.。",
+    "kind": "table"
+  },
+  {
+    "section": "实验细节",
+    "page": 4,
+    "sourceText": "Experiment Details",
+    "translation": "实验细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Offline Planner: Task 1",
+    "page": 4,
+    "sourceText": "Offline Planner: Task 1",
+    "translation": "Offline Planner: Task 1",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Offline Planner: Task 1",
+    "page": 4,
+    "sourceText": "The prompt for Direct Adjacency List (DAL) is shown in prompt_details. TCoT first-step: the prompt for LLM to describe each vertex and its child vertices in natural language is shown in prompt:tcot2. TCoT second-step: the prompt for LLM to translate the description into an adjacency list in JSON format is shown in prompt_details",
+    "translation": "该prompt for Direct Adjacency List (DAL) is shown in prompt_details.。TCoT first-step: the prompt for LLM to describe each vertex and its child vertices in natural language is shown in prompt:tcot2.。TCoT second-step: the prompt for LLM to translate the description into an adjacency list in JSON format is shown in prompt_details。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner: Task 2",
+    "page": 4,
+    "sourceText": "Online Planner: Task 2",
+    "translation": "Online Planner: Task 2",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner: Task 2",
+    "page": 4,
+    "sourceText": "In MCTS, the number of generated actions $M$ is set to 3, depth limit $L$ is set to 8, the number of roll-outs $N$ is set to 3, and exploration weight $w$ is set to 1. To maintain a search scale similar to MCTS, in ToT, the number of generated actions $M$ is set to 3, depth limit $L$ is set to 8.",
+    "translation": "In MCTS, the number of generated actions $M$ is set to 3, depth limit $L$ is set to 8, the number of roll-outs $N$ is set to 3, and exploration weight $w$ is set to 1.。To maintain a search scale similar to MCTS, in ToT, the number of generated actions $M$ is set to 3, depth limit $L$ is set to 8.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Planner: Task 2",
+    "page": 4,
+    "sourceText": "The prompt for ToT sampling actions, generating responses, and predicting the user state is exactly the same as that for MCTS. The prompts for CoT, CoT+SOP, MCTS, and ToT are shown in prompt_details.",
+    "translation": "该prompt for ToT sampling actions, generating responses, and predicting the user state is exactly the same as that for MCTS.。该prompts for CoT, CoT+SOP, MCTS, and ToT are shown in prompt_details.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Supervised Fine-Tuning",
+    "page": 4,
+    "sourceText": "Supervised Fine-Tuning",
+    "translation": "Supervised Fine-Tuning",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Supervised Fine-Tuning",
+    "page": 4,
+    "sourceText": "All open-source models' experiments were completed on 4 Nvidia A800 GPUs. For SFT, we fine-tuned all parameters using 5 epochs, 50 warm steps, 128 batch size, and 1e-6 learning rate.",
+    "translation": "All open-source models' experiments were completed on 4 Nvidia A800 GPUs.。For SFT, we fine-tuned all parameters using 5 epochs, 50 warm steps, 128 batch size, and 1e-6 learning rate.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generation Parameters",
+    "page": 4,
+    "sourceText": "Generation Parameters",
+    "translation": "Generation Parameters",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generation Parameters",
+    "page": 4,
+    "sourceText": "In the experiment of task 1, the temperature was uniformly set to 0.1 and the top-p was set to 0.1. For task 2, the temperature was uniformly set to 1 and the top-p was set to 0.95.",
+    "translation": "In the experiment of task 1, the temperature was uniformly set to 0.1 and the top-p was set to 0.1.。For task 2, the temperature was uniformly set to 1 and the top-p was set to 0.95.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "Human Evaluation Details",
+    "translation": "人工评测细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "We continue to employ the annotators recruited for dataset construction to complete the evaluation of different models in dialogue tests. Let $H$ denote the annotated preceding dialogue context, and let $r$ represent the model's agent response to $H$. The specific evaluations include:",
+    "translation": "作者continue to employ the annotators recruited for 数据集 construction to complete the 评估 of different models in dialogue tests.。Let $H$ denote the annotated preceding dialogue context, and let $r$ represent the model's agent response to $H$.。该specific 评估s include:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "Controllability Accuracy If the content of $r$ originates from the SOP, then $r$ is added to a controllable response set $R_ $. Furthermore, if $r$ correctly adheres to the SOP procedural constraints, then $r$ is added to a correctly controllable response set $R_ $. Finally, the controllability accuracy $acc_ $ is defined as:",
+    "translation": "Controllability Accuracy If the content of $r$ originates from the SOP, then $r$ is added to a controllable response set $R_ $.。Furthermore, if $r$ correctly adheres to the SOP procedural constraints, then $r$ is added to a correctly controllable response set $R_ $.。Finally, the 可控性 accuracy $acc_ $ is defined as:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "\\begin{align}\nacc_{\\text{ctrl}} = \\frac{\\mathrm{count}(R_{\\text{ctrl\\_right}})}{\\mathrm{count}(R_{\\text{ctrl}})}\n\\end{align}",
+    "translation": "公式说明：该公式服务于“人工评测细节”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "Proactivity Accuracy If the content of $r$ originates not from the SOP, then $r$ is added to a proactive response set $R_ $. Furthermore, if $r$ responds correctly to the user and effectively guides the conversation towards achieving the goal, then $r$ is added to a correctly proactive response set $R_ $. Finally, the proactivity accuracy $acc_ $ is defined as:",
+    "translation": "Proactivity Accuracy If the content of $r$ originates not from the SOP, then $r$ is added to a proactive response set $R_ $.。Furthermore, if $r$ responds correctly to the user and effectively guides the conversation towards achieving the goal, then $r$ is added to a correctly proactive response set $R_ $.。Finally, the proactivity accuracy $acc_ $ is defined as:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "\\begin{align}\nacc_{\\text{pact}} = \\frac{\\mathrm{count}(R_{\\text{pact\\_right}})}{\\mathrm{count}(R_{\\text{pact}})}\n\\end{align}",
+    "translation": "公式说明：该公式服务于“人工评测细节”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "Knowledge Accuracy If $r$ contains business or user information from the task, it will be added to the knowledge response set $R_know$. In addition, if $r$ contains accurate information, free of errors or hallucinations, then $r$ will be added to the correct knowledge response set $(r_)$.Finally, the knowledge accuracy $acc_ $ is defined as:",
+    "translation": "Knowledge Accuracy If $r$ contains business or user information from the task, it will be added to the knowledge response set $R_know$.。In addition, if $r$ contains accurate information, free of errors or hallucinations, then $r$ will be added to the correct knowledge response set $(r_)$.Finally, the knowledge accuracy $acc_ $ is defined as:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "\\begin{align}\nacc_{\\text{know}} = \\frac{\\mathrm{count}(R_{\\text{know\\_right}})}{\\mathrm{count}(R_{\\text{know}})}\n\\end{align}",
+    "translation": "公式说明：该公式服务于“人工评测细节”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "Goal Success Rate If the model's responses in each turn contain no controllability errors and knowledge errors, and the dialogue ultimately reaches the goal position, the dialogue is considered goal successful. The goal success rate is the proportion of successful dialogues to the total number of dialogues.",
+    "translation": "Goal Success Rate If the model's responses in each turn contain no 可控性 errors and knowledge errors, and the dialogue ultimately reaches the goal position, the dialogue is considered goal successful.。该goal success rate is the proportion of successful dialogues to the total number of dialogues.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "Logical Coherence Score We evaluate the logical coherence of the model by breaking down the scoring points across multiple dimensions.",
+    "translation": "Logical Coherence Score We evaluate the logical coherence of the model by breaking down the scoring points across multiple dimensions.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "人工评测细节",
+    "page": 4,
+    "sourceText": "• Response Logic: Whether the model misunderstands the user's intent and responds with content that is completely unrelated or incorrect to the intent. If there is an error, score 0; otherwise, score 0.4. • Context Consistency: Whether the model's response content contradicts the dialogue history. If there is a contradiction, score 0; otherwise, score 0.3. • Common Sense: If the model's response contradicts common sense, score 0 else 0.3.",
+    "translation": "• Response Logic: Whether the model misunderstands the user's intent and responds with content that is completely unrelated or incorrect to the intent.。If there is an error, score 0; otherwise, score 0.4.。• Context Consistency: Whether the model's response content contradicts the dialogue history.。If there is a contradiction, score 0; otherwise, score 0.3.。• Common Sense: If the model's response contradicts common sense, score 0 else 0.3.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "进一步分析",
+    "page": 4,
+    "sourceText": "Further Analysis",
+    "translation": "进一步分析",
+    "kind": "paragraph"
+  },
+  {
+    "section": "进一步分析",
+    "page": 4,
+    "sourceText": "Cost-Effectiveness We evaluate cost-effectiveness across approaches with goal success rate and computational cost (in terms of token consumption). All methods are based on Llama3-70b-chat to complete the experiments. As Figure fig:ceff illustrates, compared to the basic one-step reasoning CoT method, tree search algorithms like ToT and MCTS can significantly improve performance, although they consume more computational power. However, compared to ToT, MCTS achieves better performance while consuming less computational power. Finally, as expected, SFT shows the best performance and computational efficiency, which indicates that our dataset can significantly enhance the planning capabilities of dialogue agents, thus improving dialogue success rates. The separation of training and testing tasks demonstrates that the model fine-tuned with SFT exhibits excellent generalization ability to new domains.",
+    "translation": "Cost-Effectiveness We evaluate cost-effectiveness across approaches with goal success rate and computational cost (in terms of token consumption).。All methods are based on Llama3-70b-chat to complete the experiments.。As Figure fig:ceff illustrates, compared to the basic one-step reasoning CoT method, tree search 算法s like ToT and MCTS can significantly improve performance, although they consume more computational power.。However, compared to ToT, MCTS achieves better performance while consuming less computational power.。Finally, as expected, SFT shows the best performance and computational efficiency, which indicates that our 数据集 can significantly enhance the planning capabilities of 对话智能体, thus improving dialogue success rates.。该separation of training and testing tasks demonstrates that the model fine-tuned with SFT exhibits excellent generalization ability to new domains.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "进一步分析",
+    "page": 5,
+    "sourceText": "Cost-Effectiveness analysis results.",
+    "translation": "图表说明：Cost-Effectiveness analysis results.。",
+    "assetPath": "/generated/chatsop-sop-guided-mcts-dialogue-agents/Figure_1.png",
+    "kind": "figure"
+  },
+  {
+    "section": "对话示例",
+    "page": 5,
+    "sourceText": "Example of Dialogue",
+    "translation": "对话示例",
+    "kind": "paragraph"
+  },
+  {
+    "section": "对话示例",
+    "page": 5,
+    "sourceText": "Agent Action: Greet\nAgent Response: Hi, this is the customer service center of the ** Bank Credit Card Department.\n\nUser Response: Hi!\nUser State: Greet\n\nAgent Action: VerifyIdentity\nAgent Response: Hi, am I speaking with Ms. Hao **?\n\nUser Response: Yes, that's right.\nUser State: Cardholder\n\nAgent Action: IntroduceActivationActivities.\nAgent Response: Ms. Hao, thank you for applying for our platinum credit card. To reward our new customers, we currently have an activation promotion that offers a 12\\% discount on fuel for one year. Once you activate your credit card, you can enjoy this benefit.\n\nUser Response: That sounds great, but I've never used a credit card before and I'm a bit worried it might be troublesome.\nUser State: WorryAndDoubt\n\nAgent Action: RelieveDoubts\nAgent Response: Ms. Hao, you don't have to worry at all. Activating a credit card is very simple. You can choose to handle it at the bank counter, or you can activate it through the mobile banking APP or by calling our credit card customer service hotline for self-activation. The whole process is very convenient and fast.\n\nUser Response: Oh, I see. That's good to know.\nUser State:  HabitualResponseAndContinue\n\nAgent Action:  AttemptPersuasion \nAgent Response: Yes, and after activation, you can also set a transaction password to ensure the security of your card usage. Our platinum credit card is free of annual fees for the first year, and you can waive the annual fee by swiping the card three times a year. This is not only safe and convenient but also comes with many promotional activities.\n\nUser Response: That sounds like a great deal, please activate it for me.\nUser State: Activate\n\nAgent Action: SetPassword\nAgent Response: Thank you for your trust. To ensure the security of your card transactions, please set a 6-digit transaction password.\n\nUser Response: Sure, my transaction password is ******.\nUser State: Success\n\nAgent Action: Thank\nAgent Response: Ms. Hao, your credit card has been successfully activated, and the transaction password has been set. You can now use your credit card normally.\n\nUser Response: Thank you, it's really convenient.\nUser State: Thank\n\nAgent Action: Goodbye\nAgent Response: You're welcome, Ms. Hao. If you have any questions, you can call our customer service hotline at any time. I wish you a happy life, goodbye!\n\nUser Response: Okay, goodbye!\nUser State: Goodbye",
+    "translation": "代码说明：这段代码或 JSON 配置来自“对话示例”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "text"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Prompt Details",
+    "translation": "提示词细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to predict SOP's Direct Adjacency List (DAL). ] You are a professional business manager, having accumulated extensive knowledge of business processes and being adept at conversing with clients to complete business tasks.",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to predict SOP's Direct Adjacency List (DAL).。] You are a professional business manager, having accumulated extensive knowledge of business processes and being adept at conversing with clients to complete business tasks.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Now, please create the standard operating procedure (SOP) diagram for this task based on the following \"Task Profile\". All vertexes of this SOP diagram are as follows \"SOP Vertexes\", and you need to output the list of adjacent for each vertex.",
+    "translation": "Now, please create the standard operating procedure (SOP) diagram for this task based on the following \"Task Profile\".。All vertexes of this SOP diagram are as follows \"SOP Vertexes\", and you need to output the list of adjacent for each vertex.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Please strictly follow the requirements below: 1. The output format should be in the form of a JSON string array. 2. The JSON fields must include all nodes. If a vertex has no adjacent vertexes, represent it with [].",
+    "translation": "Please strictly follow the requirements below: 1.。该output format should be in the form of a JSON string array.。2.。该JSON fields must include all nodes.。If a vertex has no adjacent vertexes, represent it with [].。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{ \n    \"agent_identity\": \"** Bank Credit Card Center Customer Service\", \n    \"task_goal\": \"To persuade the user to explicitly agree to the credit card\", \n    \"success\\_mark\": [ \n        \"User.ClearAgreement\"\n        ], \n    \"...\":\"...\", \n    \"other_knowledge\": \"Credit Card Opening Guide I. Card Activation ...\" \n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[ \n     \"Agent.Start\", \n     \"Agent.VerifyIdentity\", \n     \"...\", \n     \"Agent.PoliteEnd\", \n     \"Agent.NotifyActivationSuccess\" \n]",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "The adjacency list of all vertexes: 0.4pt Generation Output:",
+    "translation": "该adjacency list of all vertexes: 0.4pt Generation Output:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{ \n \"Agent.Start\":[\n    \"Agent.VerifyIdentity\"\n    ], \n \"Agent.VerifyIdentity\":[ \n     \"User.Cardholder\",\n     \"User.NonCardholder\"\n     ], \n \"...\":[\n    \"...\"\n    ], \n \"User.ClearRejection\":[\n    \"Agent.PoliteEnd\"\n    ], \n \"Agent.PoliteEnd\":[], \n \"Agent.NotifyActivationSuccess\":[\n    \"Agent.PoliteEnd\"\n    ]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=,",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=,。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "title=The prompt of TCoT to translate the description into an adjacency list. ] You are a seasoned business representative, having accumulated a wealth of business process knowledge, and are adept at conversing with customers to complete transactions. Now please formulate the Standard Operating Procedure (SOP) diagram for this task.",
+    "translation": "title=The prompt of TCoT to translate the description into an adjacency list.。] You are a seasoned business representative, having accumulated a wealth of business process knowledge, and are adept at conversing with customers to complete transactions.。Now please formulate the 标准操作流程 (SOP) diagram for this task.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "You can refer to the following \"Task Knowledge\", but it may not be comprehensive or accurate, and you do not need to strictly follow it. All nodes of the SOP diagram are as follows \"SOP Diagram Nodes\", and you need to output the list of adjacent nodes for each node, that is, the adjacency list of the entire SOP diagram.",
+    "translation": "You can refer to the following \"Task Knowledge\", but it may not be comprehensive or accurate, and you do not need to strictly follow it.。All nodes of the SOP diagram are as follows \"SOP Diagram Nodes\", and you need to output the list of adjacent nodes for each node, that is, the adjacency list of the entire SOP diagram.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "1. The SOP diagram starts with `Agent.Start' and ends with `Agent.PoliteEnd'. 2. The subsequent nodes of the \"User\" node are usually \"Agent\" nodes, and the subsequent nodes of the \"Agent\" node mostly require a response from the \"User\" node. For some actions that do not require a response, the subsequent node of \"Agent\" can also be \"Agent\". 3. If there is a `VerifyIdentity' node in the task, it indicates that only the person themselves can continue, and the conversation ends if it is not the person themselves. 4. The JSON fields must include all nodes. 5. Please strictly follow output format, for example:",
+    "translation": "1.。该SOP diagram starts with `Agent.Start' and ends with `Agent.PoliteEnd'.。2.。该subsequent nodes of the \"User\" node are usually \"Agent\" nodes, and the subsequent nodes of the \"Agent\" node mostly require a response from the \"User\" node.。For some actions that do not require a response, the subsequent node of \"Agent\" can also be \"Agent\".。3.。If there is a `VerifyIdentity' node in the task, it indicates that only the person themselves can continue, and the conversation ends if it is not the person themselves.。4.。该JSON fields must include all nodes.。5.。Please strictly follow output format, for example:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{ \n    \"Agent.Start\": [\n        \"Agent.Node1\"\n        ], \n    \"Agent.Node1\": [\n        \"User.Node1\", \n        \"User.Node2\"\n        ], \n    \"...\": [\"...\"]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Task Knowledge After `Agent.Start', the first step should be `Agent.VerifyIdentity'. After confirming the identity, it could be `User.IsThemselves' or `User.NotThemselves'. If not the person, the agent will `Agent.PoliteEnd'. If the user is the person, then the agent will introduce the event, that is `Agent.InviteToGolfExperienceEvent'...",
+    "translation": "Task Knowledge After `Agent.Start', the first step should be `Agent.VerifyIdentity'.。After confirming the identity, it could be `User.IsThemselves' or `User.NotThemselves'.。If not the person, the agent will `Agent.PoliteEnd'.。If the user is the person, then the agent will introduce the event, that is `Agent.InviteToGolfExperienceEvent'...。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "SOP Diagram Nodes \"Agent.Start\", \"Agent.VerifyIdentity\",...",
+    "translation": "SOP Diagram Nodes \"Agent.Start\", \"Agent.VerifyIdentity\",...。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Adjacency list for all nodes:",
+    "translation": "Adjacency list for all nodes:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output:",
+    "translation": "0.1pt Generation Output:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"Agent.Start\":[\n        \"Agent.VerifyIdentity\"\n        ],\n    \"...\":[\"...\"]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt of TCoT to describe the adjacency relationship between vertexes in natural language. ] You are a professional business manager, having accumulated a wealth of business process knowledge and being adept at conversing with customers to complete transactions.",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt of TCoT to describe the adjacency relationship between vertexes in natural language.。] You are a professional business manager, having accumulated a wealth of business process knowledge and being adept at conversing with customers to complete transactions.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Now, based on the vertexes of the Standard Operating Procedure (SOP) diagram, please analyze all the vertexes. Write a passage analyzing the entire process of interaction and communication between the `User' and `Agent', covering all vertexes and all possible scenarios, such as what happens if the user `Agree' or `Disagree'.",
+    "translation": "Now, based on the vertexes of the 标准操作流程 (SOP) diagram, please analyze all the vertexes.。Write a passage analyzing the entire process of interaction and communication between the `User' and `Agent', covering all vertexes and all possible scenarios, such as what happens if the user `Agree' or `Disagree'.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Here is an example: SOP vertexes:",
+    "translation": "Here is an example: SOP vertexes:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "`Agent.Start', `Agent.VerifyIdentity', `User.IsThemselves', `Agent.IntroduceGiftDelivery', `User.NotThemselves', `User.ClearAgreement', `Agent.AskForDeliveryAddress', `User.ProvideDeliveryAddress', `User.DoNotProvideDeliveryAddress', `User.ClearRejection', `Agent.PoliteEnd', `Agent.NotifyRegistrationSuccess'",
+    "translation": "`Agent.Start', `Agent.VerifyIdentity', `User.IsThemselves', `Agent.IntroduceGiftDelivery', `User.NotThemselves', `User.ClearAgreement', `Agent.AskForDeliveryAddress', `User.ProvideDeliveryAddress', `User.DoNotProvideDeliveryAddress', `User.ClearRejection', `Agent.PoliteEnd', `Agent.NotifyRegistrationSuccess'。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Start analysis: After `Agent.Start', the first step should be `Agent.VerifyIdentity'. After confirming the identity, it could be `User.IsThemselves' or `User.NotThemselves'. If not the person, the agent will `Agent.PoliteEnd'. If the user is the person, the agent will introduce, that is `Agent.IntroduceGiftDelivery'. If `User.ClearAgreement', the process can continue. Since it is a gift delivery, after the user agrees, `Agent.AskForDeliveryAddress', if `User.ProvideDeliveryAddress' then the agent `Agent.NotifyRegistrationSuccess', if `User.DoNotProvideDeliveryAddress', the agent may ask again `Agent.AskForDeliveryAddress', or directly `Agent.PoliteEnd'. After `Agent.NotifyRegistrationSuccess', it can `Agent.PoliteEnd'.",
+    "translation": "Start analysis: After `Agent.Start', the first step should be `Agent.VerifyIdentity'.。After confirming the identity, it could be `User.IsThemselves' or `User.NotThemselves'.。If not the person, the agent will `Agent.PoliteEnd'.。If the user is the person, the agent will introduce, that is `Agent.IntroduceGiftDelivery'.。If `User.ClearAgreement', the process can continue.。Since it is a gift delivery, after the user agrees, `Agent.AskForDeliveryAddress', if `User.ProvideDeliveryAddress' then the agent `Agent.NotifyRegistrationSuccess', if `User.DoNotProvideDeliveryAddress', the agent may ask again `Agent.AskForDeliveryAddress', or directly `Agent.PoliteEnd'.。After `Agent.NotifyRegistrationSuccess', it can `Agent.PoliteEnd'.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "SOP vertexes: \"Agent.Start\", \"Agent.VerifyIdentity\",...,\"Agent.PoliteEnd\"",
+    "translation": "SOP vertexes: \"Agent.Start\", \"Agent.VerifyIdentity\",...,\"Agent.PoliteEnd\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output: After `Agent.Start', the first step should be `Agent.VerifyIdentity'. After confirming the identity, it could be `User.IsThemselves' or `User.NotThemselves'. If not the person, the agent will `Agent.PoliteEnd'. If the user is the person, then the agent will introduce the event, that is `Agent.InviteToGolfExperienceEvent'. If...",
+    "translation": "0.1pt Generation Output: After `Agent.Start', the first step should be `Agent.VerifyIdentity'.。After confirming the identity, it could be `User.IsThemselves' or `User.NotThemselves'.。If not the person, the agent will `Agent.PoliteEnd'.。If the user is the person, then the agent will introduce the event, that is `Agent.InviteToGolfExperienceEvent'.。If...。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[ breakable, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to generate full dialogue paths. ] You are a professional business manager, assisting customers in handling their business through dialogue.",
+    "translation": "[ breakable, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to generate full dialogue paths.。] You are a professional business manager, assisting customers in handling their business through dialogue.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Based on the provided \"task _profile\", \"user _profile\" and \"sop _adjacency _list\", Please insert more \"user _state\" and \"agent _actions\" into the above \"Main Dialogue Path\" to enrich the possible reactions of the user and the corresponding decision-making actions that the agent takes in response to the user's state, forming a full dialogue path.",
+    "translation": "Based on the provided \"task _profile\", \"user _profile\" and \"sop _adjacency _list\", Please insert more \"user _state\" and \"agent _actions\" into the above \"Main Dialogue Path\" to enrich the possible reactions of the user and the corresponding decision-making actions that the agent takes in response to the user's state, forming a full dialogue path.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Below is the related information:",
+    "translation": "Below is the related information:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"task_profile\": {\"...\":\"...\"},\n    \"user_profile\": {\"...\":\"...\"},\n    \"sop_adjacency_list\": {\"...\":[\"...\"]},\n    \"agent_action\": [\n        \"Agent.VerifyIdentity\", \n        \"...\"\n    ], \n    \"user_state\": [\n        \"User.Cardholder\", \n        \"...\"\n    ]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "# Main Dialogue Path:",
+    "translation": "# Main Dialogue Path:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Please follow the requirements below strictly:",
+    "translation": "Please follow the requirements below strictly:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "1. Full dialogue paths should start with \"Agent.Greeting\" and end with \"User.Ending\". 2. Require \"Agent Action\" and \"User State\" to be spoken alternately, with each occurrence representing a round of dialogue. Please add a \"--\" after each round of dialogue to separate the previous and next rounds. For example, [\"Agent.Greeting\", \"User.Greeting\", \"--\", \"Agent.IntroduceActivity\",...]. 3. Don't delete nodes or adjust the nodes' order in the \"Main Dialogue Path\". 4. Please only insert 2 to 5 reasonable rounds of dialogue. 5. The inserted nodes can only be selected from the \"user _state\" and \"agent _action\" defined in the above text, and do not create new names. 6. When the preceding node comes from \"sop\", please try to choose one from the subsequent nodes of the current node in the adjacency list. 7. The output format should be a JSON string array.",
+    "translation": "1.。Full dialogue paths should start with \"Agent.Greeting\" and end with \"User.Ending\".。2.。Require \"Agent Action\" and \"User State\" to be spoken alternately, with each occurrence representing a round of dialogue.。Please add a \"--\" after each round of dialogue to separate the previous and next rounds.。For example, [\"Agent.Greeting\", \"User.Greeting\", \"--\", \"Agent.IntroduceActivity\",...].。3.。Don't delete nodes or adjust the nodes' order in the \"Main Dialogue Path\".。4.。Please only insert 2 to 5 reasonable rounds of dialogue.。5.。该inserted nodes can only be selected from the \"user _state\" and \"agent _action\" defined in the above text, and do not create new names.。6.。When the preceding node comes from \"sop\", please try to choose one from the subsequent nodes of the current node in the adjacency list.。7.。该output format should be a JSON string array.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Supplemented full dialogue paths in JSON format:",
+    "translation": "Supplemented full dialogue paths in JSON format:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.4pt Generation Output:",
+    "translation": "0.4pt Generation Output:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[\n    \"Agent.Greeting\", \n    \"User.Greeting\", \n    \"--\", \n    \"Agent.VerifyIdentity\",\n    \"User.Cardholder\",\n    \"--\", \n    \"Agent.IntroduceActivity\"\n    \"...\"\n]",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[ breakable, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to generate dialogue according to full dialogue paths. ] You are a professional business manager, assisting customers with their business through dialogues.",
+    "translation": "[ breakable, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to generate dialogue according to full dialogue paths.。] You are a professional business manager, assisting customers with their business through dialogues.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Now, due to the need for training new business representatives, you are asked to act as a scriptwriter. Based on the \"task _profile\" and \"user _profile\" provided below, and the \"Full Dialogue Path\" between the agent and the user for this task, write dialogue scripts that fit the roles of both parties. Here are the task-related information:",
+    "translation": "Now, due to the need for training new business representatives, you are asked to act as a scriptwriter.。Based on the \"task _profile\" and \"user _profile\" provided below, and the \"Full Dialogue Path\" between the agent and the user for this task, write dialogue scripts that fit the roles of both parties.。Here are the task-related information:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"task_profile\":{ \n        \"agent_identity\": \"** Bank Credit Card Center Customer Service\", \n        \"...\", \n        \"other_knowledge\": \"Credit Card Activation Guide I. Card Activation ...\"\n    }, \n    \"user_profile\": {\n        \"Name\": \"**\", \n        \"Gender\": \"Male\", \n        \"...\", \n        \"CardID\":\"****\"\n    }\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Full Dialogue Paths: \"Agent.Greeting\", \"User.Greeting\", \"Agent.VerifyIdentity\", \"User.Cardholder\",...",
+    "translation": "Full Dialogue Paths: \"Agent.Greeting\", \"User.Greeting\", \"Agent.VerifyIdentity\", \"User.Cardholder\",...。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Please write dialogue scripts for the \"Full Dialogue Paths\" based on the task-related information, forming a complete conversation.",
+    "translation": "Please write dialogue scripts for the \"Full Dialogue Paths\" based on the task-related information, forming a complete conversation.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Please strictly follow the requirements below:",
+    "translation": "Please strictly follow the requirements below:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "1.Please directly append the \"script\" you have written after the name of each node in the \"Complete Dialogue Path\", separated by the \"|\" symbol. For example: \"User.Consider|I understand, I will think about it.\"",
+    "translation": "1.Please directly append the \"script\" you have written after the name of each node in the \"Complete Dialogue Path\", separated by the \"|\" symbol.。For example: \"User.Consider|I understand, I will think about it.\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "2.Do not add, delete, or change any original node.",
+    "translation": "2.Do not add, delete, or change any original node.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "3.The complete output format should be consistent with the \"Complete Dialogue Path\", that is, output as a JSON array of strings, such as [\"Agent.PoliteEnd|Thank you for your cooperation, I wish you a happy life!\", \"User.Ending|Okay, goodbye!\"]",
+    "translation": "3.The complete output format should be consistent with the \"Complete Dialogue Path\", that is, output as a JSON array of strings, such as [\"Agent.PoliteEnd|Thank you for your cooperation, I wish you a happy life!\", \"User.Ending|Okay, goodbye!\"]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Please output the \"Complete Dialogue Path\" after adding the dialogue scripts:",
+    "translation": "Please output the \"Complete Dialogue Path\" after adding the dialogue scripts:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output:",
+    "translation": "0.1pt Generation Output:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[\n    \"Agent.Greeting|Hello, this is the credit card center of ** Bank.\", \n    \"User.Greeting|Hello\",\n    \"Agent.VerifyIdentity|Hi, may I ask if you are Ms. **?\",\n    \"User.Cardholder| Yes, this is ** speaking. \",\n    \"Agent.IntroduceActivationActivity|That's correct, Mr.* we have noticed that your platinum credit card has not been activated yet. To express our gratitude for your support, we currently have a promotion where you can enjoy a 12\\% discount on fuel for one year just by activating your card.\", \n    \"...\"\n]",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[ breakable, valign=top, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for sampling candidate agent action to expand in SGM. ] Given the following \"user _profile\", \"task _profile\" and \"Dialogue Context\". Please select the next round of agent action from the \"Optional Agent Actions\" for the agent that can best encourage the user to complete this dialogue task. When the task is completed, please actively choose \"Agent.PoliteEnd\" to end the conversation. The name of the agent action must be exactly the same as those in the candidate list.",
+    "translation": "[ breakable, valign=top, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for sampling candidate agent action to expand in SGM.。] Given the following \"user _profile\", \"task _profile\" and \"Dialogue Context\".。Please select the next round of agent action from the \"Optional Agent Actions\" for the agent that can best encourage the user to complete this dialogue task.。When the task is completed, please actively choose \"Agent.PoliteEnd\" to end the conversation.。该name of the agent action must be exactly the same as those in the candidate list.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"task_profile\":{ \n        \"agent_identity\": \"** Bank Credit Card Center Customer Service\", \n        \"...\", \n        \"other_knowledge\": \"Credit Card Activation Guide I. Card Activation ...\"\n    }, \n    \"user_profile\": {\n        \"Name\": \"**\", \n        \"Gender\": \"Male\", \n        \"...\", \n        \"CardID\":\"****\"\n    }\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Optional Agent Actions: \"Start\", \"VerifyIdentity\", \"IntroduceActivationActivity\",...,\"RelieveDoubts\", \"AttemptPersuasion\", \"Chat\", \"OtherActions\"",
+    "translation": "Optional Agent Actions: \"Start\", \"VerifyIdentity\", \"IntroduceActivationActivity\",...,\"RelieveDoubts\", \"AttemptPersuasion\", \"Chat\", \"OtherActions\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank. User Response: Hello! User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms. **? User Response: Yes, this is ** speaking.",
+    "translation": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank.。User Response: Hello!。User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms.。**?。User Response: Yes, this is ** speaking.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Dialogue SOP: Based on the standard procedure for this task, please prioritize the following agent actions: \"IntroduceActivationActivity\"",
+    "translation": "Dialogue SOP: Based on the standard procedure for this task, please prioritize the following agent actions: \"IntroduceActivationActivity\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Start with \"Analysis:\" and deduct step by step the best agent actions that should be used by the subsequent dialogue agent, concluding with an output similar to \"Therefore, the best agent action is: Greeting\", with a colon required before the name of the agent action.",
+    "translation": "Start with \"Analysis:\" and deduct step by step the best agent actions that should be used by the subsequent dialogue agent, concluding with an output similar to \"Therefore, the best agent action is: Greeting\", with a colon required before the name of the agent action.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output:",
+    "translation": "0.1pt Generation Output:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Analysis: According to the previous conversation, the user confirms their identity, indicating that her is the person the agent needs to verify. Following the task process prompts, the next step is to invite them to participate in the activation activity, which aligns with the conversation task logic.",
+    "translation": "Analysis: According to the previous conversation, the user confirms their identity, indicating that her is the person the agent needs to verify.。Following the task process prompts, the next step is to invite them to participate in the activation activity, which aligns with the conversation task logic.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Therefore, the best agent action is: IntroduceActivationActivity",
+    "translation": "Therefore, the best agent action is: IntroduceActivationActivity。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "[ breakable, valign=top, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt generates an agent response for MCTS's simulation. ] Given the \"user _profile\", \"task _profile\", and \"Dialogue Context\" for the dialogue task below, please generate an appropriate agent response by following the chosen agent action. Start your response with a new line and \"Agent Response:\".",
+    "translation": "[ breakable, valign=top, colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt generates an agent response for MCTS's simulation.。] Given the \"user _profile\", \"task _profile\", and \"Dialogue Context\" for the dialogue task below, please generate an appropriate agent response by following the chosen agent action.。Start your response with a new line and \"Agent Response:\".。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"task_profile\":{ \n        \"agent_identity\": \"** Bank Credit Card Center Customer Service\", \n        \"...\", \n        \"other_knowledge\": \"Credit Card Activation Guide I. Card Activation ...\"\n    }, \n    \"user_profile\": {\n        \"Name\": \"**\", \n        \"Gender\": \"Male\", \n        \"...\", \n        \"CardID\":\"****\"\n    }\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank. User Response: Hello! User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms. **? User Response: Yes, this is ** speaking. User State: Cardholder Agent Action: IntroduceActivationActivity",
+    "translation": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank.。User Response: Hello!。User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms.。**?。User Response: Yes, this is ** speaking.。User State: Cardholder Agent Action: IntroduceActivationActivity。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output: Agent Response: Hi Mr. **, this is the credit card center of ** Bank. I noticed you haven't activated your Platinum credit card yet, and I wanted to thank you for being a valued customer. Right now, we're running a special promotion where you can get a 12% discount on fuel for an entire year just by activating your card. It's a great way to save on your everyday expenses. Would you like me to help you get started with the activation today?",
+    "translation": "0.1pt Generation Output: Agent Response: Hi Mr.。**, this is the credit card center of ** Bank.。I noticed you haven't activated your Platinum credit card yet, and I wanted to thank you for being a valued customer.。Right now, we're running a special promotion where you can get a 12% discount on fuel for an entire year just by activating your card.。It's a great way to save on your everyday expenses.。Would you like me to help you get started with the activation today?。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for MCTS to get a reward score. ] You are a business expert manager at a company in the financial sector. The company's business agent is contacting the customer below to handle affairs, see \"Dialogue Context\" for the content of the conversation. Now, please carefully read follow information and judge whether the agent's chosen \"Agent action\" conforms to the task process (sop) or is conducive to guiding the user toward the direction of task success. If it meets the requirements, it is 1; otherwise, it is 0.",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for MCTS to get a reward score.。] You are a business expert manager at a company in the financial sector.。该company's business agent is contacting the customer below to handle affairs, see \"Dialogue Context\" for the content of the conversation.。Now, please carefully read follow information and judge whether the agent's chosen \"Agent action\" conforms to the task process (sop) or is conducive to guiding the user toward the direction of task success.。If it meets the requirements, it is 1; otherwise, it is 0.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"task_profile\":{ \n        \"agent_identity\": \"** Bank Credit Card Center Customer Service\", \n        \"...\", \n        \"other_knowledge\": \"Credit Card Activation Guide I. Card Activation ...\"\n    }, \n    \"user_profile\": {\n        \"Name\": \"**\", \n        \"Gender\": \"Male\", \n        \"...\", \n        \"CardID\":\"****\"\n    },\n    \"sop_adjacency_list\": {\"...\":[\"...\"]},\n    \"agent_action\": [\n        \"Agent.VerifyIdentity\", \n        \"...\"\n    ]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank. User Response: Hello! User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms. **? User Response: Yes, this is ** speaking. User State: Cardholder Agent Action: IntroduceActivationActivity",
+    "translation": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank.。User Response: Hello!。User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms.。**?。User Response: Yes, this is ** speaking.。User State: Cardholder Agent Action: IntroduceActivationActivity。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Start your analysis with \"Analysis:\" and after your conclusion, summarize with \"Therefore, the answer is: 1\" or \"Therefore, the answer is: 0\".",
+    "translation": "Start your analysis with \"Analysis:\" and after your conclusion, summarize with \"Therefore, the answer is: 1\" or \"Therefore, the answer is: 0\".。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output: Analysis: According to the task knowledge, the objective of the agent's task is to invite users to participate in credit card activation event. The agent action chosen is IntroduceActivationActivity, which aligns with the task objective. Therefore, it is consistent with the above handling process and the best action within the optional agent actions.",
+    "translation": "0.1pt Generation Output: Analysis: According to the task knowledge, the objective of the agent's task is to invite users to participate in credit card activation event.。该agent action chosen is IntroduceActivationActivity, which aligns with the task objective.。Therefore, it is consistent with the above handling process and the best action within the optional agent actions.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Therefore, the answer is: 1",
+    "translation": "Therefore, the answer is: 1。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to generate user state. ] You are an agent specializing in lifestyle services. Given the following \"user _profile\", \"task _profile', and \"Dialogue Context\", please select an option from the \"Optional User State\" that best reflects the user's current task status in the dialogue context.",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=Prompting LLM to generate user state.。] You are an agent specializing in lifestyle services.。Given the following \"user _profile\", \"task _profile', and \"Dialogue Context\", please select an option from the \"Optional User State\" that best reflects the user's current task status in the dialogue context.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Start with \"User State:\" and the state name must be exactly the same as one in the list.",
+    "translation": "Start with \"User State:\" and the state name must be exactly the same as one in the list.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "{\n    \"task_profile\":{ \n        \"agent_identity\": \"** Bank Credit Card Center Customer Service\", \n        \"...\", \n        \"other_knowledge\": \"Credit Card Activation Guide I. Card Activation ...\"\n    }, \n    \"user_profile\": {\n        \"Name\": \"**\", \n        \"Gender\": \"Male\", \n        \"...\", \n        \"CardID\":\"****\"\n    }\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank. User Response: Hello! User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms. **? User Response: Yes, this is ** speaking.",
+    "translation": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank.。User Response: Hello!。User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms.。**?。User Response: Yes, this is ** speaking.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "Optional User State: \"Greet\", \"Cardholder\",\"...\"",
+    "translation": "Optional User State: \"Greet\", \"Cardholder\",\"...\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "0.1pt Generation Output: User State: Cardholder",
+    "translation": "0.1pt Generation Output: User State: Cardholder。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 5,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for CoT. ] You are a business expert agent in the financial field. Given the following \"user _profile\", \"task _profile', and \"Dialogue Context\", please output the following three items step by step: 1. Please select an option from \"Optional User State\" that best reflects the user's current task status in the dialogue above, and start with \"User State:\". Its name must match exactly with one from the optional list. 2. Please select an option from \"Optional Agent Action\" that best reflects the agent's next round of action that can prompt the user to complete the dialogue task. Start with a new line and \"Agent Action:\". Its name must match exactly with the one on the candidate list. 3. Please generate an appropriate Agent Response combined with the agent's chosen dialogue action. Start with a new line and \"Agent Response:\"",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for CoT.。] You are a business expert agent in the financial field.。Given the following \"user _profile\", \"task _profile', and \"Dialogue Context\", please output the following three items step by step: 1.。Please select an option from \"Optional User State\" that best reflects the user's current task status in the dialogue above, and start with \"User State:\".。Its name must match exactly with one from the optional list.。2.。Please select an option from \"Optional Agent Action\" that best reflects the agent's next round of action that can prompt the user to complete the dialogue task.。Start with a new line and \"Agent Action:\".。Its name must match exactly with the one on the candidate list.。3.。Please generate an appropriate Agent Response combined with the agent's chosen dialogue action.。Start with a new line and \"Agent Response:\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 6,
+    "sourceText": "{\n    \"task_profile\": {\"...\":\"...\"},\n    \"user_profile\": {\"...\":\"...\"},\n    \"agent_action\": [\n        \"Agent.VerifyIdentity\",\n        \"...\"\n    ],\n    \"user_state\": [\n        \"User.Cardholder\",\n        \"...\"\n    ]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 6,
+    "sourceText": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank. User Response: Hello!",
+    "translation": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank.。User Response: Hello!。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 6,
+    "sourceText": "0.1pt Generation Output: User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms. **?",
+    "translation": "0.1pt Generation Output: User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms.。**?。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 6,
+    "sourceText": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for CoT+SOP. ] You are a business expert agent in the financial field. Given the following \"user _profile\", \"task _profile', and \"Dialogue Context\", please output the following three items step by step: 1. Please select an option from \"Optional User State\" that best reflects the user's current task status in the dialogue above, and start with \"User State:\". Its name must match exactly with one from the optional list. 2. Please select an option from \"Optional Agent Action\" that best reflects the agent's next round of action that can prompt the user to complete the dialogue task. Start with a new line and \"Agent Action:\". Its name must match exactly with the one on the candidate list. 3. Please generate an appropriate Agent Response combined with the agent's chosen dialogue action. Start with a new line and \"Agent Response:\"",
+    "translation": "colframe=grenn_2, colback=white, coltitle=black, colbacktitle=grenn_2, rounded corners, arc=4mm, enhanced, boxrule=0.8mm, frame style=solid, fonttitle=, fontupper=, title=The prompt for CoT+SOP.。] You are a business expert agent in the financial field.。Given the following \"user _profile\", \"task _profile', and \"Dialogue Context\", please output the following three items step by step: 1.。Please select an option from \"Optional User State\" that best reflects the user's current task status in the dialogue above, and start with \"User State:\".。Its name must match exactly with one from the optional list.。2.。Please select an option from \"Optional Agent Action\" that best reflects the agent's next round of action that can prompt the user to complete the dialogue task.。Start with a new line and \"Agent Action:\".。Its name must match exactly with the one on the candidate list.。3.。Please generate an appropriate Agent Response combined with the agent's chosen dialogue action.。Start with a new line and \"Agent Response:\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 7,
+    "sourceText": "{\n    \"task_profile\": {\"...\":\"...\"},\n    \"user_profile\": {\"...\":\"...\"},\n    \"agent_action\": [\n        \"Agent.VerifyIdentity\",\n        \"...\"\n    ],\n    \"user_state\": [\n        \"User.Cardholder\",\n        \"...\"\n    ]\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“提示词细节”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "提示词细节",
+    "page": 7,
+    "sourceText": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank. User Response: Hello!",
+    "translation": "Dialogue Context: Agent Action: Greeting Agent Response: Hello, this is the credit card center of ** Bank.。User Response: Hello!。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 7,
+    "sourceText": "Dialogue SOP: Based on the standard process of handling this task and the dialogue context, please prioritize the following agent action that meets the Standard Operating Procedures (SOP): \"VerifyIdentity\"",
+    "translation": "Dialogue SOP: Based on the standard process of handling this task and the dialogue context, please prioritize the following agent action that meets the 标准操作流程s (SOP): \"VerifyIdentity\"。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "提示词细节",
+    "page": 7,
+    "sourceText": "0.1pt Generation Output: User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms. **?",
+    "translation": "0.1pt Generation Output: User State: Greeting Agent Action: VerifyIdentity Agent Response: Hi, may I ask if you are Ms.。**?。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "算法细节",
+    "page": 7,
+    "sourceText": "Algorithm Details",
+    "translation": "算法细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "算法细节",
+    "page": 7,
+    "sourceText": "Algorithm: Planning for LLM Dialogue Agents with MCTS\nRequire: Initial dialogue state $d_0$, state transition probability function $p_\\theta$, reward function $r_\\theta$, action generator $a_\\phi$\nRequire: Number of expand actions $M$, depth limit $L$, number of roll-outs $N$, and exploration weight $w$\nInitialize memory of actions $A : D to A$, children $c : D \\times A to D$ and rewards $r : D \\times A to R$\nInitialize the state-action value function $Q : D \\times A to R$ and visit counter $N : D to N$\nfor $k arrow 0, ..., N - 1$:\n  $t arrow 0$\n  while $N(d_t) > 0$: # Selection\n    $N(d_t) arrow N(d_t) + 1$\n    $a_t arrow arg max_p \\in A(d_t) [ Q(d_t, p) + w \\sqrt\\frac\\ln N(d_t)N(c(d_t, p)) ]$\n    $r_t = r(d_t, a_t), d_t+1 arrow c(d_t, a_t)$\n    $t arrow t + 1$\n  while $d_t$ is not a terminal state $\\wedge t \\leq L$: # Expansion\n    for $i arrow 1, ..., M$:\n      Sample $a_t^(i) \\sim a_\\phi(p | d_t), d_t+1^(i) \\sim p_\\theta(d_t, a_t^(i)), r_t^(i) \\sim r_\\theta(d_t, a_t^(i))$\n      Update $A(d_t) arrow \\ a_t^(i) \\_i=1^d, c(d_t, a_t^(i)) arrow d_t+1^(i), r(d_t, a_t) arrow r_t^(i)$\n    $a_t+1 arrow arg max_a \\in A(d_t) r(d_t, a_t)$\n    $r_t arrow r(d_t, a_t), d_t+1 arrow c(d_t, a_t)$\n    $t arrow t + 1$\n  for $t' arrow t, ..., 0$: # Back propagation\n    Update $Q(d_t', a_t')$ with $\\ r_t', r_t'+1, ..., r_t \\$",
+    "translation": "算法说明：该算法给出“算法细节”部分的执行流程，重点是把输入状态、规划步骤、反馈信号和输出动作组织成可复现的过程。",
+    "kind": "algorithm"
+  }
+]

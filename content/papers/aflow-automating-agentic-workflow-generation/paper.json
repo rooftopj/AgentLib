@@ -1,0 +1,175 @@
+{
+  "slug": "aflow-automating-agentic-workflow-generation",
+  "title": "AFlow: Automating Agentic Workflow Generation",
+  "authors": [
+    "Jiayi Zhang",
+    "Jinyu Xiang",
+    "Zhaoyang Yu",
+    "Fengwei Teng",
+    "Xiong-Hui Chen",
+    "Jiaqi Chen",
+    "Mingchen Zhuge",
+    "Xin Cheng",
+    "Sirui Hong",
+    "Jinlin Wang",
+    "Bingnan Zheng",
+    "Bang Liu",
+    "Yuyu Luo",
+    "Chenglin Wu"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Jiayi Zhang",
+      "institutionIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Jinyu Xiang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Zhaoyang Yu",
+      "institutionIds": [
+        3
+      ]
+    },
+    {
+      "name": "Fengwei Teng",
+      "institutionIds": [
+        3
+      ]
+    },
+    {
+      "name": "Xiong-Hui Chen",
+      "institutionIds": [
+        4
+      ]
+    },
+    {
+      "name": "Jiaqi Chen",
+      "institutionIds": [
+        5
+      ]
+    },
+    {
+      "name": "Mingchen Zhuge",
+      "institutionIds": [
+        6
+      ]
+    },
+    {
+      "name": "Xin Cheng",
+      "institutionIds": [
+        3
+      ]
+    },
+    {
+      "name": "Sirui Hong",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Jinlin Wang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Bingnan Zheng",
+      "institutionIds": [
+        5
+      ]
+    },
+    {
+      "name": "Bang Liu",
+      "institutionIds": [
+        7
+      ]
+    },
+    {
+      "name": "Yuyu Luo",
+      "institutionIds": [
+        2,
+        8
+      ]
+    },
+    {
+      "name": "Chenglin Wu",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "DeepWisdom",
+      "translation": "深度智慧"
+    },
+    {
+      "id": 2,
+      "name": "The Hong Kong University of Science and Technology (Guangzhou)",
+      "translation": "香港科技大学（广州）"
+    },
+    {
+      "id": 3,
+      "name": "Renmin University of China",
+      "translation": "中国人民大学"
+    },
+    {
+      "id": 4,
+      "name": "Nanjing University",
+      "translation": "南京大学"
+    },
+    {
+      "id": 5,
+      "name": "Fudan University",
+      "translation": "复旦大学"
+    },
+    {
+      "id": 6,
+      "name": "King Abdullah University of Science and Technology",
+      "translation": "阿卜杜拉国王科技大学"
+    },
+    {
+      "id": 7,
+      "name": "Université de Montréal & Mila",
+      "translation": "蒙特利尔大学与 Mila"
+    },
+    {
+      "id": 8,
+      "name": "The Hong Kong University of Science and Technology",
+      "translation": "香港科技大学"
+    }
+  ],
+  "institutions": [
+    "DeepWisdom",
+    "The Hong Kong University of Science and Technology (Guangzhou)",
+    "Renmin University of China",
+    "Nanjing University",
+    "Fudan University",
+    "King Abdullah University of Science and Technology",
+    "Université de Montréal & Mila",
+    "The Hong Kong University of Science and Technology"
+  ],
+  "year": 2025,
+  "venue": "arXiv",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "AFlow",
+    "MCTS",
+    "workflow 自动化",
+    "agentic workflow",
+    "成本性能"
+  ],
+  "summary": "AFlow 将 agentic workflow 优化建模为代码表示工作流空间中的搜索问题，并使用蒙特卡洛树搜索结合执行反馈自动发现高性能工作流。在六个基准上，AFlow 相比手工方法平均提升 5.7%，相比自动 workflow 优化方法提升 19.5%。",
+  "arxivId": "2410.10762",
+  "arxivUrl": "https://arxiv.org/abs/2410.10762",
+  "sourcePath": "assets/papers/architecture/arXiv-2410.10762v4"
+}

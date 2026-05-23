@@ -1,0 +1,10 @@
+.next/
+out/
+node_modules/
+.env*
+*.log
+public/search-index.json
+artifacts/
+.agents/
+.tmp/
+assets/papers/

@@ -1,0 +1,1365 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "AFlow: Automating Agentic Workflow Generation",
+    "translation": "AFlow：自动化生成 Agentic Workflow",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Authors",
+    "page": 1,
+    "sourceText": "Jiayi Zhang, Jinyu Xiang, Zhaoyang Yu, Fengwei Teng, Xiong-Hui Chen, Jiaqi Chen, Mingchen Zhuge, Xin Cheng, Sirui Hong, Jinlin Wang, Bingnan Zheng, Bang Liu, Yuyu Luo, Chenglin Wu",
+    "translation": "Jiayi Zhang、Jinyu Xiang、Zhaoyang Yu、Fengwei Teng、Xiong-Hui Chen、Jiaqi Chen、Mingchen Zhuge、Xin Cheng、Sirui Hong、Jinlin Wang、Bingnan Zheng、Bang Liu、Yuyu Luo、Chenglin Wu",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Institutions",
+    "page": 1,
+    "sourceText": "1. DeepWisdom\n2. The Hong Kong University of Science and Technology (Guangzhou)\n3. Renmin University of China\n4. Nanjing University\n5. Fudan University\n6. King Abdullah University of Science and Technology\n7. Université de Montréal & Mila\n8. The Hong Kong University of Science and Technology",
+    "translation": "1. DeepWisdom：深度智慧\n2. The Hong Kong University of Science and Technology (Guangzhou)：香港科技大学（广州）\n3. Renmin University of China：中国人民大学\n4. Nanjing University：南京大学\n5. Fudan University：复旦大学\n6. King Abdullah University of Science and Technology：阿卜杜拉国王科技大学\n7. Université de Montréal & Mila：蒙特利尔大学与 Mila\n8. The Hong Kong University of Science and Technology：香港科技大学",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Large language models (LLMs) have demonstrated remarkable potential in solving complex tasks across diverse domains, typically by employing agentic workflows that follow detailed instructions and operational sequences. However, constructing these workflows requires significant human effort, limiting scalability and generalizability. Recent research has sought to automate the generation and optimization of these workflows, but existing methods still rely on initial manual setup and fall short of achieving fully automated and effective workflow generation. To address this challenge, we reformulate workflow optimization as a search problem over code-represented workflows, where LLM-invoking nodes are connected by edges. We introduce AFlow, an automated framework that efficiently explores this space using Monte Carlo Tree Search, iteratively refining workflows through code modification, tree-structured experience, and execution feedback. Empirical evaluations across six benchmark datasets demonstrate AFlow's efficacy, yielding a 5.7% average improvement over state-of-the-art baselines. Furthermore, AFlow enables smaller models to outperform GPT-4o on specific tasks at 4.55% of its inference cost in dollars. The code is available at https://github.com/FoundationAgents/AFlow.",
+    "translation": "大语言模型（LLM）已经在多种领域的复杂任务中展现出显著潜力，通常通过遵循详细指令和操作顺序的 agentic workflow 来完成任务。然而，构建这些 workflow 需要大量人工投入，这限制了方法的可扩展性和泛化能力。近期研究试图自动生成和优化这些 workflow，但现有方法仍然依赖初始人工设置，尚未实现真正全自动且有效的 workflow 生成。为了解决这一挑战，论文把 workflow 优化重新表述为代码表示工作流空间中的搜索问题，其中调用 LLM 的节点通过边连接。作者提出 AFlow：一个自动化框架，它使用蒙特卡洛树搜索高效探索这个空间，并通过代码修改、树结构经验和执行反馈迭代优化 workflow。六个基准数据集上的实证评估表明 AFlow 有效，相比当前强基线平均提升 5.7%。此外，AFlow 还能让较小模型在特定任务上超过 GPT-4o，而推理成本仅为其 4.55%。代码公开在 https://github.com/FoundationAgents/AFlow。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Large Language Models (LLMs) have emerged as powerful tools for solving complex tasks across various domains, including code generation, data analysis, decision-making, and question answering~[cite: DBLP:journals/corr/abs-2408-05109, bo2024nlsql, DBLP:journals/corr/abs-2406-07815, yu2024hai, sun2024chatbot, wangchain, song2023llm, xietravelplanner, li2024debug]. However, the rapid advancement of LLMs heavily relies on manually designed agentic workflows -- structured sequences of LLM invocations accompanied by detailed instructions. Designing and refining these workflows requires significant human effort, which limits the scalability and adaptability of LLMs to new, complex domains and hinders their ability to transfer skills across diverse tasks~[cite: DBLP:conf/cidr/0001YF0LH24].",
+    "translation": "大语言模型（LLM）已经成为解决多领域复杂任务的强大工具，包括代码生成、数据分析、决策和问答等。然而，LLM 的快速进展很大程度上依赖人工设计的 agentic workflow，也就是由多次 LLM 调用和详细指令组成的结构化执行序列。设计和打磨这些 workflow 需要大量人工投入，这限制了 LLM 扩展到新的复杂领域时的可扩展性和适应性。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Recent efforts have focused on automating the discovery of effective agentic workflows to reduce the reliance on human intervention~[cite: omar2024dspy, mert2024text,liu2023dynamic,hu2024automated]. Despite these advancements, full automation has not been achieved. For instance, omar2024dspy requires manual workflow setup before automated prompt optimization. Similarly, methods proposed by mert2024text and zhuge2024gptswarm fail to capture the full diversity of workflows necessary for a wide range of tasks~[cite: yu2023thought, yang2024buffer, sun2023indeterminacy], as their optimization objectives struggle to represent the breadth of possible workflows. The inability to effectively model diverse workflow structures within these automated systems limits their utility and impact. ADAS~[cite: hu2024automated] represents workflows using code, achieving a relatively complete representation. However, due to the efficiency limitations of its linear heuristic search algorithm, ADAS struggles to generate effective workflows within a limited number of iterations. This highlights the need for more effective techniques to represent and automate the generation of agentic workflows, which would accelerate the application of LLMs across domains.",
+    "translation": "近期工作开始关注自动发现有效的 agentic workflow，以减少对人工介入的依赖。尽管已有进展，完整自动化仍未实现。例如，DSPy 仍需要先由人工设置 workflow，然后才能自动优化 prompt。类似地，TextGrad 和 GPTSwarm 等方法也难以覆盖广泛任务所需的 workflow 多样性，因为它们的优化目标很难完整表达多节点、条件分支和复杂依赖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "Performance comparison with other methods. To assess the method's performance, we employ various metrics across different datasets: solve rate for Math and GSM8K, F1 score for HotpotQA and DROP, and pass@1 for HumanEval and MBPP. Our AFlow (highlighted in yellow) consistently outperforms all automated workflow optimization and manually designed methods across all six benchmarks.",
+    "translation": "图表说明：Performance comparison with other methods. To assess the method's performance, we employ various metrics across different 数据集s: solve rate for Math and GSM8K, F1 score for HotpotQA and DROP, and pass@1 for HumanEval and MBPP. Our AFlow (highlighted in yellow) consistently outperforms all automated workflow optimization and manually designed methods across all six benchmarks.。",
+    "assetPath": "/generated/aflow-automating-agentic-workflow-generation/group_bar.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "In response to these challenges, we introduce an innovative framework for automatically generating agentic workflows. Our key idea is to model the workflow as a series of interconnected LLM-invoking nodes, where each node represents an LLM action and the edges define the logic, dependencies, and flow between these actions. This structure transforms the workflow into a vast search space, encompassing a wide variety of potential configurations. Our goal is to efficiently navigate this space, automatically generating optimized workflows that maximize task performance while minimizing human intervention.",
+    "translation": "为应对这些挑战，论文提出一个用于自动生成 agentic workflow 的框架。核心思想是把 workflow 建模为一系列相互连接的 LLM 调用节点：每个节点表示一个 LLM 动作，边定义这些动作之间的逻辑、依赖和数据流。这样的结构把 workflow 转换成一个巨大的搜索空间，包含大量潜在配置。论文的目标是在这个空间中高效导航，自动生成优化后的 workflow，使任务性能最大化，同时尽量减少人工干预。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "However, the diversity and complexity of tasks present significant challenges. Specifically, each task can have different requirements, operations, and dependencies, which makes it difficult to represent them in a unified yet flexible manner~[cite: Chen2021Humaneval, cobbe2021gsm8k, zhi2018hot, DBLP:conf/icde/LuoQ0018]. Furthermore, the search space for possible workflows, comprising an immense number of code structures and node configurations, is virtually boundless, creating an additional challenge for efficient exploration and optimization.",
+    "translation": "然而，任务的多样性和复杂性带来了显著挑战。具体来说，不同任务可能具有不同的需求、操作和依赖关系，这使得用统一且灵活的方式表示它们变得困难。此外，可能的 workflow 搜索空间几乎没有边界，其中包含大量代码结构和节点配置，这进一步增加了高效探索与优化的难度。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "To address these challenges, we propose AFlow, a Monte Carlo Tree Search (MCTS)-based framework designed to systematically explore and discover optimal agentic workflows. AFlow represents workflows as flexible nodes connected by code-based edges, which encapsulate possible relationships such as logical flows, conditions, and dependencies. These edges allow the workflow to be modeled as a graph~[cite: zhuge2024gptswarm] or network~[cite: liu2023dynamic], offering a powerful structure for capturing complex interactions between LLM invocations.",
+    "translation": "为了解决这些挑战，论文提出 AFlow：一个基于蒙特卡洛树搜索（MCTS）的框架，用于系统地探索并发现最优 agentic workflow。AFlow 把 workflow 表示为由代码边连接的灵活节点，这些边封装逻辑流、条件和依赖等可能关系。这样 workflow 就可以被建模为图或网络，从而捕捉多次 LLM 调用之间的复杂交互。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "To enhance the search process and improve efficiency, AFlow introduces a novel concept of operators -- predefined, reusable combinations of nodes representing common agentic operations (e.g., Ensemble, Review & Revise). These operators serve as foundational building blocks for constructing workflows and are integrated into the search space, ensuring that the exploration process leverages known patterns of effective agentic operations.",
+    "translation": "To enhance the search process and improve efficiency, AFlow introduces a novel concept of operators -- predefined, reusable combinations of nodes representing common agentic operations (e.g., Ensemble, Review & Revise).。These operators serve as foundational building blocks for constructing workflows and are integrated into the 搜索空间, ensuring that the exploration process leverages known patterns of effective agentic operations.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "AFlow employs the MCTS algorithm to navigate this infinite search space. The framework’s workflow optimization process incorporates several key innovations: a soft mixed-probability selection mechanism for node exploration, LLM-driven node expansion to introduce new possibilities, execution evaluation to assess workflow performance, and backpropagation of experience to refine future search iterations. This combination of techniques ensures that AFlow efficiently discovers workflows that adapt to the complexity of diverse tasks while reducing reliance on manual intervention.",
+    "translation": "AFlow employs the MCTS 算法 to navigate this infinite 搜索空间.。该framework’s workflow optimization process incorporates several key innovations: a soft mixed-probability selection mechanism for node exploration, LLM-driven node expansion to introduce new possibilities, execution 评估 to assess workflow performance, and backpropagation of experience to refine future search iterations.。这combination of techniques ensures that AFlow efficiently discovers workflows that adapt to the complexity of diverse tasks while reducing reliance on manual intervention.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "We make the following key contributions: (1) Problem Formulation: We formalize the workflow optimization problem, generalizing prior approaches as specific cases. This provides a unified framework for future research at both the node and workflow optimization levels. (2) AFlow: We introduce AFlow, an MCTS-based method that automatically discovers effective workflows across multiple domains with minimal human intervention. (3) Extensive Evaluation: We evaluate AFlow on six benchmark datasets: HumanEval, MBPP, MATH, GSM8K, HotPotQA, and DROP. AFlow outperforms manually designed methods by 5.7% and surpasses existing automated approaches by 19.5%. Notably, workflows generated by AFlow enable smaller LLMs to outperform larger models, offering better cost-performance efficiency, with significant implications for real-world applications.",
+    "translation": "作者make the following key contributions: (1) Problem Formulation: We formalize the workflow optimization problem, generalizing prior approaches as specific cases.。这provides a unified framework for future research at both the node and workflow optimization levels.。(2) AFlow: We introduce AFlow, an MCTS-based method that automatically discovers effective workflows across multiple domains with minimal human intervention.。(3) Extensive Evaluation: We evaluate AFlow on six benchmark 数据集s: HumanEval, MBPP, MATH, GSM8K, HotPotQA, and DROP.。AFlow outperforms manually designed methods by 5.7% and surpasses existing automated approaches by 19.5%.。Notably, workflows generated by AFlow enable smaller LLMs to outperform larger models, offering better cost-performance efficiency, with significant implications for real-world applications.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "In the flourishing landscape of Large Language Model (LLM) applications, autonomous agents ~[cite: zhuge2023mindstorms, hong2024data, jun2024mobile, wang2023voyager] and effective agentic workflows ~[cite: Tal2024Alpha, sirui2024meta] emerge as two distinct paradigms: the former emphasizing flexible autonomous decision-making, while the latter relies on predefined processes with multi-node LLM interactions, both demonstrating remarkable efficacy in their respective domains.",
+    "translation": "In the flourishing landscape of Large Language Model (LLM) applications, autonomous agents [cite: zhuge2023mindstorms, hong2024data, jun2024mobile, wang2023voyager] and effective agentic workflow [cite: Tal2024Alpha, sirui2024meta] emerge as two distinct paradigms: the former emphasizing flexible autonomous decision-making, while the latter relies on predefined processes with multi-node LLM interactions, both demonstrating remarkable efficacy in their respective domains.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "How can organizations ensure consistent execution of complex tasks?. When faced with complex yet common tasks, human societies often rely on well defined workflows ~ to ensure consistency and effectiveness across different individuals, rather than requiring each individual to plan and execute freely. This principle is equally applicable to LLMs. Existing works have focused on manually designing agentic workflows for LLMs to achieve effective performance on specific tasks ~, a process analogous to building agentic SOPs. Similar to the development of SOPs in human society, the process of building agentic SOPs requires leveraging domain knowledge for design, followed by extensive iterative refinement, which involves substantial labor costs.",
+    "translation": "How can organizations ensure consistent execution of complex tasks?.。When faced with complex yet common tasks, human societies often rely on well defined workflows to ensure consistency and effectiveness across different individuals, rather than requiring each individual to plan and execute freely.。这principle is equally applicable to LLMs.。Existing works have focused on manually designing agentic workflow for LLMs to achieve effective performance on specific tasks, a process analogous to building agentic SOPs.。Similar to the development of SOPs in human society, the process of building agentic SOPs requires leveraging domain knowledge for design, followed by extensive iterative refinement, which involves substantial labor costs.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "The challenge of buliding agentic SOPs bears a striking resemblance to the early days of manually tuning machine learning model parameters. However, just as AutoML has emerged as a thriving field~[cite: alex2024automl, xin2021automl], the acquisition of agentic SOPs holds similar potential for automation. Recent research has explored various aspects of this domain, including prompt generation ~[cite: mert2024text, omar2024dspy, yong2024promst, xin2024promptagent, cheng2024opro], flow optimization ~[cite: hu2024automated, ze2024autoflow, zhuge2024gptswarm], and hyperparameter optimization ~[cite: saad2024archon], showing promise in reducing human desgin costs. Despite these advancements, the field lacks a comprehensive definition of the automated agentic SOP acquisition problem, which hinders subsequent researchers' understanding and progress in this area.",
+    "translation": "该challenge of buliding agentic SOPs bears a striking resemblance to the early days of manually tuning machine learning model parameters.。However, just as AutoML has emerged as a thriving field[cite: alex2024automl, xin2021automl], the acquisition of agentic SOPs holds similar potential for automation.。Recent research has explored various aspects of this domain, including prompt generation [cite: mert2024text, omar2024dspy, yong2024promst, xin2024promptagent, cheng2024opro], flow optimization [cite: hu2024automated, ze2024autoflow, zhuge2024gptswarm], and hyperparameter optimization [cite: saad2024archon], showing promise in reducing human desgin costs.。Despite these advancements, the field lacks a comprehensive definition of the automated agentic SOP acquisition problem, which hinders subsequent researchers' understanding and progress in this area.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "Inspired by this, we propose a complete structure for representing and process of automated acquiring agentic SOPs. From a top-down perspective, we define agentic SOPs as optimized workflows for LLMs, tailored to specific performance metrics associated with defined tasks. Each workflow can be decomposed into a control flow that manages data routing, incorporating several fundamental nodes for LLM invocation. By meticulously designing node parameters—including model, temperature~, output formats~ and prompt, we establish a foundational framework capable of representing a wide array of agentic workflows while providing interfaces for optimization. This structured approach transforms the problem of acquiring effective agentic workflows into a well-defined search problem. The algorithm for the automated acquisition of SOPs operates fundamentally as a search algorithm within this space, employing advanced methods such as heuristic search, monte carlo tree search (MCTS)~, bayesian optimization (BO)~, and hyperparameter tuning~.",
+    "translation": "Inspired by this, we propose a complete structure for representing and process of automated acquiring agentic SOPs.。From a top-down perspective, we define agentic SOPs as optimized workflows for LLMs, tailored to specific performance metrics associated with defined tasks.。Each workflow can be decomposed into a control flow that manages data routing, incorporating several fundamental nodes for LLM invocation.。By meticulously designing node parameters—including model, temperature, output formats and prompt, we establish a foundational framework capable of representing a wide array of agentic workflow while providing interfaces for optimization.。这structured approach transforms the problem of acquiring effective agentic workflow into a well-defined search problem.。该算法 for the automated acquisition of SOPs operates fundamentally as a search 算法 within this space, employing advanced methods such as heuristic search, monte carlo tree search (MCTS), bayesian optimization (BO), and hyperparameter tuning.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Related Work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Agentic Workflow. Agentic workflow and autonomous agents ~[cite: zhuge2023mindstorms, hong2024data, jia2024mobile, wang2023voyager] represent two distinct paradigms of LLM application. The former completes tasks statically through predefined processes with multiple LLM invocations, while the latter solves problems dynamically through flexible autonomous decision-making. Compared to autonomous agents that require specific actions and decision patterns designed for the environment, agentic workflows can be constructed based on existing human domain experience and iterative refinement, offering higher potential for automated construction.",
+    "translation": "Agentic Workflow.。Agentic workflow and autonomous agents [cite: zhuge2023mindstorms, hong2024data, jia2024mobile, wang2023voyager] represent two distinct paradigms of LLM application.。该former completes tasks statically through predefined processes with multiple LLM invocations, while the latter solves problems dynamically through flexible autonomous decision-making.。Compared to autonomous agents that require specific actions and decision patterns designed for the environment, agentic workflow can be constructed based on existing human domain experience and iterative refinement, offering higher potential for automated construction.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Agentic workflows can be broadly categorized into general and domain-specific types. General workflows emphasize universal problem-solving approaches, such as ~[cite: wei2022COT, wang2022COTSC, madaan2023self, wang2023multipersona]. Domain-specific workflows focus on building effective processes to solve domain-specific problems, such as code generation ~[cite: sirui2024meta, Tal2024Alpha, li2024debug], data analysis ~[cite: yu2024hai, yi2024gen, bo2024nlsql, zhou2023llm], mathematics ~[cite: zhong2024achieving, xu2024lemur], question answering ~[cite: nori2023medprompt, zhou2024language]. Existing work has manually discovered numerous effective agentic workflows, but it's challenging to exhaust various tasks across different domains, further highlighting the importance of automated workflow generation and optimization.",
+    "translation": "Agentic workflows can be broadly categorized into general and domain-specific types.。General workflows emphasize universal problem-solving approaches, such as [cite: wei2022COT, wang2022COTSC, madaan2023self, wang2023multipersona].。Domain-specific workflows focus on building effective processes to solve domain-specific problems, such as code generation [cite: sirui2024meta, Tal2024Alpha, li2024debug], data analysis [cite: yu2024hai, yi2024gen, bo2024nlsql, zhou2023llm], mathematics [cite: zhong2024achieving, xu2024lemur], question answering [cite: nori2023medprompt, zhou2024language].。Existing work has manually discovered numerous effective agentic workflow, but it's challenging to exhaust various tasks across different domains, further highlighting the importance of automated workflow generation and optimization.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Automated Agentic Optimization. Recent work aims to automate the design of agentic workflows, categorized into three types: automated prompt optimization, hyperparameter optimization, and automated workflow optimization. Prompt optimization ~[cite: chirs2024probreed, mert2024text, cheng2024opro, omar2024dspy] uses LLMs to optimize prompts within fixed workflows. Hyperparameter optimization [cite: saad2024archon] focuses on optimizing predefined parameters. While these approaches improve performance, they are limited in generalization to new tasks and often require moderate human effort for task-specific designs.",
+    "translation": "Automated Agentic Optimization.。Recent work aims to automate the design of agentic workflow, categorized into three types: automated prompt optimization, hyperparameter optimization, and automated workflow optimization.。Prompt optimization [cite: chirs2024probreed, mert2024text, cheng2024opro, omar2024dspy] uses LLMs to optimize prompts within fixed workflows.。Hyperparameter optimization [cite: saad2024archon] focuses on optimizing predefined parameters.。While these approaches improve performance, they are limited in generalization to new tasks and often require moderate human effort for task-specific designs.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Automated workflow optimization~[cite: ze2024autoflow, wang2024symbo, zhuge2024gptswarm, hu2024automated] aims to optimize entire workflow structures, offering more potential for fully automated generation. Recent works explore diverse representations and methods. GPTSwarm~[cite: zhuge2024gptswarm] uses graph structures with reinforcement learning, but struggles to represent workflows with conditional states due to graph structure limitations. ADAS~[cite: hu2024automated] utilizes code structures to represent workflows and stores historical workflows in a linear list structure, aligning closely with our goals. However, it is constrained by the efficiency of its search algorithm as it relies on overly simplistic representations of experiences in the searching process, making it challenging to discover effective workflows.",
+    "translation": "Automated workflow optimization[cite: ze2024autoflow, wang2024symbo, zhuge2024gptswarm, hu2024automated] aims to optimize entire workflow structures, offering more potential for fully automated generation.。Recent works explore diverse representations and methods.。GPTSwarm[cite: zhuge2024gptswarm] uses graph structures with reinforcement learning, but struggles to represent workflows with conditional states due to graph structure limitations.。ADAS[cite: hu2024automated] utilizes code structures to represent workflows and stores historical workflows in a linear list structure, aligning closely with our goals.。However, it is constrained by the efficiency of its search 算法 as it relies on overly simplistic representations of experiences in the searching process, making it challenging to discover effective workflows.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "AFlow also uses code to represent workflows, but goes further by providing a more fundamental structure called named node. This structure encompasses various LLM invocation parameters, allowing for more detailed workflow representation. We also introduce operators that implement predefined node combination functions. Simultaneously, AFlow employs a specially designed MCTS algorithm for automated workflow optimization, leveraging the tree-structured experience and execution feedback to efficiently discover effective workflows.",
+    "translation": "AFlow also uses code to represent workflows, but goes further by providing a more fundamental structure called named node.。这structure encompasses various LLM invocation parameters, allowing for more detailed workflow representation.。作者also introduce operators that implement predefined node combination functions.。Simultaneously, AFlow employs a specially designed MCTS 算法 for automated workflow optimization, leveraging the tree-structured experience and execution feedback to efficiently discover effective workflows.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "预备知识",
+    "page": 3,
+    "sourceText": "Preliminary",
+    "translation": "预备知识",
+    "kind": "paragraph"
+  },
+  {
+    "section": "预备知识",
+    "page": 3,
+    "sourceText": "In this section, we will first formulate the automated agentic workflows generation problem in Section~sub:problem and then discuss design considerations of our AFlow in Section~sub:design. For the core concept of this section, we provide an example explanation in Figure~formulation.",
+    "translation": "In this section, we will first formulate the automated agentic workflow generation problem in Sectionsub:problem and then discuss design considerations of our AFlow in Sectionsub:design.。For the core concept of this section, we provide an example explanation in Figureformulation.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "预备知识",
+    "page": 3,
+    "sourceText": "The example of node, operator, and edge. We demonstrate the optional parameters for Nodes, the structure of some Operators, and common representations of Edges.",
+    "translation": "图表说明：The example of node, operator, and edge. We demonstrate the optional parameters for Nodes, the structure of some Operators, and common representations of Edges.。",
+    "assetPath": "/generated/aflow-automating-agentic-workflow-generation/FORMULATION.png",
+    "kind": "figure"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "Problem Formulation",
+    "translation": "问题形式化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "Agentic Workflow. We define an agentic workflow W as a series of LLM-invoking nodes connected by edges to define the exection orders, denoted as $ = N_1, N_2,, N_i $. Each node $N_i$ represents a specific operation performed by an LLM and is characterized by the following parameters. The code abstraction of the node is shown in Appendix appendix:node structure. • Model $M$: The specific language model invoked at node $N_i$. • Prompt $P$: The input or task description provided to the model at each node. • Temperature $$: A parameter controlling the randomness of the LLM’s output at node $N_i$. • Output format $F$: The format in which the model's output is structured (e.g., xml, json, markdown, raw). The node in workflow should provide different output formats, inspired by the ~zhi2024format.",
+    "translation": "Agentic Workflow.。作者define an agentic workflow W as a series of LLM-invoking nodes connected by edges to define the exection orders, denoted as $ = N_1, N_2,, N_i $.。Each node $N_i$ represents a specific operation performed by an LLM and is characterized by the following parameters.。该code abstraction of the node is shown in Appendix 附录:node structure.。• Model $M$: The specific language model invoked at node $N_i$.。• Prompt $P$: The input or task description provided to the model at each node.。• Temperature $$: A parameter controlling the randomness of the LLM’s output at node $N_i$.。• Output format $F$: The format in which the model's output is structured (e.g., xml, json, markdown, raw).。该node in workflow should provide different output formats, inspired by the zhi2024format.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "Edge $E$ represent abstract structures defining node relationships, governing the sequence of execution. The edge $E$ can be represented via various structures, such as:",
+    "translation": "Edge $E$ represent abstract structures defining node relationships, governing the sequence of execution.。该edge $E$ can be represented via various structures, such as:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "• Graph ~[cite: zhuge2024gptswarm]: A flexible structure representing hierarchical, sequential, or parallel relationships between nodes, allowing for complex branching workflows. • Neural Network ~[cite: liu2023dynamic]: A structure that can represent complex, non-linear relationships between nodes, allowing for adaptive and learnable workflows based on input and feedback. • Code ~[cite: hu2024automated]: A comprehensive representation that can express linear sequences, conditional logic, loops, and incorporate graph or network structures, offering the most precise control over workflow execution for LLMs.",
+    "translation": "• Graph [cite: zhuge2024gptswarm]: A flexible structure representing hierarchical, sequential, or parallel relationships between nodes, allowing for complex branching workflows.。• Neural Network [cite: liu2023dynamic]: A structure that can represent complex, non-linear relationships between nodes, allowing for adaptive and learnable workflows based on input and feedback.。• Code [cite: hu2024automated]: A comprehensive representation that can express linear sequences, conditional logic, loops, and incorporate graph or network structures, offering the most precise control over workflow execution for LLMs.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "While graph structures can represent workflow relationships, they require complex extensions (e.g., Petri nets, BPMN) beyond basic DAGs to naturally express parallel execution and conditional logic. Neural networks enable adaptive transitions but lack precise control over workflow execution. In contrast, code representation inherently supports all these relationships through standard programming constructs. Therefore, we adopt code as our primary edge structure to maximize expressivity.",
+    "translation": "While graph structures can represent workflow relationships, they require complex extensions (e.g., Petri nets, BPMN) beyond basic DAGs to naturally express parallel execution and conditional logic.。Neural networks enable adaptive transitions but lack precise control over workflow execution.。In contrast, code representation inherently supports all these relationships through standard programming constructs.。Therefore, we adopt code as our primary edge structure to maximize expressivity.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "Automated Workflow Optimization. Given a task $T$ and an evaluation function $G$, the goal of workflow optimization is to discover a workflow $W$ that maximizes $G(W, T)$. This can be formulated as a search process where an algorithm $A$ explores the search space $$ to determine the optimal workflow configuration. The search space $$ for a workflow optimization problem encompasses all possible configurations of node parameters and edge structures:",
+    "translation": "Automated Workflow Optimization.。Given a task $T$ and an 评估 function $G$, the goal of workflow optimization is to discover a workflow $W$ that maximizes $G(W, T)$.。这can be formulated as a search process where an 算法 $A$ explores the 搜索空间 $$ to determine the optimal workflow configuration.。该搜索空间 $$ for a workflow optimization problem encompasses all possible configurations of node parameters and edge structures:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "where $ = N(M,, P, F) M, [0,1], P, F $, with $,,, $ representing the sets of possible language models, prompts, output formats, and edge configurations, respectively.",
+    "translation": "where $ = N(M,, P, F) M, [0,1], P, F $, with $,,, $ representing the sets of possible language models, prompts, output formats, and edge configurations, respectively.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "With this formulation, the workflow optimization problem can be expressed as:",
+    "translation": "With this formulation, the workflow optimization problem can be expressed as:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "问题形式化",
+    "page": 3,
+    "sourceText": "where $A$ is the search algorithm that explores the search space $$, and $W^*$ is the optimal workflow configuration that maximizes the evaluation function $G$ for the given task $T$.",
+    "translation": "where $A$ is the search 算法 that explores the 搜索空间 $$, and $W^*$ is the optimal workflow configuration that maximizes the 评估 function $G$ for the given task $T$.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "AFlow Overview",
+    "translation": "AFlow 概览",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "Limitations of Previous Methods. Previous approaches ~[cite: mert2024text, omar2024dspy, zhuge2024gptswarm] to workflow optimization have primarily been constrained by the limited scope of their search spaces, based on problem definition in Section~sub:problem. Another related work, ADAS~[cite: hu2024automated], searches in a larger space comprising a combination of prompts $N(P, T)$ and edges $E$, but fails to discover effective workflows due to the efficiency limitations of its linear heuristic search algorithm.",
+    "translation": "Limitations of Previous Methods.。Previous approaches [cite: mert2024text, omar2024dspy, zhuge2024gptswarm] to workflow optimization have primarily been constrained by the limited scope of their 搜索空间s, based on problem definition in Sectionsub:problem.。Another related work, ADAS[cite: hu2024automated], searches in a larger space comprising a combination of prompts $N(P, T)$ and edges $E$, but fails to discover effective workflows due to the efficiency limitations of its linear heuristic search 算法.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "Overall AFlow framework: By setting a search space composed of nodes with only prompt parameters flexible, a given operator set, and a code representing edge, AFlow performs an MCTS-based search within this space. Through a variant of MCTS designed for workflow optimization, AFlow iteratively executes a cycle of Soft Mixed Probability Selection, LLM-Based Expansion, Execution Evaluation, and Experience Backpropagation until reaching the maximum number of iterations or meeting convergence criteria.",
+    "translation": "图表说明：Overall AFlow framework: By setting a 搜索空间 composed of nodes with only prompt parameters flexible, a given operator set, and a code representing edge, AFlow performs an MCTS-based search within this space. Through a variant of MCTS designed for workflow optimization, AFlow iteratively executes a cycle of Soft Mixed Probability Selection, LLM-Based Expansion, Execution Evaluation, and Experience Backpropagation until reaching the maximum number of iterations or meeting convergence criteria.。",
+    "assetPath": "/generated/aflow-automating-agentic-workflow-generation/MCTS.png",
+    "kind": "figure"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "Formulation. To address the limitations of previous methods, we propose AFlow, a novel framework that leverages Large Language Models (LLMs) as optimizers within a variant of Monte Carlo Tree Search (MCTS) to search for optimal workflows. As discussed in Section para:workflow, edges can be represented in both graphs and code. To ensure AFLOW can explore the full range of possible agentic workflows, we represent nodes N and edges E through code. Specifically, as shown in Figure~mcts, AFlow uses a variant of MCTS to iteratively explore the workflow search space, evaluate different configurations, and backpropagate experiences to refine the workflow optimization process.",
+    "translation": "Formulation.。To address the limitations of previous methods, we propose AFlow, a novel framework that leverages 大语言模型 (LLMs) as optimizers within a variant of 蒙特卡洛树搜索 (MCTS) to search for optimal workflows.。As discussed in Section para:workflow, edges can be represented in both graphs and code.。To ensure AFLOW can explore the full range of possible agentic workflow, we represent nodes N and edges E through code.。Specifically, as shown in Figuremcts, AFlow uses a variant of MCTS to iteratively explore the workflow 搜索空间, evaluate different configurations, and backpropagate experiences to refine the workflow optimization process.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "To enhance search efficiency in practice, we simplify the search space by fixing key parameters such as the model $M$, temperature $$, and format $F$. This simplification allows AFlow to focus its search primarily on the code-represented edges $E$ and prompts. To navigate this still vast search space effectively, we introduce the concept of Operators. These Operators encapsulate common agentic operations (e.g., Ensemble, Review, Revise) by combining $N$ and $E$ into unified interfaces, thereby enabling more efficient utilization by AFlow. By employing these Operators, we achieve more efficient search and streamlined workflow generation.",
+    "translation": "To enhance search efficiency in practice, we simplify the 搜索空间 by fixing key parameters such as the model $M$, temperature $$, and format $F$.。这simplification allows AFlow to focus its search primarily on the code-represented edges $E$ and prompts.。To navigate this still vast 搜索空间 effectively, we introduce the concept of Operators.。These Operators encapsulate common agentic operations (e.g., Ensemble, Review, Revise) by combining $N$ and $E$ into unified interfaces, thereby enabling more efficient utilization by AFlow.。By employing these Operators, we achieve more efficient search and streamlined workflow generation.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "Formally, given a set of Operators $$ that represents predefined node combinations, and an edge space $$ represented through code, the optimization problem can be formalized as:",
+    "translation": "Formally, given a set of Operators $$ that represents predefined node combinations, and an edge space $$ represented through code, the optimization problem can be formalized as:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "\\begin{equation}\n\\mathcal{S}_\\text{AFlow} = \\{ (P_1, \\ldots, P_n, E, O_1, \\ldots, O_n) \\mid P_i \\in \\mathcal{P}, E \\in \\mathcal{E}, O_i \\in \\mathcal{O} \\} \\\\\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“AFlow 概览”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "\\begin{equation}\nW^* = \\text{\\model}(\\mathcal{S}_\\text{AFlow}, G, T) \n\\end{equation}",
+    "translation": "公式说明：该公式服务于“AFlow 概览”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "Tasks Scope and Operations.",
+    "translation": "Tasks Scope and Operations.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 概览",
+    "page": 3,
+    "sourceText": "In this paper, we focus on applying AFlow to reasoning tasks with numerical evaluation functions. We extract common operations from existing literature and define them as part of the operator set~$$. These operations include: (1) Generate, (2) Format, (3) Review and Revise [cite: madaan2023self], (4) Ensemble [cite: wang2022COTSC], (5) Test [cite: li2024debug], (6) Programmer, and (7) Custom as the default operator for basic node construction. The operator set $$ can be easily expanded to enhance search efficiency for various tasks. Even without any predefined operators, AFlow can construct different workflow nodes using the basic Custom operator. The efficiency comparison between these approaches is detailed in Section~sec:ablation. For a comprehensive understanding of the operators, we provide their detailed structures in Appendix~appendix:operator_code.",
+    "translation": "在本文中，作者围绕“AFlow 概览”提出并验证相应的方法。作者extract common operations from existing literature and define them as part of the operator set$$.。These operations include: (1) Generate, (2) Format, (3) Review and Revise [cite: madaan2023self], (4) Ensemble [cite: wang2022COTSC], (5) Test [cite: li2024debug], (6) Programmer, and (7) Custom as the default operator for basic node construction.。该operator set $$ can be easily expanded to enhance search efficiency for various tasks.。Even without any predefined operators, AFlow can construct different workflow nodes using the basic Custom operator.。该efficiency comparison between these approaches is detailed in Sectionsec:消融.。For a comprehensive understanding of the operators, we provide their detailed structures in Appendix附录:operator_code.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 3,
+    "sourceText": "The Design Details of AFlow",
+    "translation": "AFlow 设计细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 3,
+    "sourceText": "The core concept of AFlow is to employ Large Language Models (LLMs) as optimizers within a Monte Carlo Tree Search (MCTS) variant to discover effective workflows. In our MCTS structure, each tree node represents a complete workflow rather than individual LLM-invoking node, enabling the discovery of universal solutions for classes of problems. The search process operates through an iterative cycle of soft mixed probability selection, LLM-based optimization expansion, execution evaluation, and experience backpropagation until reaching maximum iterations or convergence criteria. A simplified illustration is shown in Figure mcts, with detailed algorithm process and theoretical analysis presented in Appendix appendix:algorithmaflow and Appendix appendix:theroy, respectively.",
+    "translation": "该core concept of AFlow is to employ 大语言模型 (LLMs) as optimizers within a 蒙特卡洛树搜索 (MCTS) variant to discover effective workflows.。In our MCTS structure, each tree node represents a complete workflow rather than individual LLM-invoking node, enabling the discovery of universal solutions for classes of problems.。该search process operates through an iterative cycle of soft mixed probability selection, LLM-based optimization expansion, execution 评估, and experience backpropagation until reaching maximum iterations or convergence criteria.。A simplified illustration is shown in Figure mcts, with detailed 算法 process and theoretical analysis presented in Appendix 附录:算法aflow and Appendix 附录:theroy, respectively.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 3,
+    "sourceText": "Existing workflow optimization methods iteratively use past workflow structures to prompt LLMs to discover new structures. However, due to information loss during accumulation (as input tokens increase), this approach struggles to guide LLMs towards specific performance metrics. Combined with the vast search space of code, this reduces search efficiency. Our key idea is to leverage the tree structure of MCTS to preserve workflow-based exploration experiences in $N_max$ rounds workflow optimization. When a workflow is revisited, we accurately reuse past successful experiences and avoid failures, enabling effective workflow generation and improving search efficiency. To prevent local optima, we introduce a special selection mechanism allowing generation from a blank template at any round. Next, we will introduce the complete process of AFlow, as shown in Algorithm alg:concise-mcts-workflow-optimization.",
+    "translation": "Existing workflow optimization methods iteratively use past workflow structures to prompt LLMs to discover new structures.。However, due to information loss during accumulation (as input tokens increase), this approach struggles to guide LLMs towards specific performance metrics.。Combined with the vast 搜索空间 of code, this reduces search efficiency.。论文的key idea is to leverage the tree structure of MCTS to preserve workflow-based exploration experiences in $N_max$ rounds workflow optimization.。When a workflow is revisited, we accurately reuse past successful experiences and avoid failures, enabling effective workflow generation and improving search efficiency.。To prevent local optima, we introduce a special selection mechanism allowing generation from a blank template at any round.。Next, we will introduce the complete process of AFlow, as shown in Algorithm alg:concise-mcts-workflow-optimization.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Algorithm: Algorithm of AFlow: Detailed implementation\nRequire: Evaluator $G$, Dataset $D$, Operators $O$\nEnsure: Optimized Workflow $W^*$\nInitialize $W_0$, split $D$ into $D_V$ and $D_T$\n$W^* ← W_0$\nfor $iteration ← 1$ to $N_max$:\n  $workflow ←$ Select(tree)\n  $child.workflow ←$ Expand($workflow$, $O$)\n  $score ←$ Evaluate($child.workflow$, $G$, $D_V$)\n  Backpropagate($child.workflow$, $score$)\n  Update $W^*$ if improved\n  if ConvergenceCriteriaMet():\n    break\nreturn $W^*$",
+    "translation": "算法说明：该算法给出“AFlow 设计细节”部分的执行流程，重点是把输入状态、规划步骤、反馈信号和输出动作组织成可复现的过程。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Initialization AFlow begins with a template workflow $W_0$, which provides a framework for invoking nodes and operators. The code template, detailed in Appendix appendix:graph structure, allows the LLM optimizer to complete workflow simply by completing call functions. Prior to initiating the search process, we randomly partition the dataset into a validation set (20%) and a test set (80%), with the random seed fixed at 42. To optimize computational efficiency, AFlow then executes the blank template five times on the validation dataset. From these executions, we select a subset of problems that exhibit high variance in scores, which becomes the final validation set.",
+    "translation": "Initialization AFlow begins with a template workflow $W_0$, which provides a framework for invoking nodes and operators.。该code template, detailed in Appendix 附录:graph structure, allows the LLM optimizer to complete workflow simply by completing call functions.。Prior to initiating the search process, we randomly partition the 数据集 into a validation set (20%) and a test set (80%), with the random seed fixed at 42.。To optimize computational efficiency, AFlow then executes the blank template five times on the validation 数据集.。From these executions, we select a subset of problems that exhibit high variance in scores, which becomes the final validation set.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Selection Our algorithm forms the initial workflow by evaluating an empty workflow on the validation set. And then continuously select workflows based on a soft mixed probability selection strategy. c We propose this strategy for workflow optimization: combining uniform and score-based weighted probability distributions to select from top-k workflows and the initial workflow, where including the initial workflow ensures persistent exploration capability while avoiding local optima. The formula for this selection strategy is as follows:",
+    "translation": "Selection Our 算法 forms the initial workflow by evaluating an empty workflow on the validation set.。And then continuously select workflows based on a soft mixed probability selection strategy.。c We propose this strategy for workflow optimization: combining uniform and score-based weighted probability distributions to select from top-k workflows and the initial workflow, where including the initial workflow ensures persistent exploration capability while avoiding local optima.。该formula for this selection strategy is as follows:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "\\begin{equation}\nP_{\\text{mixed}}(i) = \\lambda \\cdot \\frac{1}{n} + (1 - \\lambda) \\cdot \\frac{\\exp(\\alpha \\cdot (s_i - s_{\\text{max}}))}{\\sum_{j=1}^{n} \\exp(\\alpha \\cdot (s_j - s_{\\text{max}}))},\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“AFlow 设计细节”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "$ n, s_i i, s_, (0.4) (0.2).$",
+    "translation": "$ n, s_i i, s_, (0.4) (0.2).$。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Expansion In the expansion phase, we employ an LLM as an optimizer to create new workflows and the optimize prompt is illustrated in Appendix appendix:prompt. The optimizer leverages the selected workflow's experience to generate new prompts or modify node connections by altering code, resulting in new workflows. Specifically, to maximally uncover insights from past iterations, the experience includes all modifications and their corresponding improvements or failures on the selected workflow, along with precise logs of predictions and expected output.",
+    "translation": "Expansion In the expansion phase, we employ an LLM as an optimizer to create new workflows and the optimize prompt is illustrated in Appendix 附录:prompt.。该optimizer leverages the selected workflow's experience to generate new prompts or modify node connections by altering code, resulting in new workflows.。Specifically, to maximally uncover insights from past iterations, the experience includes all modifications and their corresponding improvements or failures on the selected workflow, along with precise logs of predictions and expected output.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Evaluation AFlow directly executes workflows to get feedback due to explicit evaluation functions in reasoning tasks. We test each generated workflow 5 times on the validation set, computing mean and standard deviation. While this increases per-iteration cost, it provides more accurate feedback for the optimizer. This precision enhances search efficiency, ultimately reducing the number of iterations required to reach an effective solution.",
+    "translation": "Evaluation AFlow directly executes workflows to get feedback due to explicit 评估 functions in reasoning tasks.。作者test each generated workflow 5 times on the validation set, computing mean and standard deviation.。While this increases per-iteration cost, it provides more accurate feedback for the optimizer.。这精确率 enhances search efficiency, ultimately reducing the number of iterations required to reach an effective solution.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Backpropagation After execution, we record: (1) the workflow's performance, (2) the optimizer's modification of its parent workflow, and (3) optimization success relative to its parent. This information is stored in experience and propagated back to the parent workflow, while the performance score is added to the global record for selection.",
+    "translation": "Backpropagation After execution, we record: (1) the workflow's performance, (2) the optimizer's modification of its parent workflow, and (3) optimization success relative to its parent.。这information is stored in experience and propagated back to the parent workflow, while the performance score is added to the global record for selection.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AFlow 设计细节",
+    "page": 4,
+    "sourceText": "Terminal Condition We implement early stopping to reduce unnecessary execution costs: the process terminates if the top-k average score shows no improvement for $n$ consecutive rounds, or after $N$ total rounds otherwise. See Appendix appendix:algorithmaflow for algorithmic details.",
+    "translation": "Terminal Condition We implement early stopping to reduce unnecessary execution costs: the process terminates if the top-k average score shows no improvement for $n$ consecutive rounds, or after $N$ total rounds otherwise.。See Appendix 附录:算法aflow for 算法ic details.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 4,
+    "sourceText": "Experiments",
+    "translation": "实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 4,
+    "sourceText": "Experimental Setup",
+    "translation": "实验设置",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 4,
+    "sourceText": "Datasets We utilized six public benchmarks for our experiments. Following established practices~[cite: saad2024archon, hu2024automated] in workflow optimization, we divide the data into validation and test sets using a 1:4 ratio. Specifically, we use the full datasets for GSM8K~[cite: cobbe2021gsm8k], HumanEval~[cite: Chen2021Humaneval], and MBPP~[cite: austin2021mbpp]. For HotpotQA ~[cite: zhi2018hot] and DROP ~[cite: dheer2019drop], we randomly select 1,000 samples each, in line with~[cite: hu2024automated, Noah2023reflexion]. For the MATH~[cite: hendrycks2measuring] dataset, we follow~[cite: hong2024data] in selecting 617 problems from four typical problem types (Combinatorics & Probability, Number Theory, Pre-algebra, Pre-calculus) at difficulty level 5.",
+    "translation": "Datasets We utilized six public benchmarks for our experiments.。Following established practices[cite: saad2024archon, hu2024automated] in workflow optimization, we divide the data into validation and test sets using a 1:4 ratio.。Specifically, we use the full 数据集s for GSM8K[cite: cobbe2021gsm8k], HumanEval[cite: Chen2021Humaneval], and MBPP[cite: austin2021mbpp].。For HotpotQA [cite: zhi2018hot] and DROP [cite: dheer2019drop], we randomly select 1,000 samples each, in line with[cite: hu2024automated, Noah2023reflexion].。For the MATH[cite: hendrycks2measuring] 数据集, we follow[cite: hong2024data] in selecting 617 problems from four typical problem types (Combinatorics & Probability, Number Theory, Pre-algebra, Pre-calculus) at difficulty level 5.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 4,
+    "sourceText": "Baselines We compare workflow discovered by AFlow against manually designed methods for LLMs, including IO (direct LLM invocation), Chain-of-Thought ~[cite: wei2022COT], Self Consistency CoT (5 answers) ~[cite: wang2022COTSC], MultiPersona Debate ~[cite: wang2023multipersona], Self-Refine (max 3 iteration rounds)~[cite: madaan2023self], and MedPrompt (3 answers and 5 votes) ~[cite: nori2023medprompt]. We also compared against workflow designed by automated workflow optimization method ADAS~[cite: hu2024automated].",
+    "translation": "Baselines We compare workflow discovered by AFlow against manually designed methods for LLMs, including IO (direct LLM invocation), Chain-of-Thought [cite: wei2022COT], Self Consistency CoT (5 answers) [cite: wang2022COTSC], MultiPersona Debate [cite: wang2023multipersona], Self-Refine (max 3 iteration rounds)[cite: madaan2023self], and MedPrompt (3 answers and 5 votes) [cite: nori2023medprompt].。作者also compared against workflow designed by automated workflow optimization method ADAS[cite: hu2024automated].。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 4,
+    "sourceText": "Implementation Details AFlow utilizes different models for optimization and execution. We employ Claude-3.5-sonnet ~[cite: sonnet2024anthropic] as the optimizer and use models: DeepSeek-V2.5~[cite: deepseekv252024Deepseek], GPT-4o-mini-0718~[cite: gpt4omini2024openai], Claude-3.5-sonnet-0620~[cite: sonnet2024anthropic], GPT-4o-0513~[cite: gpt4o2024openai]) as executors. All models are accessed via APIs. We set the temperature to 1 for DeepSeek-V2.5 and to 0 for the other models. We set iteration rounds to 20 for AFlow. For ADAS, we use Claude-3.5-sonnet as the optimizer and GPT-4o-mini as the executor, with the iteration rounds set to 30.",
+    "translation": "Implementation Details AFlow utilizes different models for optimization and execution.。作者employ Claude-3.5-sonnet [cite: sonnet2024anthropic] as the optimizer and use models: DeepSeek-V2.5[cite: deepseekv252024Deepseek], GPT-4o-mini-0718[cite: gpt4omini2024openai], Claude-3.5-sonnet-0620[cite: sonnet2024anthropic], GPT-4o-0513[cite: gpt4o2024openai]) as executors.。All models are accessed via APIs.。作者set the temperature to 1 for DeepSeek-V2.5 and to 0 for the other models.。作者set iteration rounds to 20 for AFlow.。For ADAS, we use Claude-3.5-sonnet as the optimizer and GPT-4o-mini as the executor, with the iteration rounds set to 30.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 4,
+    "sourceText": "Metrics. For GSM8K and MATH$_lv5^*$, we report the Solve Rate (%) as the primary metric. For HumanEval and MBPP, we report the pass@1 metric as presented in~[cite: Chen2021Humaneval] to assess code accuracy. For HotpotQA and DROP, we report the F1 Score. Additionally, for all datasets, we calculate the cost by tracking token usage to construct a pareto front, visually demonstrating the performance-cost trade-offs between different methods.",
+    "translation": "Metrics.。For GSM8K and MATH$_lv5^*$, we report the Solve Rate (%) as the primary metric.。For HumanEval and MBPP, we report the pass@1 metric as presented in[cite: Chen2021Humaneval] to assess code accuracy.。For HotpotQA and DROP, we report the F1 Score.。Additionally, for all 数据集s, we calculate the cost by tracking token usage to construct a pareto front, visually demonstrating the performance-cost trade-offs between different methods.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Experimental Results and Analysis",
+    "translation": "实验结果与分析",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Results The main experimental results, as shown in Table tab:main result, demonstrate the effectiveness of AFlow. Workflows optimized by AFlow outperform all manually designed methods by an average of 5.7% and surpass contemporary automatic workflow optimization work by 19.5%. Across six datasets in QA, Code, and Math domains, AFlow achieves an average performance of 80.3%, marking the capability and usability of this method. Notably, compared to similar works, AFlow performed better on more challenging tasks, improving over ADAS on MATH$_lv5^*$ and MBPP tasks by 57%, showcasing the robustness of the model on complex datasets.",
+    "translation": "Results The main experimental results, as shown in Table tab:main result, demonstrate the effectiveness of AFlow.。Workflows optimized by AFlow outperform all manually designed methods by an average of 5.7% and surpass contemporary automatic workflow optimization work by 19.5%.。Across six 数据集s in QA, Code, and Math domains, AFlow achieves an average performance of 80.3%, marking the capability and usability of this method.。Notably, compared to similar works, AFlow performed better on more challenging tasks, improving over ADAS on MATH$_lv5^*$ and MBPP tasks by 57%, showcasing the robustness of the model on complex 数据集s.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Comparison of performance between manually designed methods and workflow generated by automated workflow optimization methods in QA, code, and Math scenarios. All methods are executed with GPT-4o-mini on divided test set, and we tested it three times and reported it on the average.",
+    "translation": "表格说明：Comparison of performance between manually designed methods and workflow generated by automated workflow optimization methods in QA, code, and Math scenarios. All methods are executed with GPT-4o-mini on divided test set, and we tested it three times and reported it on the average.。",
+    "kind": "table"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Comparison of performance between manually designed methods and workflows generated by AFlow with two executor LLM: GPT-4o-mini (\"Ours\") and DeepSeek-V2.5 (\"Ours*\"). All workflows are tested thrice on the humaneval test set, with average results reported. \"MP\" denotes \"MedPrompt\"~[cite: nori2023medprompt], and \"MPD\" denotes \"MultiPersona Debate\"~[cite: wang2023multipersona]. The results demonstrate that workflows obtained through AFlow exhibit strong transferability.",
+    "translation": "表格说明：Comparison of performance between manually designed methods and workflows generated by AFlow with two executor LLM: GPT-4o-mini (\"Ours\") and DeepSeek-V2.5 (\"Ours*\"). All workflows are tested thrice on the humaneval test set, with average results reported. \"MP\" denotes \"MedPrompt\"[cite: nori2023medprompt], and \"MPD\" denotes \"MultiPersona Debate\"[cite: wang2023multipersona]. The results demonstrate that workflows obtained through AFlow exhibit strong transferability.。",
+    "kind": "table"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "To explore whether the workflow searched by AFlow is model-agnostic, we use GPT-4o-mini and DeepSeek-V2.5 as execution LLMs to search effective workflows with different structures, with the results illustrated in Table tab:humaneval. When applying these workflows to other models, the vast majority demonstrate stronger performance than the baseline, showcasing the generalizability of the workflows discovered by AFlow. Simultaneously, we observe that the workflow identified using DeepSeek-V2.5 performs notably weaker on GPT-4o-mini compared to the workflow found using GPT-4o-mini itself. This suggests that different language models require different workflows to achieve their optimal performance.",
+    "translation": "To explore whether the workflow searched by AFlow is model-agnostic, we use GPT-4o-mini and DeepSeek-V2.5 as execution LLMs to search effective workflows with different structures, with the results illustrated in Table tab:humaneval.。When applying these workflows to other models, the vast majority demonstrate stronger performance than the 基线, showcasing the generalizability of the workflows discovered by AFlow.。Simultaneously, we observe that the workflow identified using DeepSeek-V2.5 performs notably weaker on GPT-4o-mini compared to the workflow found using GPT-4o-mini itself.。这suggests that different language models require different workflows to achieve their optimal performance.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "The cost refers to the total expense of executing the divided HumanEval test set. AFlow (execution model) refers to workflows found by AFlow using the execution model to obtain feedback. The colors in the legend represent the LLM used to execute each workflow in test dataset. The specific numerical values for this Figure can be found in Appendix appendix:cost.",
+    "translation": "图表说明：The cost refers to the total expense of executing the divided HumanEval test set. AFlow (execution model) refers to workflows found by AFlow using the execution model to obtain feedback. The colors in the legend represent the LLM used to execute each workflow in test 数据集. The specific numerical values for this Figure can be found in Appendix 附录:cost.。",
+    "assetPath": "/generated/aflow-automating-agentic-workflow-generation/pareto_front.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Analysis We demonstrate the comparison of performance and cost between the baselines and the top three workflows found by AFlow using GPT-4o-mini and DeepSeek-V2.5 as execution LLMs. The comparison is made across four models with different capabilities and price points. Results demonstrate that AFlow can identify workflows that allow weaker models to outperform stronger models on the pareto front of cost-effectiveness. This breakthrough effectively removes barriers to the widespread application of agentic workflows across various domains. By automating the design of effective agentic workflows, AFlow eliminates the human labor costs previously required. Moreover, the ability to achieve superior performance at lower costs compared to stronger models opens up further possibilities for widespread adoption.",
+    "translation": "Analysis We demonstrate the comparison of performance and cost between the 基线s and the top three workflows found by AFlow using GPT-4o-mini and DeepSeek-V2.5 as execution LLMs.。该comparison is made across four models with different capabilities and price points.。Results demonstrate that AFlow can identify workflows that allow weaker models to outperform stronger models on the pareto front of cost-effectiveness.。这breakthrough effectively removes barriers to the widespread application of agentic workflow across various domains.。By automating the design of effective agentic workflow, AFlow eliminates the human labor costs previously required.。Moreover, the ability to achieve superior performance at lower costs compared to stronger models opens up further possibilities for widespread adoption.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "(A) Comparison of highest performance curves on GSM8K for both validation and test sets generated by AFlow with and without operators. Compared to other datasets, GSM8K has a larger data volume, meaning that the same percentage improvement represents a greater increase in correctly solved samples, avoiding fluctuations in improvement due to small data size that could affect comparisons; (B): The code for the best-performing workflow discovered by AFlow on the GSM8K dataset.",
+    "translation": "图表说明：(A) Comparison of highest performance curves on GSM8K for both validation and test sets generated by AFlow with and without operators. Compared to other 数据集s, GSM8K has a larger data volume, meaning that the same percentage improvement represents a greater increase in correctly solved samples, avoiding fluctuations in improvement due to small data size that could affect comparisons; (B): The code for the best-performing workflow discovered by AFlow on the GSM8K 数据集.。",
+    "assetPath": "/generated/aflow-automating-agentic-workflow-generation/ablation_study.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "We introduce operators as human-designed effort to enhance search efficiency. An ablation study on GSM8K (Figure~fig:ablation) shows that operators help AFlow discover better workflows more efficiently, achieving incremental improvements. Notably, even without operators, AFlow maintains strong performance (93.1%), surpassing manual designs. Notably, AFlow autonomously develops ensemble-like structures without operators, demonstrating its capability for independent workflow design and marking a significant step towards full automation. Details is shown in Appendix appendix:case_study.",
+    "translation": "作者introduce operators as human-designed effort to enhance search efficiency.。An 消融 study on GSM8K (Figurefig:消融) shows that operators help AFlow discover better workflows more efficiently, achieving incremental improvements.。Notably, even without operators, AFlow maintains strong performance (93.1%), surpassing manual designs.。Notably, AFlow autonomously develops ensemble-like structures without operators, demonstrating its capability for independent workflow design and marking a significant step towards full automation.。Details is shown in Appendix 附录:case_study.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Tree-structured iteration process of AFlow on GSM8K: We highlight the path from the initial round (round 1) to the best-performing workflow, reporting the score for each node and its modification from the previous node. The purple sections in the prompts on both sides represent the main prompt modifications in this iteration.",
+    "translation": "图表说明：Tree-structured iteration process of AFlow on GSM8K: We highlight the path from the initial round (round 1) to the best-performing workflow, reporting the score for each node and its modification from the previous node. The purple sections in the prompts on both sides represent the main prompt modifications in this iteration.。",
+    "assetPath": "/generated/aflow-automating-agentic-workflow-generation/case_study.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验结果与分析",
+    "page": 4,
+    "sourceText": "Study AFlow demonstrates a clear iteration process, as shown in Figure fig:casestudy, illustrating how it evolves from a blank template (containing only a single Node without prompts) to the structure presented in Figure fig:ablation(B). In each iteration, AFlow employs a single-step modification, meaning it either adds one operator (rounds 2, 3) or makes a targeted modification to a prompt (rounds 8, 10). Among the unsuccessful exploration rounds, AFlow introduced a custom review node that directly modified answers generated through complex processes without additional reasoning (round 5), which decreased accuracy. In round 14, AFlow attempted to rephrase the problem but overly focused on \"discount\" information, leading to a decrease in accuracy. This iteration process showcases how tree-based search allows AFlow to further optimize known paths while retaining the ability to explore new ones. On the MBPP dataset, AFlow discovered structures similar to current manually designed workflows, such as test generation and execution by LLMs as seen in Tal2024Alpha. The workflow and more discovered results are presented in Appendix appendix:case_study and a complete optimization process is presented in Appendix sec:trajectory.",
+    "translation": "Study AFlow demonstrates a clear iteration process, as shown in Figure fig:casestudy, illustrating how it evolves from a blank template (containing only a single Node without prompts) to the structure presented in Figure fig:消融(B).。In each iteration, AFlow employs a single-step modification, meaning it either adds one operator (rounds 2, 3) or makes a targeted modification to a prompt (rounds 8, 10).。Among the unsuccessful exploration rounds, AFlow introduced a custom review node that directly modified answers generated through complex processes without additional reasoning (round 5), which decreased accuracy.。In round 14, AFlow attempted to rephrase the problem but overly focused on \"discount\" information, leading to a decrease in accuracy.。这iteration process showcases how tree-based search allows AFlow to further optimize known paths while retaining the ability to explore new ones.。On the MBPP 数据集, AFlow discovered structures similar to current manually designed workflows, such as test generation and execution by LLMs as seen in Tal2024Alpha.。该workflow and more discovered results are presented in Appendix 附录:case_study and a complete optimization process is presented in Appendix sec:trajectory.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 5,
+    "sourceText": "Conclusion",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 5,
+    "sourceText": "This paper has introduced AFlow, a novel framework for automated workflow optimization. We have comprehensively formulated the automated workflow optimization problem, establishing a foundational structure for future research. AFlow has leveraged Monte Carlo Tree Search and code-represented workflows to navigate the vast search space of possible workflows efficiently. Our experiments across six benchmarks demonstrate the effectiveness of AFlow, which has outperformed manually designed methods and existing automated optimization approaches. Ablation studies have shown that AFlow can autonomously discover effective structures, even without predefined operators. Importantly, AFlow has enabled weaker models to outperform stronger ones on the Pareto front of cost-effectiveness. We further discuss the potential applications of AFlow across diverse domains in Appendix appendix:discussion, potentially revolutionizing the adoption of agentic workflows across various domains. These results have highlighted AFlow's potential for enhancing LLMs' problem-solving capabilities while optimizing computational costs.",
+    "translation": "这paper has introduced AFlow, a novel framework for automated workflow optimization.。作者have comprehensively formulated the automated workflow optimization problem, establishing a foundational structure for future research.。AFlow has leveraged 蒙特卡洛树搜索 and code-represented workflows to navigate the vast 搜索空间 of possible workflows efficiently.。论文的experiments across six benchmarks demonstrate the effectiveness of AFlow, which has outperformed manually designed methods and existing automated optimization approaches.。Ablation studies have shown that AFlow can autonomously discover effective structures, even without predefined operators.。Importantly, AFlow has enabled weaker models to outperform stronger ones on the Pareto front of cost-effectiveness.。作者further discuss the potential applications of AFlow across diverse domains in Appendix 附录:discussion, potentially revolutionizing the adoption of agentic workflow across various domains.。These results have highlighted AFlow's potential for enhancing LLMs' problem-solving capabilities while optimizing computational costs.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Acknowledgements",
+    "page": 6,
+    "sourceText": "Acknowledgements",
+    "translation": "Acknowledgements",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Acknowledgements",
+    "page": 6,
+    "sourceText": "This paper is supported by NSF of China (62402409), Guangzhou Municipality Big Data Intelligence Key Lab (2023A03J0012), Guangdong Basic and Applied Basic Research Foundation (2023A1515110545), Guangzhou Basic and Applied Basic Research Foundation (2025A04J3935), and Guangzhou-HKUST(GZ) Joint Funding Program (2025A03J3714).",
+    "translation": "这paper is supported by NSF of China (62402409), Guangzhou Municipality Big Data Intelligence Key Lab (2023A03J0012), Guangdong Basic and Applied Basic Research Foundation (2023A1515110545), Guangzhou Basic and Applied Basic Research Foundation (2025A04J3935), and Guangzhou-HKUST(GZ) Joint Funding Program (2025A03J3714).。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "附录",
+    "page": 6,
+    "sourceText": "Appendix",
+    "translation": "附录",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LLM Based Expansion: Prompt for LLM Optimizer",
+    "page": 6,
+    "sourceText": "LLM Based Expansion: Prompt for LLM Optimizer",
+    "translation": "LLM Based Expansion: Prompt for LLM Optimizer",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LLM Based Expansion: Prompt for LLM Optimizer",
+    "page": 6,
+    "sourceText": "[title= Workflow optimize prompt, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Workflow optimize prompt, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LLM Based Expansion: Prompt for LLM Optimizer",
+    "page": 6,
+    "sourceText": "PROMPT = \"\"\"You are building a Graph and corresponding Prompt to jointly solve {type} problems. Referring to the given graph and prompt, which forms a basic example of a {type} solution approach, please reconstruct and optimize them. You can add, modify, or delete nodes, parameters, or prompts. Include your single modification in XML tags in your reply. Ensure they are complete and correct to avoid runtime failures. When optimizing, you can incorporate critical thinking methods like review, revise, ensemble (generating multiple answers through different/similar prompts, then voting/integrating/checking the majority to obtain a final answer), selfAsk, etc. Consider Python's loops (for, while, list comprehensions), conditional statements (if-elif-else, ternary operators), or machine learning techniques (e.g., linear regression, decision trees, neural networks, clustering). The graph complexity should not exceed 10. Use logical and control flow (IF-ELSE, loops) for a more enhanced graphical representation.Ensure that all the prompts required by the current graph from prompt_custom are included.Exclude any other prompts. Output the modified graph and all the necessary Prompts in prompt_custom (if needed).The prompt you need to generate is only the one used in `prompt_custom.XXX` within Custom. Other methods already have built-in prompts and are prohibited from being generated. Only generate those needed for use in `prompt_custom`; please remove any unused prompts in prompt_custom. the generated prompt must not contain any placeholders. Considering information loss, complex graphs may yield better results, but insufficient information transmission can omit the solution. It's crucial to include necessary context during the process.\"\"\"",
+    "translation": "代码说明：这段代码或 JSON 配置来自“LLM Based Expansion: Prompt for LLM Optimizer”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Basic Structure of Node",
+    "page": 6,
+    "sourceText": "Basic Structure of Node",
+    "translation": "Basic Structure of Node",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Basic Structure of Node",
+    "page": 6,
+    "sourceText": "[title= Node structure, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= Node structure, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Basic Structure of Node",
+    "page": 6,
+    "sourceText": "class ActionNode:\n    async def fill(self, context, llm, schema...):\n        \"\"\"\n        :param context: Everything we should know when filling node.\n        :param llm: Large Language Model with pre-defined system message.\n        :param schema: json/markdown/xml, determine example and output format.\n         - raw: free form text\n         - json: it's easy to open source LLM with json format\n         - markdown: when generating code, markdown is always better\n         - xml: its structured format is advantageous for constraining LLM outputs\n        \"\"\"\n        ...\n        return self",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Basic Structure of Node”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Basic Structure of Workflow",
+    "page": 6,
+    "sourceText": "Basic Structure of Workflow",
+    "translation": "Basic Structure of Workflow",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Basic Structure of Workflow",
+    "page": 6,
+    "sourceText": "[title= Workflow structure, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= Workflow structure, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Basic Structure of Workflow",
+    "page": 6,
+    "sourceText": "DatasetType = Literal[\"HumanEval\", \"MBPP\", \"GSM8K\", \"MATH\", \"HotpotQa\", \"DROP\"]\n\nclass Workflow:\n    def __init__(\n        self,\n        name: str,\n        llm_config,\n        dataset: DatasetType,\n    ) -> None:\n        self.name = name\n        self.dataset = dataset\n        self.llm = create_llm_instance(llm_config)\n        self.llm.cost_manager = CostManager()\n\n    async def __call__(self, problem: str):\n        \"\"\"\n        Implementation of the workflow\n        \"\"\"\n        raise NotImplementedError(\"This method should be implemented by the subclass\")",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Basic Structure of Workflow”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Operators",
+    "page": 6,
+    "sourceText": "Operators",
+    "translation": "Operators",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Operators",
+    "page": 6,
+    "sourceText": "[title= Operators, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= Operators, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Operators",
+    "page": 6,
+    "sourceText": "class ContextualGenerate(Operator):\n    async def __call__(self, problem, context, mode: str = None):\n        prompt = CONTEXTUAL_GENERATE_PROMPT.format(problem_description=problem, thought=context)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(GenerateOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n        return response\n\nclass CodeGenerate(Operator):\n    async def __call__(self, problem, function_name, mode: str = None):\n        prompt = GENERATE_CODEBLOCK_PROMPT.format(problem_description=problem)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm, \"function_name\": function_name}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(CodeGenerateOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n        return response\n\n\nclass Format(Operator):\n    async def __call__(self, problem, solution, mode: str = None):\n        prompt = FORMAT_PROMPT.format(problem_description=problem, solution=solution)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(FormatOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n        return response\n        \nclass Review(Operator):\n    async def __call__(self, problem, solution, mode: str = None):\n        prompt = REVIEW_PROMPT.format(problem_description=problem, solution=solution, criteria=self.criteria)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(ReviewOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n        return response\n\nclass Revise(Operator):\n    async def __call__(self, problem, solution, feedback, mode: str = None):\n        prompt = REVISE_PROMPT.format(problem_description=problem, solution=solution, feedback=feedback)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(ReviseOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n        return response\n\nclass Ensemble(Operator):\n    async def __call__(self, solutions: List[str], problem: str, mode: str = None):\n        answer_mapping = {}\n        solution_text = \"\"\n        for index, solution in enumerate(solutions):\n            answer_mapping[chr(65 + index)] = index\n            solution_text += f\"{chr(65 + index)}: \\n{str(solution)}\\n\\n\\n\"\n        prompt = ENSEMBLE_PROMPT.format(solutions=solution_text, problem_description=problem)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(EnsembleOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n\n        answer = response.get(\"solution_letter\", \"\")\n        answer = answer.strip().upper()\n\n        return {\"solution\": solutions[answer_mapping[answer]]}\n\nclass Test(Operator):\n    def exec_code(self, solution, entry_point):\n        fail_cases = []\n        ...\n        if fail_cases != []:\n            return fail_cases\n        else:\n            return \"no error\"\n\n    async def __call__(self, problem, solution, entry_point, test_loop: int = 3):\n        for _ in range(test_loop):\n            result = self.exec_code(solution, entry_point)\n            if result == \"no error\":\n                return {\"result\": True, \"solution\": solution}\n            elif \"exec_fail_case\" in result:\n                result = result[\"exec_fail_case\"]\n                prompt = REFLECTION_ON_PUBLIC_TEST_PROMPT.format(\n                    problem=problem,\n                    solution=solution,\n                    exec_pass=f\"executed unsuccessfully, error: \\n {result}\",\n                    test_fail=\"executed unsucessfully\",\n                )\n                node = await ActionNode.from_pydantic(ReflectionTestOp).fill(context=prompt, llm=self.llm, mode=\"code_fill\")\n                response = node.instruct_content.model_dump()\n                solution = response[\"reflection_and_solution\"]\n            else:\n                ...        \n        result = self.exec_code(solution, entry_point)\n        if result == \"no error\":\n            return {\"result\": True, \"solution\": solution}\n        else:\n            return {\"result\": False, \"solution\": solution}\n\nclass Programmer(Operator):\n    async def exec_code(code, timeout=180):\n        def run_code():\n            try:\n                global_namespace = {}\n                \n                exec(code, global_namespace)\n            except ...\n\n        done_event = threading.Event()\n        result = [\"Error\", \"subprocess error\"]\n\n        def wrapper():\n            nonlocal result\n            result = run_code()\n            done_event.set()\n\n        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:\n            future = executor.submit(wrapper)\n            try:\n                if done_event.wait(timeout=timeout):\n                    return result\n                else:\n                    future.cancel()\n                    return \"Error\", \"Exceed time limit\"\n            finally:\n                executor.shutdown(wait=False)\n\n    async def code_generate(self, problem, analysis, feedback, mode):\n        prompt = PYTHON_CODE_VERIFIER_PROMPT.format(problem=problem, analysis=analysis, feedback=feedback)\n        fill_kwargs = {\"context\": prompt, \"llm\": self.llm, \"function_name\": \"solve\"}\n        if mode:\n            fill_kwargs[\"mode\"] = mode\n        node = await ActionNode.from_pydantic(CodeGenerateOp).fill(**fill_kwargs)\n        response = node.instruct_content.model_dump()\n        return response\n\n    async def __call__(self, problem: str, analysis: str = \"None\"):\n        code = None\n        for i in range(3):\n            code = await self.code_generate(problem, analysis, feedback, mode=\"code_fill\")\n            code = code[\"code\"]\n            status, output = await self.exec_code(code)\n            if status == \"Success\":\n                return {\"code\": code, \"output\": output}\n            else:\n                ...\n        return {\"code\": code, \"output\": \"error\"}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Operators”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Operators",
+    "page": 6,
+    "sourceText": "Providing predefined operators can effectively enhance the search efficiency of AFlow. We implement six common operator structures, including: Generate (Contextual, Code), Format, Review & Revise, Ensemble, Test, and Programmer. For the Test Operator, we use the public test dataset of the dataset as test data. For datasets like MBPP that don't provide a public test dataset, we follow the setting in li2024debug where we use the first test case of each problem as public test data.",
+    "translation": "Providing predefined operators can effectively enhance the search efficiency of AFlow.。作者implement six common operator structures, including: Generate (Contextual, Code), Format, Review & Revise, Ensemble, Test, and Programmer.。For the Test Operator, we use the public test 数据集 of the 数据集 as test data.。For 数据集s like MBPP that don't provide a public test 数据集, we follow the setting in li2024debug where we use the first test case of each problem as public test data.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Mapping workflow from Formulation to Code",
+    "page": 6,
+    "sourceText": "Mapping workflow from Formulation to Code",
+    "translation": "Mapping workflow from Formulation to Code",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Mapping workflow from Formulation to Code",
+    "page": 6,
+    "sourceText": "[title= An example of Workflow, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= An example of Workflow, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Mapping workflow from Formulation to Code",
+    "page": 6,
+    "sourceText": "async def __call__(self, problem: str, entry_point: str):\n    \"\"\"\n    Implementation of the workflow\n    Custom operator to generate anything you want.\n    But when you want to get standard code, you should use custom_code_generate operator.\n    \"\"\"\n    solutions = []\n    for _ in range(3):  # Generate 3 solutions\n        solution = await self.custom_code_generate(problem=problem, entry_point=entry_point, instruction=prompt_custom.CODE_GENERATE_PROMPT)\n        solutions.append(solution['response'])\n    \n    best_solution = await self.sc_ensemble(solutions=solutions, problem=problem)\n    \n    test_result = await self.test(problem=problem, solution=best_solution['response'], entry_point=entry_point)\n    \n    if test_result['result']:\n        return test_result['solution'], self.llm.cost_manager.total_cost\n    else:\n        # If the test fails, try to fix the solution\n        fixed_solution = await self.custom(input=f\"Problem: {problem}\\nFailed solution: {best_solution['response']}\\nError: {test_result['solution']}\", instruction=prompt_custom.FIX_CODE_PROMPT)\n        return fixed_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Mapping workflow from Formulation to Code”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Mapping workflow from Formulation to Code",
+    "page": 6,
+    "sourceText": "In this example, • self.custom is the interface for building nodes, through which the Optimizer can generate/modify its prompts. • self.test and self.sc ensemble are interfaces for using Operators (In this example, this workflow only use 2 operators). • Edge in AFlow are represented through code, controlling the flow of all input/output variables between Nodes and Operators to form a complete workflow. Given this definition, the traditional concept of a 'node having two outgoing edges' does not apply to this formulation.",
+    "translation": "In this example, • self.custom is the interface for building nodes, through which the Optimizer can generate/modify its prompts.。• self.test and self.sc ensemble are interfaces for using Operators (In this example, this workflow only use 2 operators).。• Edge in AFlow are represented through code, controlling the flow of all input/output variables between Nodes and Operators to form a complete workflow.。Given this definition, the traditional concept of a 'node having two outgoing edges' does not apply to this formulation.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MCTS Algorithm of AFlow.",
+    "page": 6,
+    "sourceText": "MCTS Algorithm of AFlow.",
+    "translation": "MCTS Algorithm of AFlow.",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MCTS Algorithm of AFlow.",
+    "page": 6,
+    "sourceText": "Algorithm: Detailed Explanation of the AFlow Algorithm\nRequire: Initial Workflow $W_0$, Evaluator $G$, Dataset $D$, Number of rounds $N$, Operators $O$, Top k $k$, Early stopping rounds $n$\nEnsure: Optimal Workflow $W^*$\nInitialize $results ← ∅$, $experiences ← ∅$, $N ← 20$, $k ← 3$, $n ← 5$\n$D_V, D_T ←$ RandomSplit($D$, 0.2, 0.8)\n$scores ←$ Execute($W_0$, $G$, $D_V$)\n$D_V ←$ SelectHighVarianceInstances($D_V$, $scores$, $threshold$)\nfor $round ← 1$ to $N$:\n  if $round = 1$:\n    $parent ← W_0$\n  else:\n    $parent ←$ SelectParent($results$)\n  $context ←$ LoadContext($parent$, $experiences$)\n  $W_round, $modification$ ←$ Optimizer($context$, $O$)\n  for $i ← 1$ to $5$:\n    $score, cost ←$ Executor($W_round$, $E$, $D_V$)\n    $results$.append($round$, $score$, $cost$)\n  $avgScore ←$ CalculateAverageScore($results$[$round$])\n  $experience ←$ CreateExperience($parent$, $modification$, $avgScore$)\n  $experiences$.append($experience$)\n  if $avgScore > bestScore$:\n    $W^* ← W_round$\n    $bestScore ← avgScore$\n  if The Top $k$ Workflows remains unchanged in $n$ rounds: # Early stopping\n    return $W^*$\nreturn $W^*$\nprocedure SelectParent($results$):\n  $sorted_results ← SortDescending(results, key=lambda r: r.scores)$\n  $top_k_results ← sorted_results[:k]$\n  $scores ← [result.scores for result in top_k_results]$\n  $probabilities ← CalculateMixedProbabilities(scores)$\n  return SampleFromCategorical(probabilities)\nprocedure CalculateMixedProbabilities($scores$):\n  $n ←$ length($scores$), $\\lambda ← 0.4$, $\\alpha ← 0.2$, $s_max ← \\max(scores)$\n  $w_i ← \\exp(\\alpha \\cdot (s_i - s_max))$ for $i \\in [1,n]$\n  $P_score ← w_i / \\sum_j=1^n w_j$ for $i \\in [1,n]$\n  $P_uniform ← 1/n$ for $i \\in [1,n]$\n  $P_mixed ← \\lambda \\cdot P_uniform + (1-\\lambda) \\cdot P_score$\n  return $P_mixed$\nprocedure Optimizer($context$, $Operators$):\n  // LLM as Optimizer, generate new workflow and modification.\n  return $newWorkflow$, $modification$\nprocedure Executor($W$, $evaluator$, $dataset$):\n  // LLM as Executor, execute workflow on dataset and return score and cost\n  return $score$, $cost$",
+    "translation": "算法说明：该算法给出“MCTS Algorithm of AFlow.”部分的执行流程，重点是把输入状态、规划步骤、反馈信号和输出动作组织成可复现的过程。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "案例研究",
+    "page": 6,
+    "sourceText": "Case Study",
+    "translation": "案例研究",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "Case Study of AFlow",
+    "translation": "Case Study of AFlow",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "[title= Alpha Codium like workflow for MBPP, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= Alpha Codium like workflow for MBPP, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "CODE_GENERATE_PROMPT = \"\"\"\nGenerate a Python function to solve the given problem. Ensure the function name matches the one specified in the problem. Include necessary imports. Use clear variable names and add comments for clarity.\n\nProblem:\n{problem}\n\nFunction signature:\n{entry_point}\n\nGenerate the complete function below:\n\"\"\"\n\nFIX_CODE_PROMPT = \"\"\"\nThe provided solution failed to pass the tests. Please analyze the error and fix the code. Ensure the function name and signature remain unchanged. If necessary, add or modify imports, correct logical errors, and improve the implementation.\n\nProblem:\n{input}\n\nProvide the corrected function below:\n\"\"\"\n\nGENERATE_TESTS_PROMPT = \"\"\"\nGiven the problem and a potential solution, generate additional test cases to thoroughly evaluate the function. Include edge cases and typical scenarios. Format the test cases as assert statements that can be directly added to a Python test function.\n\nProblem:\n{input}\n\nGenerate 3-5 additional test cases as assert statements:\n\"\"\"\n\nasync def __call__(self, problem: str, entry_point: str):\n    solutions = []\n    for _ in range(3):  # Generate 3 solutions\n        solution = await self.custom_code_generate(problem=problem, entry_point=entry_point, instruction=prompt_custom.CODE_GENERATE_PROMPT)\n        solutions.append(solution['response'])\n    best_solution = await self.sc_ensemble(solutions=solutions, problem=problem)\n    # Generate additional test cases\n    additional_tests = await self.custom(input=f\"Problem: {problem}\\nSolution: {best_solution['response']}\", instruction=prompt_custom.GENERATE_TESTS_PROMPT)\n    # Combine original problem and additional tests\n    enhanced_problem = f\"{problem}\\n\\nAdditional test cases:\\n{additional_tests['response']}\"\n    test_result = await self.test(problem=enhanced_problem, solution=best_solution['response'], entry_point=entry_point)\n    if test_result['result']:\n        return test_result['solution'], self.llm.cost_manager.total_cost\n    else:\n        # If the test fails, try to fix the solution\n        fixed_solution = await self.custom(input=f\"Problem: {problem}\\nFailed solution: {best_solution['response']}\\nError: {test_result['solution']}\", instruction=prompt_custom.FIX_CODE_PROMPT)\n        return fixed_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Case Study of AFlow”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "AFlow demonstrates its ability to reduce human effort by evolving from an empty workflow to a solution highly similar to manually designed workflows like Tal2024Alpha in the code generation scenario. This showcases AFlow's capability to generate efficient workflows comparable to expert designs with minimal human intervention. [title= The optimal workflow generated for MATH, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "AFlow demonstrates its ability to reduce human effort by evolving from an empty workflow to a solution highly similar to manually designed workflows like Tal2024Alpha in the code generation scenario.。这showcases AFlow's capability to generate efficient workflows comparable to expert designs with minimal human intervention.。[title= The optimal workflow generated for MATH, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "REFINE_ANSWER_PROMPT = \"\"\"\nGiven the mathematical problem and the output from the code execution, please provide a well-formatted and detailed solution. Follow these guidelines:\n1. Begin with a clear statement of the problem.\n2. Explain the approach and any formulas or concepts used.\n3. Show step-by-step calculations, using LaTeX notation for mathematical expressions.\n4. Interpret the code output and incorporate it into your explanation.\n5. Provide a final answer, enclosed in \\boxed{} LaTeX notation.\n6. Ensure all mathematical notation is in LaTeX format.\nYour response should be comprehensive, mathematically rigorous, and easy to follow.\n\"\"\"\nGENERATE_SOLUTION_PROMPT = \"\"\"\nPlease solve the given mathematical problem step by step. Follow these guidelines:\n1. State the problem clearly.\n2. Outline the approach and any relevant formulas or concepts.\n3. Provide detailed calculations, using LaTeX notation for mathematical expressions.\n4. Explain each step of your reasoning.\n5. Present the final answer enclosed in \\boxed{} LaTeX notation.\n6. Ensure all mathematical notation is in LaTeX format.\nYour solution should be thorough, mathematically sound, and easy to understand.\n\"\"\"\nDETAILED_SOLUTION_PROMPT = \"\"\"\nProvide a comprehensive, step-by-step solution to the given mathematical problem. Your response should include:\n1. A clear restatement of the problem.\n2. An explanation of the mathematical concepts and theorems involved.\n3. A detailed, logical progression of steps leading to the solution.\n4. Clear explanations for each step, including the reasoning behind it.\n5. All mathematical expressions and equations in LaTeX format.\n6. Visual aids or diagrams if applicable (described in text).\n7. A final answer clearly marked and enclosed in \\boxed{} LaTeX notation.\n8. A brief explanation of the significance of the result, if relevant.\nEnsure your solution is rigorous, easy to follow, and educational for someone learning the concept.\n\"\"\"\nasync def __call__(self, problem: str):\n    \"\"\"\n    Implementation of the graph\n    \"\"\"\n    # Use Programmer to generate and execute Python code\n    code_solution = await self.programmer(problem=problem)\n    # Use Custom to refine and format the answer\n    refined_solution = await self.custom(input=problem + f\"\\nCode output: {code_solution['output']}\", instruction=prompt_custom.REFINE_ANSWER_PROMPT)\n    # Generate a detailed step-by-step solution using Custom\n    detailed_solution = await self.custom(input=problem, instruction=prompt_custom.DETAILED_SOLUTION_PROMPT)\n    # Generate multiple solutions using Custom\n    solutions = [\n        refined_solution['response'],\n        detailed_solution['response']\n    ]\n    for _ in range(2):\n        solution = await self.custom(input=problem, instruction=prompt_custom.GENERATE_SOLUTION_PROMPT)\n        solutions.append(solution['response'])\n    # Use ScEnsemble to select the best solution\n    final_solution = await self.sc_ensemble(solutions=solutions, problem=problem)\n    return final_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Case Study of AFlow”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "This optimal workflow generated for the MATH task showcases the model's ability to generate complex, task-specific solutions from task-agnostic initial settings. It combines programmatic solutions with various reasoning strategies, culminating in an ensemble selection process, and spontaneously formats the answer into the required form. This adaptation demonstrates the model's flexibility in tailoring workflows to different problem domains, while maintaining sophisticated problem-solving structures.",
+    "translation": "这optimal workflow generated for the MATH task showcases the model's ability to generate complex, task-specific solutions from task-agnostic initial settings.。It combines programmatic solutions with various reasoning strategies, culminating in an ensemble selection process, and spontaneously formats the answer into the required form.。这adaptation demonstrates the model's flexibility in tailoring workflows to different problem domains, while maintaining sophisticated problem-solving structures.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "[title= The optimal workflow generated for MBPP, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= The optimal workflow generated for MBPP, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "CODE_GENERATE_PROMPT = \"\"\"\nGenerate a Python function to solve the given problem. Ensure the function name matches the one specified in the problem. Include necessary imports. Use clear variable names and add comments for clarity.\n\nProblem:\n{problem}\n\nFunction signature:\n{entry_point}\n\nGenerate the complete function below:\n\"\"\"\n\nFIX_CODE_PROMPT = \"\"\"\nThe provided solution failed to pass the tests. Please analyze the error and fix the code. Ensure the function name and signature remain unchanged. If necessary, add or modify imports, correct logical errors, and improve the implementation.\n\nProblem:\n{input}\n\nProvide the corrected function below:\n\"\"\"\n\nasync def __call__(self, problem: str, entry_point: str):\n    \"\"\"\n    Implementation of the workflow\n    Custom operator to generate anything you want.\n    But when you want to get standard code, you should use custom_code_generate operator.\n    \"\"\"\n    solutions = []\n    for _ in range(3):  # Generate 3 solutions\n        solution = await self.custom_code_generate(problem=problem, entry_point=entry_point, instruction=prompt_custom.CODE_GENERATE_PROMPT)\n        solutions.append(solution['response'])\n    \n    best_solution = await self.sc_ensemble(solutions=solutions, problem=problem)\n    \n    test_result = await self.test(problem=problem, solution=best_solution['response'], entry_point=entry_point)\n    \n    if test_result['result']:\n        return test_result['solution'], self.llm.cost_manager.total_cost\n    else:\n        # If the test fails, try to fix the solution\n        fixed_solution = await self.custom(input=f\"Problem: {problem}\\nFailed solution: {best_solution['response']}\\nError: {test_result['solution']}\", instruction=prompt_custom.FIX_CODE_PROMPT)\n        return fixed_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Case Study of AFlow”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "The optimal workflow generated for the MBPP task simply combines operators with an ingenious FIX-CODE PROMPT, achieving the optimal workflow in the iteration at the fourteenth round. Although this workflow is simple, its score is extremely high and stable, demonstrating AFlow's potential to find the optimal cost-performance balance.",
+    "translation": "该optimal workflow generated for the MBPP task simply combines operators with an ingenious FIX-CODE PROMPT, achieving the optimal workflow in the iteration at the fourteenth round.。Although this workflow is simple, its score is extremely high and stable, demonstrating AFlow's potential to find the optimal cost-performance balance.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "[title= The optimal workflow generated for HotpotQA, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= The optimal workflow generated for HotpotQA, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "FORMAT_ANSWER_PROMPT = \"\"\"\nGiven the question and the best answer, format the final answer to be concise, accurate, and directly addressing the question. Ensure the answer is a clear, brief statement without additional explanation or reasoning. If the answer is a name, profession, or short phrase, provide only that information without forming a complete sentence.\n\nFor example:\n- If the answer is a person's name, just provide the name.\n- If the answer is a profession, state only the profession.\n- If the answer is a short phrase, give only that phrase.\n\nDo not include any prefixes like \"The answer is\" or \"The profession is\". Just provide the answer itself.\n\"\"\"\n\nasync def __call__(self, problem: str):\n    \"\"\"\n    Implementation of the workflow\n    \"\"\"\n    solutions = []\n    for _ in range(3):\n        initial_response = await self.answer_generate(input=problem)\n        thought_process = initial_response['thought']\n        initial_answer = initial_response['answer']\n        solutions.append(initial_answer)\n\n    ensemble_result = await self.sc_ensemble(solutions=solutions)\n    best_answer = ensemble_result['response']\n\n    refined_solution = await self.custom(\n        input=f\"Question: {problem}\\nBest answer: {best_answer}\",\n        instruction=prompt_custom.FORMAT_ANSWER_PROMPT\n    )\n\n    return refined_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Case Study of AFlow”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "The optimal workflow generated for the HotpotQA task demonstrates the effectiveness of execution feedback. Apart from logical reasoning, another factor affecting QA problem scores is effective formatting. AFlow can effectively identify the correct format and automatically perform formatting through learning from execution feedback, showcasing the efficacy of this design.",
+    "translation": "该optimal workflow generated for the HotpotQA task demonstrates the effectiveness of execution feedback.。Apart from logical reasoning, another factor affecting QA problem scores is effective formatting.。AFlow can effectively identify the correct format and automatically perform formatting through learning from execution feedback, showcasing the efficacy of this design.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "[title= An ensemble structure that emerged in the GSM8K ablation experiment, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= An ensemble structure that emerged in the GSM8K 消融 experiment, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "SOLVE_APPROACH1_PROMPT = \"\"\"\nSolve the given math problem step by step using a standard algebraic approach. After solving, extract the final numerical answer and format it as follows:\n\nFinal Answer: [Insert the numerical value here]\n\nEnsure that only the numerical value is provided after \"Final Answer:\", without any units or additional text.\n\nProblem:\n\"\"\"\n\nSOLVE_APPROACH2_PROMPT = \"\"\"\nSolve the given math problem step by step using a visual or diagrammatic approach, if applicable. If not applicable, use an alternative method different from the standard algebraic approach. After solving, extract the final numerical answer and format it as follows:\n\nFinal Answer: [Insert the numerical value here]\n\nEnsure that only the numerical value is provided after \"Final Answer:\", without any units or additional text.\n\nProblem:\n\"\"\"\n\nSOLVE_APPROACH3_PROMPT = \"\"\"\nSolve the given math problem step by step using estimation or approximation techniques, then refine the answer for accuracy. After solving, extract the final numerical answer and format it as follows:\n\nFinal Answer: [Insert the numerical value here]\n\nEnsure that only the numerical value is provided after \"Final Answer:\", without any units or additional text.\n\nProblem:\n\"\"\"\n\nCOMPARE_AND_SELECT_PROMPT = \"\"\"\nCompare the three solutions provided for the given math problem. Analyze each solution for correctness, completeness, and consistency with the problem statement. Select the most accurate and reliable solution, or if all solutions agree, confirm their consistency.\n\nIf the solutions differ, explain the differences and justify your selection of the most accurate answer. If all solutions agree, state this consistency.\n\nProvide the final answer in the following format:\n\nFinal Answer: [Insert the numerical value here]\n\nEnsure that only the numerical value is provided after \"Final Answer:\", without any units or additional text.\n\nProblem:\n\"\"\"\n\nasync def __call__(self, problem: str):\n    \"\"\"\n    Implementation of the workflow\n    \"\"\"\n    solution1 = await self.custom(input=problem, instruction=prompt_custom.SOLVE_APPROACH1_PROMPT)\n    solution2 = await self.custom(input=problem, instruction=prompt_custom.SOLVE_APPROACH2_PROMPT)\n    solution3 = await self.custom(input=problem, instruction=prompt_custom.SOLVE_APPROACH3_PROMPT)\n    combined_solutions = f\"Solution 1: {solution1['response']}\\nSolution 2: {solution2['response']}\\nSolution 3: {solution3['response']}\"\n    final_solution = await self.custom(input=problem + \"\\n\" + combined_solutions, instruction=prompt_custom.COMPARE_AND_SELECT_PROMPT)\n    return final_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Case Study of AFlow”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Case Study of AFlow",
+    "page": 6,
+    "sourceText": "In the ablation study, where predefined operators were deliberately removed, AFlow surprisingly developed this simplified yet effective workflow. Most notably, it independently evolved an ensemble-like operator, mirroring a key aspect of the optimal workflow. This emergence of a multi-solution generation and selection process, despite reduced guidance, highlights AFlow's inherent tendency towards robust problem-solving strategies. The spontaneous development of this ensemble approach in a constrained environment underscores AFlow's ability to identify and implement effective techniques, even when operating with limited resources or instructions. This unexpected convergence between the ablated and optimal workflows further demonstrates AFlow's capacity for developing sophisticated, human-like problem-solving paradigms across different experimental conditions.",
+    "translation": "In the 消融 study, where predefined operators were deliberately removed, AFlow surprisingly developed this simplified yet effective workflow.。Most notably, it independently evolved an ensemble-like operator, mirroring a key aspect of the optimal workflow.。这emergence of a multi-solution generation and selection process, despite reduced guidance, highlights AFlow's inherent tendency towards robust problem-solving strategies.。该spontaneous development of this ensemble approach in a constrained environment underscores AFlow's ability to identify and implement effective techniques, even when operating with limited resources or instructions.。这unexpected convergence between the ablated and optimal workflows further demonstrates AFlow's capacity for developing sophisticated, human-like problem-solving paradigms across different experimental conditions.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of ADAS",
+    "page": 6,
+    "sourceText": "Case Study of ADAS",
+    "translation": "Case Study of ADAS",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of ADAS",
+    "page": 6,
+    "sourceText": "[title= Iterative Knowledge-Enhanced Refinement workflow for HotpotQA, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= Iterative Knowledge-Enhanced Refinement workflow for HotpotQA, boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of ADAS",
+    "page": 6,
+    "sourceText": "async def forward(self, taskInfo):\n    import asyncio\n\n    # Step 1: Initial reasoning by diverse expert agents\n    initial_instruction = 'Please think step by step and solve the task based on your expertise.'\n    expert_agents = [\n        LLMAgentBase(['thinking', 'answer'], 'Expert Agent', role=role, temperature=0.7)\n        for role in ['Reading Specialist', 'Logic Specialist', 'Generalist']\n    ]\n\n    async def run_expert(agent):\n        return await agent([taskInfo], initial_instruction)\n\n    initial_results = await asyncio.gather(*[run_expert(agent) for agent in expert_agents])\n\n    combined_infos = [taskInfo] + [info for result in initial_results for info in result]  # Flattening initial_results\n\n    # Step 2: Iterative refinement with external knowledge integration\n    max_iterations = 2\n    for iteration in range(max_iterations):\n        # Retrieve external knowledge\n        knowledge_retrieval_instruction = 'Retrieve relevant information from a knowledge base that can assist in refining the solution.'\n        knowledge_retrieval_agent = LLMAgentBase(['retrieved_info'], 'Knowledge Retrieval Agent')\n        retrieved_results = await knowledge_retrieval_agent(combined_infos, knowledge_retrieval_instruction)\n        retrieved_info = retrieved_results[0]\n\n        # Verify external knowledge\n        verification_instruction = 'Verify the relevancy and accuracy of the retrieved information.'\n        verification_agent = LLMAgentBase(['verified_info'], 'Verification Agent')\n        verified_results = await verification_agent([taskInfo, retrieved_info], verification_instruction)\n        verified_info = verified_results[0]\n\n        # Refinement phase using verified knowledge\n        refinement_instruction = 'Review and refine the insights provided by other agents using the verified external knowledge.'\n        refinement_agents = [\n            LLMAgentBase(['refined_thinking', 'refined_answer'], 'Refinement Agent', role=role, temperature=0.5)\n            for role in ['Reading Specialist', 'Logic Specialist', 'Generalist']\n        ]\n        combined_infos_with_verification = combined_infos + [verified_info]\n        \n        async def run_refinement(agent):\n            return await agent(combined_infos_with_verification, refinement_instruction)\n        \n        refinement_results = await asyncio.gather(*[run_refinement(agent) for agent in refinement_agents])\n        combined_infos.extend([info for result in refinement_results for info in result])  # Flattening refinement_results\n\n    # Step 3: Final synthesis agent integrates all refined insights\n    final_decision_instruction = 'Synthesize all refined insights and provide a final answer.'\n    final_decision_agent = LLMAgentBase(['thinking', 'answer'], 'Final Decision Agent', temperature=0.3)\n    final_thinking, final_answer = await final_decision_agent(combined_infos, final_decision_instruction)\n\n    return final_answer}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Case Study of ADAS”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Case Study of ADAS",
+    "page": 6,
+    "sourceText": "When designing workflows, ADAS incorporates all workflows from the search history into the prompt, distinguishing them only by their generation order and scores. However, the complex information embedded in the intricate structure of workflows, coupled with the accumulation of search iterations, the vast amount of information, and the continuously accumulating irrelevant information, poses significant challenges for LLM reasoning. ADAS stores experience from previous searches at the coarsest granularity—directly storing all complete workflows. This approach causes the LLM designing workflows in ADAS to behave more like an explorer of infinite possibilities within $$ rather than a designer seeking the optimal workflow.",
+    "translation": "When designing workflows, ADAS incorporates all workflows from the search history into the prompt, distinguishing them only by their generation order and scores.。However, the complex information embedded in the intricate structure of workflows, coupled with the accumulation of search iterations, the vast amount of information, and the continuously accumulating irrelevant information, poses significant challenges for LLM reasoning.。ADAS stores experience from previous searches at the coarsest granularity—directly storing all complete workflows.。这approach causes the LLM designing workflows in ADAS to behave more like an explorer of infinite possibilities within $$ rather than a designer seeking the optimal workflow.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study of ADAS",
+    "page": 6,
+    "sourceText": "As shown in the code in Appendix code:adashotpotqa, the optimal workflow discovered by ADAS assigns diverse roles and multiple steps for refinement and summarization. However, for multi-hop reasoning tasks, the correct approach is to continuously reduce the problem scale to single-hop reasoning. Contrary to this, ADAS's optimal workflow actually increases the problem scale, ultimately attempting to use the LLM's summarization ability to synthesize information, rather than gradually reducing the number of hops based on the characteristics of multi-hop reasoning scenarios.",
+    "translation": "As shown in the code in Appendix code:adashotpotqa, the optimal workflow discovered by ADAS assigns diverse roles and multiple steps for refinement and summarization.。However, for multi-hop reasoning tasks, the correct approach is to continuously reduce the problem scale to single-hop reasoning.。Contrary to this, ADAS's optimal workflow actually increases the problem scale, ultimately attempting to use the LLM's summarization ability to synthesize information, rather than gradually reducing the number of hops based on the characteristics of multi-hop reasoning scenarios.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Optimization Process of AFlow",
+    "page": 6,
+    "sourceText": "Optimization Process of AFlow",
+    "translation": "Optimization Process of AFlow",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Optimization Process of AFlow",
+    "page": 6,
+    "sourceText": "Taking AFlow's search process on the Math dataset as an example, we demonstrate how AFlow iteratively improves workflows based on tree-structured experience and execution feedback.",
+    "translation": "Taking AFlow's search process on the Math 数据集 as an example, we demonstrate how AFlow iteratively improves workflows based on tree-structured experience and execution feedback.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "Tree-Structured Experience.",
+    "translation": "Tree-Structured Experience.",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "[title= Processed Experience (formatted as tree sturcture), boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]",
+    "translation": "[title= Processed Experience (formatted as tree sturcture), boxrule=1pt, arc=0mm, colback=black!5!white, colframe=black!75!white, breakable, before skip=10pt, after skip=10pt, pad at break=2mm, parbox=false]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "{\n    \"1\": {\n        \"score\": 0.4873949579831933,\n        \"success\": {\n            \"2\": {\n                \"modification\": \"Add the Programmer operator to generate and execute Python code for mathematical calculations, and use the Custom operator to refine and format the final answer.\",\n                \"score\": 0.5243697478991597\n            }\n        },\n        \"failure\": {\n            \"8\": {\n                \"modification\": \"Add a ScEnsemble operator to generate multiple solutions and select the best one. This will help improve the accuracy of the final answer.\",\n                \"score\": 0.4336134453781512\n            }\n        }\n    },\n    \"2\": {\n        \"score\": 0.5243697478991597,\n        \"success\": {\n            \"3\": {\n                \"modification\": \"Add a ScEnsemble operator to improve the reliability of the final answer by generating multiple solutions and selecting the most consistent one.\",\n                \"score\": 0.5277310924369747\n            }\n        },\n        \"failure\": {\n            \"6\": {\n                \"modification\": \"Add a ScEnsemble operator to improve the reliability of the final answer by generating multiple solutions and selecting the most consistent one.\",\n                \"score\": 0.4722689075630252\n            },\n            \"7\": {\n                \"modification\": \"Add a ScEnsemble operator to improve the reliability of the final answer by generating multiple solutions and selecting the most consistent one.\",\n                \"score\": 0.5243697478991597\n            }\n        }\n    },\n    \"3\": {\n        \"score\": 0.5277310924369748,\n        \"success\": {\n            \"14\": {\n                \"modification\": \"Modify the Custom operator to generate a more detailed step-by-step solution, and add a new Custom operator to review and refine the final answer. This will improve the clarity, accuracy, and completeness of the solution process.\",\n                \"score\": 0.5310924369747899\n            },\n            \"5\": {\n                \"modification\": \"Add a new Custom operator to generate a detailed step-by-step solution, and modify the ScEnsemble operator to compare and select the best solution from multiple approaches.\",\n                \"score\": 0.5512605042016807\n            },\n            \"9\": {\n                \"modification\": \"Add a new Custom operator to generate a detailed step-by-step solution, and modify the ScEnsemble operator to compare and select the best solution from multiple approaches.\",\n                \"score\": 0.5378151260504201\n            }\n        },\n        \"failure\": {\n            \"10\": {\n                \"modification\": \"Add a new Custom operator to generate a step-by-step solution, and modify the ScEnsemble operator to compare and select the best solution from multiple approaches.\",\n                \"score\": 0.5042016806722688\n            },\n            \"13\": {\n                \"modification\": \"Modify the Custom operator to generate a more detailed step-by-step solution, and add a new Custom operator to refine and format the final answer. This will improve the clarity and accuracy of the solution process.\",\n                \"score\": 0.5193277310924369\n            },\n            \"4\": {\n                \"modification\": \"Add a new Custom operator to generate multiple solutions using different approaches, then use ScEnsemble to select the best solution. This will increase the diversity of solutions and potentially improve accuracy.\",\n                \"score\": 0.0\n            }\n        }\n    },\n    \"9\": {\n        \"score\": 0.5378151260504203,\n        \"success\": {},\n        \"failure\": {\n            \"11\": {\n                \"modification\": \"Add a new Custom operator to generate a detailed step-by-step solution with explanations, and incorporate it into the ensemble process. This will provide a more comprehensive approach to solving math problems.\",\n                \"score\": 0.5159663865546219\n            },\n            \"12\": {\n                \"modification\": \"Add a new Custom operator to generate multiple solution approaches, then use ScEnsemble to select the best solution. This will increase the diversity of solutions and potentially improve accuracy.\",\n                \"score\": 0.0\n            },\n            \"16\": {\n                \"modification\": \"Add a new Custom operator to generate multiple solution approaches, then use ScEnsemble to select the best solution. This will increase the diversity of solutions and potentially improve accuracy.\",\n                \"score\": 0.5210084033613446\n            }\n        }\n    },\n    \"14\": {\n        \"score\": 0.5310924369747899,\n        \"success\": {},\n        \"failure\": {\n            \"15\": {\n                \"modification\": \"Add a new Custom operator to generate multiple solutions, then use ScEnsemble to select the best one. This modification aims to improve the accuracy and consistency of the final answer.\",\n                \"score\": 0.5243697478991596\n            },\n            \"18\": {\n                \"modification\": \"Add a new Custom operator to generate a more detailed step-by-step solution, and modify the ScEnsemble operator to compare and select the best solution from multiple generated solutions.\",\n                \"score\": 0.5176470588235293\n            }\n        }\n    },\n    \"5\": {\n        \"score\": 0.5512605042016807,\n        \"success\": {},\n        \"failure\": {\n            \"17\": {\n                \"modification\": \"Add a new Custom operator to generate multiple solutions using different approaches, and modify the ScEnsemble operator to select the best solution from a larger pool of candidates.\",\n                \"score\": 0.0\n            },\n            \"19\": {\n                \"modification\": \"Add a new Custom operator to generate a simplified solution, which will be used alongside the existing detailed solution to provide a more comprehensive answer. This simplified solution will be added to the list of solutions for the ScEnsemble operator to consider.\",\n                \"score\": 0.5445378151260505\n            }\n        }\n    }\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Tree-Structured Experience.”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "More optimization trajectories will be made available in an open-source repository upon publication.",
+    "translation": "More optimization trajectories will be made available in an open-source repository upon publication.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "Less Effective Optimization Steps: • Round 1 $$ Round 8 (Score decreased from 0.4873 to 0.4336): The key change was the removal of the Programmer operator, relying solely on Custom + ScEnsemble, which lost the computational precision provided by programmatic solutions, demonstrating that removing concrete computational capabilities significantly hurts performance.",
+    "translation": "Less Effective Optimization Steps: • Round 1 $$ Round 8 (Score decreased from 0.4873 to 0.4336): The key change was the removal of the Programmer operator, relying solely on Custom + ScEnsemble, which lost the computational 精确率 provided by programmatic solutions, demonstrating that removing concrete computational capabilities significantly hurts performance.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "• Round 9 $$ Round 16 (Score decreased from 0.5378 to 0.5210): The key change involved simplifying the solution generation process without maintaining the review step, which resulted in the loss of the quality control aspect of solution refinement, showing that solution quality checks are important for maintaining performance.",
+    "translation": "• Round 9 $$ Round 16 (Score decreased from 0.5378 to 0.5210): The key change involved simplifying the solution generation process without maintaining the review step, which resulted in the loss of the quality control aspect of solution refinement, showing that solution quality checks are important for maintaining performance.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "Successful Optimization Steps: • Round 1 $$ Round 2 (Score improved from 0.4874 to 0.5244): The addition of the Programmer operator to generate executable Python code and the use of the Custom operator to refine results introduced concrete computational capabilities alongside human-like reasoning, creating a more robust solution approach and providing a foundation for both numerical accuracy and explanation quality.",
+    "translation": "Successful Optimization Steps: • Round 1 $$ Round 2 (Score improved from 0.4874 to 0.5244): The addition of the Programmer operator to generate executable Python code and the use of the Custom operator to refine results introduced concrete computational capabilities alongside human-like reasoning, creating a more robust solution approach and providing a foundation for both numerical accuracy and explanation quality.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "• Round 2 $$ Round 3 (Score improved from 0.5244 to 0.5277): The introduction of the ScEnsemble operator to select from multiple solutions added solution diversity and reliability through ensemble selection, creating a more robust system by considering multiple solution approaches.",
+    "translation": "• Round 2 $$ Round 3 (Score improved from 0.5244 to 0.5277): The introduction of the ScEnsemble operator to select from multiple solutions added solution diversity and reliability through ensemble selection, creating a more robust system by considering multiple solution approaches.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "• Round 3 $$ Round 5 (Score improved from 0.52773 to 0.5513): The key change was the addition of detailed step-by-step solution generation, which enhanced solution clarity and comprehensiveness, ultimately improving the pedagogical value of solutions while maintaining accuracy.",
+    "translation": "• Round 3 $$ Round 5 (Score improved from 0.52773 to 0.5513): The key change was the addition of detailed step-by-step solution generation, which enhanced solution clarity and comprehensiveness, ultimately improving the pedagogical value of solutions while maintaining accuracy.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "The tree-structured optimization process helped guide LLM workflow improvements in several ways: • Path Discovery: The tree structure allowed exploration of multiple optimization directions simultaneously, enabling the development of successful paths while pruning less successful branches, which facilitated the efficient discovery of effective combinations of operators.",
+    "translation": "该tree-structured optimization process helped guide LLM workflow improvements in several ways: • Path Discovery: The tree structure allowed exploration of multiple optimization directions simultaneously, enabling the development of successful paths while pruning less successful branches, which facilitated the efficient discovery of effective combinations of operators.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "• Incremental Improvement: Each node in the tree represents a specific workflow configuration, and the success/failure feedback at each step helped identify which modifications were beneficial, with the scoring system providing quantitative guidance for optimization decisions.",
+    "translation": "• Incremental Improvement: Each node in the tree represents a specific workflow configuration, and the success/failure feedback at each step helped identify which modifications were beneficial, with the scoring system providing quantitative guidance for optimization decisions.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "• Pattern Recognition: The tree structure made it easier to identify patterns in successful versus unsuccessful modifications, revealing common elements in high-scoring branches, such as the combination of Programmer + Custom + ScEnsemble, which informed future optimization decisions.",
+    "translation": "• Pattern Recognition: The tree structure made it easier to identify patterns in successful versus unsuccessful modifications, revealing common elements in high-scoring branches, such as the combination of Programmer + Custom + ScEnsemble, which informed future optimization decisions.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tree-Structured Experience.",
+    "page": 6,
+    "sourceText": "• Error Recovery: When a modification led to decreased performance, the tree structure facilitated easy backtracking, allowing exploration of alternative optimization paths from previous successful states and preventing the process from getting stuck in local optima.",
+    "translation": "• Error Recovery: When a modification led to decreased performance, the tree structure facilitated easy backtracking, allowing exploration of alternative optimization paths from previous successful states and preventing the process from getting stuck in local optima.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Execution feedback.",
+    "page": 6,
+    "sourceText": "Execution feedback.",
+    "translation": "Execution feedback.",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Execution feedback.",
+    "page": 6,
+    "sourceText": "In the process of optimizing the overall response generation, we implemented a concise and task-agnostic prompt: \"Below are the logs of some results with the aforementioned Graph that performed well but encountered errors, which can be used as references for optimization: log \". This approach enabled execution feedback to assist LLM in workflow optimization. The following examples demonstrate how adjustments to the prompts enhanced the quality, consistency, and clarity of the answers, with particular emphasis on answer formatting as a key illustration.",
+    "translation": "In the process of optimizing the overall response generation, we implemented a concise and task-agnostic prompt: \"Below are the logs of some results with the aforementioned Graph that performed well but encountered errors, which can be used as references for optimization: log \".。这approach enabled execution feedback to assist LLM in workflow optimization.。该following examples demonstrate how adjustments to the prompts enhanced the quality, consistency, and clarity of the answers, with particular emphasis on answer formatting as a key illustration.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Execution feedback.",
+    "page": 6,
+    "sourceText": "Optimization Steps: • Round 1 $$ Round 2: REFINE _ANSWER _PROMPT adds \"Provide a final answer, enclosed in boxed LaTeX notation\", resulting in the ability to identify patterns in the scoring feedback without knowing the specific rules of the scoring function.",
+    "translation": "Optimization Steps: • Round 1 $$ Round 2: REFINE _ANSWER _PROMPT adds \"Provide a final answer, enclosed in boxed LaTeX notation\", resulting in the ability to identify patterns in the scoring feedback without knowing the specific rules of the scoring function.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Execution feedback.",
+    "page": 6,
+    "sourceText": "• Round 1 $$ Round 8: While REFINE _ANSWER _PROMPT adds \"Provide a clear, concise final answer\" to shift focus towards presenting answers more concisely, Round 8 lacks the strict LaTeX formatting constraints present in Round 2. This leads to Round 8 scoring lower than the baseline Round 1. However, the emphasis on concise answers also appears in the high-scoring Round 19, indicating that this remains a valid optimization direction.",
+    "translation": "• Round 1 $$ Round 8: While REFINE _ANSWER _PROMPT adds \"Provide a clear, concise final answer\" to shift focus towards presenting answers more concisely, Round 8 lacks the strict LaTeX formatting constraints present in Round 2.。这leads to Round 8 scoring lower than the 基线 Round 1.。However, the emphasis on concise answers also appears in the high-scoring Round 19, indicating that this remains a valid optimization direction.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Execution feedback.",
+    "page": 6,
+    "sourceText": "• Round 3 $$ Round 13: REFINE _ANSWER _PROMPT introduces two new requirements: \"If there are multiple possible answers, list all of them separated by commas within the boxed \" and \"Simplify expressions where possible without losing accuracy\". While the former aims to standardize the format for multiple solutions, including this as a general instruction may interfere with the solution process. Statistical analysis shows that Round 13 contains 55 instances of comma-separated answers, notably higher than better-performing rounds such as Round 5 (43 instances) and Round 9 (42 instances).",
+    "translation": "• Round 3 $$ Round 13: REFINE _ANSWER _PROMPT introduces two new requirements: \"If there are multiple possible answers, list all of them separated by commas within the boxed \" and \"Simplify expressions where possible without losing accuracy\".。While the former aims to standardize the format for multiple solutions, including this as a general instruction may interfere with the solution process.。Statistical analysis shows that Round 13 contains 55 instances of comma-separated answers, notably higher than better-performing rounds such as Round 5 (43 instances) and Round 9 (42 instances).。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pareto Front: Detailed Cost-Performance Data",
+    "page": 6,
+    "sourceText": "Pareto Front: Detailed Cost-Performance Data",
+    "translation": "Pareto Front: Detailed Cost-Performance Data",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pareto Front: Detailed Cost-Performance Data",
+    "page": 6,
+    "sourceText": "Detailed cost-performance data for HumanEval. Executing AFlow(GPT-4o-mini) with deepseek achieves parity with GPT-4o IO at 4.55% of the cost. Executing AFlow(deepseek) with deepseek and AFlow(GPT-4o-mini) with GPT-4o-mini outperform GPT-4o IO at 5.92% and 8.05% of the cost, respectively.",
+    "translation": "Detailed cost-performance data for HumanEval.。Executing AFlow(GPT-4o-mini) with deepseek achieves parity with GPT-4o IO at 4.55% of the cost.。Executing AFlow(deepseek) with deepseek and AFlow(GPT-4o-mini) with GPT-4o-mini outperform GPT-4o IO at 5.92% and 8.05% of the cost, respectively.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pareto Front: Detailed Cost-Performance Data",
+    "page": 6,
+    "sourceText": "[h] 0.8pt 4pt 0.1cm -0.2cm @clcc@ Model & Method & Score (%) & Cost ( $) gpt-4o-mini & IO & 0.8702 & 0.0223 gpt-4o-mini & CoT & 0.8860 & 0.0277 gpt-4o-mini & CoT SC & 0.9160 & 0.1794 gpt-4o-mini & MedPrompt & 0.9160 & 0.2200 gpt-4o-mini & LLM Debate & 0.8930 & 0.2278 gpt-4o-mini & Self Refine & 0.8780 & 0.1232 gpt-4o-mini & AFlow(gpt-4o-mini) & 0.9470 & 0.0513 gpt-4o-mini & AFlow(deepseek) & 0.9084 & 0.0669 deepseek & IO & 0.8860 & 0.0127 deepseek & CoT & 0.8930 & 0.0180 deepseek & CoT SC & 0.8860 & 0.1168 deepseek & MedPrompt & 0.8860 & 0.1433 deepseek & LLM Debate & 0.8930 & 0.1484 deepseek & Self Refine & 0.9000 & 0.0802 deepseek & AFlow(gpt-4o-mini) & 0.9390 & 0.0291 deepseek & AFlow(deepseek) & 0.9466 & 0.0377 gpt-4o & IO & 0.9389 & 0.6371 gpt-4o & CoT & 0.9310 & 0.7772 gpt-4o & CoT SC & 0.9470 & 5.0345 gpt-4o & MedPrompt & 0.9390 & 6.1756 gpt-4o & LLM Debate & 0.9470 & 6.3952 gpt-4o & Self Refine & 0.9160 & 3.4589 gpt-4o & AFlow(gpt-4o-mini) & 0.9620 & 1.0111 gpt-4o & AFlow(deepseek) & 0.9542 & 1.6600 claude-3.5-sonnet & IO & 0.9084 & 0.6987 claude-3.5-sonnet & CoT & 0.9240 & 0.6412 claude-3.5-sonnet & CoT SC & 0.9390 & 4.1534 claude-3.5-sonnet & MedPrompt & 0.9160 & 5.0949 claude-3.5-sonnet & LLM Debate & 0.9080 & 5.2761 claude-3.5-sonnet & Self Refine & 0.8930 & 2.8536 claude-3.5-sonnet & AFlow(gpt-4o-mini) & 0.9540 & 1.1612 claude-3.5-sonnet & AFlow(deepseek) & 0.9466 & 1.3252",
+    "translation": "表格说明：[h] 0.8pt 4pt 0.1cm -0.2cm @clcc@ Model & Method & Score (%) & Cost ( $) gpt-4o-mini & IO & 0.8702 & 0.0223 gpt-4o-mini & CoT & 0.8860 & 0.0277 gpt-4o-mini & CoT SC & 0.9160 & 0.1794 gpt-4o-mini & MedPrompt & 0.9160 & 0.2200 gpt-4o-mini & LLM Debate & 0.8930 & 0.2278 gpt-4o-mini & Self Refine & 0.8780 & 0.1232 gpt-4o-mini & AFlow(gpt-4o-mini) & 0.9470 & 0.0513 gpt-4o-mini & AFlow(deepseek) & 0.9084 & 0.0669 deepseek & IO & 0.8860 & 0.0127 deepseek & CoT & 0.8930 & 0.0180 deepseek & CoT SC & 0.8860 & 0.1168 deepseek & MedPrompt & 0.8860 & 0.1433 deepseek & LLM Debate & 0.8930 & 0.1484 deepseek & Self Refine & 0.9000 & 0.0802 deepseek & AFlow(gpt-4o-mini) & 0.9390 & 0.0291 deepseek & AFlow(deepseek) & 0.9466 & 0.0377 gpt-4o & IO & 0.9389 & 0.6371 gpt-4o & CoT & 0.9310 & 0.7772 gpt-4o & CoT SC & 0.9470 & 5.0345 gpt-4o & MedPrompt & 0.9390 & 6.1756 gpt-4o & LLM Debate & 0.9470 & 6.3952 gpt-4o & Self Refine & 0.9160 & 3.4589 gpt-4o & AFlow(gpt-4o-mini) & 0.9620 & 1.0111 gpt-4o & AFlow(deepseek) & 0.9542 & 1.6600 claude-3.5-sonnet & IO & 0.9084 & 0.6987 claude-3.5-sonnet & CoT & 0.9240 & 0.6412 claude-3.5-sonnet & CoT SC & 0.9390 & 4.1534 claude-3.5-sonnet & MedPrompt & 0.9160 & 5.0949 claude-3.5-sonnet & LLM Debate & 0.9080 & 5.2761 claude-3.5-sonnet & Self Refine & 0.8930 & 2.8536 claude-3.5-sonnet & AFlow(gpt-4o-mini) & 0.9540 & 1.1612 claude-3.5-sonnet & AFlow(deepseek) & 0.9466 & 1.3252。",
+    "kind": "table"
+  },
+  {
+    "section": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "page": 6,
+    "sourceText": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "translation": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "page": 6,
+    "sourceText": "In the field of LLM applications, concepts such as Workflow, Agentic Workflow, and MultiAgent Systems are frequently referenced, each with distinct emphases. The notion of Workflow in [cite: qiao2025benchmark] primarily focuses on the structured decomposition of real-world tasks, such as generating execution sequences for specific tasks in digital environments. [cite: qiao2025benchmark] work represents a significant advancement in workflow benchmarking through its comprehensive multi-faceted approach spanning function calls, problem-solving, embodied planning, and open-grounded planning scenarios.",
+    "translation": "In the field of LLM applications, concepts such as Workflow, Agentic Workflow, and MultiAgent Systems are frequently referenced, each with distinct emphases.。该notion of Workflow in [cite: qiao2025benchmark] primarily focuses on the structured decomposition of real-world tasks, such as generating execution sequences for specific tasks in digital environments.。[cite: qiao2025benchmark] work represents a significant advancement in workflow benchmarking through its comprehensive multi-faceted approach spanning function calls, problem-solving, embodied planning, and open-grounded planning scenarios.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "page": 6,
+    "sourceText": "Despite terminological differences, the multi-agent systems described in [cite: zhang2024agentprune, zhang2024gdesigner, zhuge2024gptswarm] are functionally equivalent to agentic workflows. Both consist of a series of LLM-invoking nodes that lack autonomous capability and execute in a predetermined logical sequence. Though the terminology varies, these approaches essentially describe identical technical architectures.",
+    "translation": "Despite terminological differences, the multi-agent systems described in [cite: zhang2024agentprune, zhang2024gdesigner, zhuge2024gptswarm] are functionally equivalent to agentic workflow.。Both consist of a series of LLM-invoking nodes that lack autonomous capability and execute in a predetermined logical sequence.。Though the terminology varies, these approaches essentially describe identical technical architectures.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "page": 6,
+    "sourceText": "Meanwhile, [cite: niu2025flow] explores methods for dynamically adjusting workflows during task execution, enhancing the system's ability to address complex problems by modifying workflows in real-time based on execution feedback.",
+    "translation": "Meanwhile, [cite: niu2025flow] explores methods for dynamically adjusting workflows during task execution, enhancing the system's ability to address complex problems by modifying workflows in real-time based on execution feedback.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion on Workflow, Agentic Workflow, MultiAgent Systems",
+    "page": 6,
+    "sourceText": "AFlow proposed in this paper focuses on the automated generation and optimization of workflows, aiming to reduce dependence on manually designed initial workflows while improving the scalability and generalizability of agentic workflows. This approach complements existing research and collectively advances the field of LLM applications.",
+    "translation": "AFlow proposed in this paper focuses on the automated generation and optimization of workflows, aiming to reduce dependence on manually designed initial workflows while improving the scalability and generalizability of agentic workflow.。这approach complements existing research and collectively advances the field of LLM applications.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion On Open-ended Tasks",
+    "page": 6,
+    "sourceText": "Discussion On Open-ended Tasks",
+    "translation": "Discussion On Open-ended Tasks",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "Adapting AFlow for Open-ended Tasks",
+    "translation": "Adapting AFlow for Open-ended Tasks",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "While we emphasized AFlow's powerful capabilities in solving reasoning tasks with numerical feedback in the main body, there are many tasks in the real world without numerical feedback and non-reasoning requirements~[cite: dai2024mmrole]. These scenarios lack numerical feedback because for open-ended tasks, performance is typically evaluated by humans who propose the tasks, making it difficult to evaluate using fixed and quantitative criteria. By introducing LLM as a judge ~[cite: zheng2023judging], this challenge can be addressed to some extent, as the LLM-as-judge evaluation prompt can effectively incorporate human preferences to adaptively evaluate open-ended tasks. In this section, we discuss how to leverage LLM as a judge while maintaining AFlow's core architecture to search for agentic workflows for these types of tasks.",
+    "translation": "While we emphasized AFlow's powerful capabilities in solving reasoning tasks with numerical feedback in the main body, there are many tasks in the real world without numerical feedback and non-reasoning requirements[cite: dai2024mmrole].。These scenarios lack numerical feedback because for open-ended tasks, performance is typically evaluated by humans who propose the tasks, making it difficult to evaluate using fixed and quantitative criteria.。By introducing LLM as a judge [cite: zheng2023judging], this challenge can be addressed to some extent, as the LLM-as-judge 评估 prompt can effectively incorporate human preferences to adaptively evaluate open-ended tasks.。In this section, we discuss how to leverage LLM as a judge while maintaining AFlow's core architecture to search for agentic workflow for these types of tasks.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "To extend AFlow's capabilities to open-ended tasks, we modified the original workflow optimize prompt by removing reasoning-specific instructions. The new prompt is as follows:",
+    "translation": "To extend AFlow's capabilities to open-ended tasks, we modified the original workflow optimize prompt by removing reasoning-specific instructions.。该new prompt is as follows:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "[title= Workflow optimize prompt for open-ended tasks, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Workflow optimize prompt for open-ended tasks, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "PROMPT = \"\"\"You are constructing a graph and corresponding prompts to jointly solve {type} problems. Referring to the provided graph and prompts, which form a basic example of a {type} solution approach, please reconstruct and optimize them. You may add, modify, or delete nodes, parameters, or prompts. Include your single modification enclosed in XML tags in your reply. Ensure they are complete and correct to avoid runtime failures.Use logical and control flow (such as IF-ELSE and loops) to achieve more advanced code representation.Ensure all prompts required by the current graph are included in `prompt_custom`. Do not include any additional prompts. The prompts you need to generate are limited to those used in `prompt_custom.XXX`. Other methods already have built-in prompts and are prohibited from being generated. Generate only the prompts needed by the graph and remove any unused prompts from `prompt_custom`.The generated prompts must not contain any placeholders. Considering information loss, complex graphs may yield better results, but insufficient information transmission might omit the solution. Ensure that the necessary context is included throughout the process.\n\"\"\"",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Adapting AFlow for Open-ended Tasks”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "For tasks without numerical feedback, we propose a evaluation prompt based on LLM as a Judge. We utilize GPT-4o as our evaluation model, implementing the following prompt for scoring open-ended tasks:",
+    "translation": "For tasks without numerical feedback, we propose a 评估 prompt based on LLM as a Judge.。作者utilize GPT-4o as our 评估 model, implementing the following prompt for scoring open-ended tasks:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "[title= Evaluation prompt, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Evaluation prompt, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "EVAL_PROMPT = \"\"\"You are an expert evaluator tasked with scoring responses to open-ended questions. You will be provided with:\n1. The original question/prompt\n2. A golden (reference) answer (if available)\n3. A candidate response to be evaluated\n\nPlease evaluate the candidate response on the following dimensions, each scored from 1-5. When no reference answer is provided, use your expert judgment to assess the expected quality level for the given task type:\n\n1. Content Relevance (1-5):\n- 5: Perfectly addresses all aspects of the prompt\n- 4: Addresses most key aspects with minor omissions\n- 3: Addresses main points but misses some important elements\n- 2: Only partially relevant to the prompt\n- 1: Largely irrelevant or off-topic\n\n2. Content Quality (1-5):\n- 5: Exceptional depth, insight, and originality\n- 4: Strong analysis/creativity with good supporting details\n- 3: Adequate development with some supporting elements\n- 2: Superficial treatment with minimal development\n- 1: Poor quality with major flaws in reasoning/execution\n\n3. Coherence and Structure (1-5):\n- 5: Excellent organization with seamless flow\n- 4: Clear structure with minor transition issues\n- 3: Generally organized but some awkward transitions\n- 2: Poorly organized with frequent disconnects\n- 1: Chaotic or illogical structure\n\n4. Reference Comparison (1-5):\n- 5: Matches or exceeds expected quality for this type of task\n- 4: Slightly below ideal but strong performance\n- 3: Moderately below ideal but acceptable\n- 2: Significantly below expected quality\n- 1: Far below acceptable quality standards\n\nPlease provide:\n1. Numeric scores for each dimension (1-5)\n2. Brief justification for each score (1-2 sentences)\n3. Total score (sum of the four dimensions, maximum 20 points)\n4. Summary feedback (2-3 sentences)\n\nFormat your response as:\nContent Relevance: [score] points\n- Justification: [brief explanation]\n\nContent Quality: [score] points\n- Justification: [brief explanation]\n\nCoherence: [score] points\n- Justification: [brief explanation]\n\nReference Comparison: [score] points\n- Justification: [brief explanation]\n\nSummary Feedback:\n[2-3 sentences highlighting key strengths and areas for improvement]\n\n<score>[sum of all dimensions](pure number)</score>\n\n\"\"\"",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Adapting AFlow for Open-ended Tasks”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Adapting AFlow for Open-ended Tasks",
+    "page": 6,
+    "sourceText": "This evaluation framework replaces the original evaluation function in AFlow's executing evaluation stage, enabling assessment of open-ended tasks while maintaining consistent evaluation standards.",
+    "translation": "这评估 framework replaces the original 评估 function in AFlow's executing 评估 stage, enabling assessment of open-ended tasks while maintaining consistent 评估 standards.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 6,
+    "sourceText": "Case Study",
+    "translation": "案例研究",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 6,
+    "sourceText": "We demonstrate the effectiveness of our adapted AFlow through two open-ended task scenarios: long-form novel generation and academic idea generation. Both cases lack numerical feedback and utilize our adapted methodology. To evaluate AFlow's performance on these tasks, we first hired three human annotators at $10/hour to score and rank the results generated during AFlow's iteration process. Additionally, we compared results generated directly by LLM with those generated by AFlow to observe the differences. Due to space limitations, we provide the complete results of the two task generations in the supplementary materials.",
+    "translation": "作者demonstrate the effectiveness of our adapted AFlow through two open-ended task scenarios: long-form novel generation and academic idea generation.。Both cases lack numerical feedback and utilize our adapted methodology.。To evaluate AFlow's performance on these tasks, we first hired three human annotators at $10/hour to score and rank the results generated during AFlow's iteration process.。Additionally, we compared results generated directly by LLM with those generated by AFlow to observe the differences.。Due to space limitations, we provide the complete results of the two task generations in the supplementary materials.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "Long-form Novel Generation",
+    "translation": "Long-form Novel Generation",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "In this case study, we employed Claude-3.5-sonnet as the execution and optimization model and GPT-4o as the evaluation model due to its strong language capabilities. The system was tested with a single question without reference answers:",
+    "translation": "In this case study, we employed Claude-3.5-sonnet as the execution and optimization model and GPT-4o as the 评估 model due to its strong language capabilities.。该system was tested with a single question without reference answers:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "[title= Novel data, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Novel data, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "{\n\"question\":\"Create a novel-length narrative, exactly 20,000 words long (please ensure this specific length is met), exploring a world where time's flow varies for each person based on their deepest regrets. The story should meticulously examine how emotional burdens affect temporal perception, with careful attention to maintaining the required length. Focus on developing several characters whose unique regrets create distinctly different experiences of time's passage.\",\n\"requirement\":\"Write a long novel with emphasis on substantial length, logical interconnections between chapters, and refined language style.\", \n\"answer\": \"No reference answer\"\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Long-form Novel Generation”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "The optimized workflow obtained after eight iterations of AFlow was:",
+    "translation": "该optimized workflow obtained after eight iterations of AFlow was:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "[title= Novel generation workflow, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Novel generation workflow, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "OUTLINE_PROMPT = \"\"\"\nCreate a detailed outline for a novel based on the given requirements. Include:\n1. A list of main characters with their deepest regrets and how it affects their perception of time\n2. A chapter-by-chapter breakdown of the plot, ensuring logical interconnections\n3. Key themes and motifs to be explored throughout the novel\n4. A rough word count estimate for each chapter to aim for the required total length\n\nProvide this outline in a structured format.\n\"\"\"\n\nCHARACTER_PROFILE_PROMPT = \"\"\"\nBased on the given requirements and outline, create detailed character profiles for each main character. For each character, include:\n1. Name, age, and physical description\n2. Background and personal history\n3. Their deepest regret and how it affects their perception of time\n4. Personality traits, motivations, and goals\n5. Relationships with other characters\n6. Character arc throughout the novel\n\nProvide these profiles in a structured format.\n\"\"\"\n\nCHAPTER_PROMPT = \"\"\"\nWrite a single chapter of the novel based on the given requirements, provided outline, and character profiles. Follow these guidelines:\n1. Adhere to the chapter structure from the outline\n2. Maintain logical interconnections with previous and future chapters\n3. Use refined language and vivid descriptions\n4. Develop characters' arcs based on their regrets and time perception\n5. Incorporate the key themes and motifs\n6. Aim for approximately 10,000 words per chapter\n\nWrite the complete chapter without stopping or summarizing. Do not include any meta-commentary or explanations outside the chapter text itself.\n\"\"\"\n\n    async def __call__(self, problem: str):\n        \"\"\"\n        Implementation of the workflow\n        \"\"\"\n        outline = await self.custom(input=problem, instruction=prompt_custom.OUTLINE_PROMPT)\n        character_profiles = await self.custom(input=problem + f\"\\nOutline: {outline['response']}\", instruction=prompt_custom.CHARACTER_PROFILE_PROMPT)\n        \n        novel = \"\"\n        chapter_count = 10  # Adjust as needed\n        for i in range(chapter_count):\n            chapter = await self.custom(\n                input=problem + f\"\\nOutline: {outline['response']}\\nCharacter Profiles: {character_profiles['response']}\\nChapter Number: {i+1}\",\n                instruction=prompt_custom.CHAPTER_PROMPT\n            )\n            novel += f\"\\n\\nChapter {i+1}\\n\\n{chapter['response']}\"\n        \n        return novel, self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Long-form Novel Generation”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "For comparison, below is the baseline response generated using only the Claude-3.5-sonnet, without any AFlow optimization:",
+    "translation": "For comparison, below is the 基线 response generated using only the Claude-3.5-sonnet, without any AFlow optimization:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "[title= LLM-Generated Novel, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= LLM-Generated Novel, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "I apologize, but I'm not able to generate a novel-length narrative of exactly 20,000 words in this format. Writing a full novel of that specific length would be an extremely lengthy and complex task that goes well beyond the scope of what I can produce in a single response. \n\nAdditionally, maintaining an exact word count while crafting a cohesive narrative with developed characters and themes would be extremely challenging, even for human authors. Novels typically go through many drafts and revisions to reach their final form.\n\nHowever, I can offer some suggestions for approaching this interesting concept:\n\n1. Start by outlining the key characters and their deepest regrets. Consider how each regret might impact their perception of time.\n\n2. Develop a basic plot structure that allows you to explore how these different temporal experiences intersect and affect each other.\n\n3. Consider the worldbuilding aspects - how does society function when everyone experiences time differently? What are the implications for relationships, work, etc?\n\n4. Begin writing scenes or chapters to explore these ideas, without worrying about exact word count initially. \n\n5. As you write, keep track of word count and adjust pacing/detail as needed to work towards your target length.\n\n6. Plan for multiple drafts and revisions to refine the story and adjust length.\n\nIf you'd like, I could help brainstorm more specific ideas for characters or plot points within this concept. But for a full novel-length work, especially one with such precise length requirements, you'll likely need to undertake the writing process yourself over an extended period of time.",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Long-form Novel Generation”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "markdown"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "Here is the simplified response generated using the AFlow-optimized workflow:",
+    "translation": "Here is the simplified response generated using the AFlow-optimized workflow:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "[title= AFlow-Generated Novel, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= AFlow-Generated Novel, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "# Chapter 1: The Ticking of Regret\n\nEmma Sinclair's fingers hovered over the keyboard, the cursor blinking accusingly on the blank document before her. The rhythmic ticking of the wall clock seemed to grow louder with each passing second, a constant reminder of the impending deadline looming over her. She glanced at the time display on her computer screen 2:37 PM. How was it possible that only three minutes had passed since she last checked?\n...\n\n# Chapter 2: The Scientific Discovery\n\nDr. Evelyn Harper stood at the podium, her silver hair gleaming under the harsh auditorium lights. Her piercing blue eyes scanned the crowd of scientists, doctors, and journalists who had gathered for her groundbreaking presentation. She took a deep breath, feeling the weight of decades of research pressing down on her shoulders.\n...\n...\n\n# Chapter 10: A New Understanding of Time\n\nThe grand auditorium of the National Science Center buzzed with anticipation. Journalists, scientists, and curious members of the public filled every seat, their excited whispers creating a low hum that reverberated through the space. At the center of it all, Dr. Evelyn Harper stood behind the podium, her silver hair gleaming under the bright lights. She took a deep breath, her fingers lightly tracing the edges of her notes.\n...\nDr. Harper cleared her throat, and the room fell silent. \"Ladies and gentlemen, colleagues, and esteemed guests,\" she began, her voice clear and steady. \"Today, I stand before you to present the culmination of years of research into what we once thought was immutable: the nature of time itself.\"\n...\n\nThe sun shone brightly overhead, its warmth a reminder of the present moment. And in that moment, as they moved forward together, time flowed perfectly, neither too fast nor too slow. It simply was, and they were fully, completely present within it. The future beckoned, full of promise and possibility, and they stepped towards it with open hearts and minds, ready for whatever adventures time might bring.",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Long-form Novel Generation”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "markdown"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "The optimized workflow (obtained after eight iterations) produced a 27,000-word novel, demonstrating significant improvements in both quality and efficiency compared to baseline responses. The cost and performance metrics across iterations show that AFlow can achieve high-quality long-form content generation with minimal resource expenditure.",
+    "translation": "该optimized workflow (obtained after eight iterations) produced a 27,000-word novel, demonstrating significant improvements in both quality and efficiency compared to 基线 responses.。该cost and performance metrics across iterations show that AFlow can achieve high-quality long-form content generation with minimal resource expenditure.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long-form Novel Generation",
+    "page": 6,
+    "sourceText": "Novel generation Workflow Performance Comparison between LLM and Human Scores Across Different Rounds, with Rankings and Total Costs per Iteration",
+    "translation": "表格说明：Novel generation Workflow Performance Comparison between LLM and Human Scores Across Different Rounds, with Rankings and Total Costs per Iteration。",
+    "kind": "table"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "Academic Idea Generation",
+    "translation": "Academic Idea Generation",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "For this case study, we specifically chose GPT-4o-mini as the execution model and Claude-3.5-sonnet as the optimization model and GPT-4o as the evaluation model to better demonstrate AFlow's optimization capabilities. While the system was tested with 10 different questions, we present one representative example here:",
+    "translation": "For this case study, we specifically chose GPT-4o-mini as the execution model and Claude-3.5-sonnet as the optimization model and GPT-4o as the 评估 model to better demonstrate AFlow's optimization capabilities.。While the system was tested with 10 different questions, we present one representative example here:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "[title= Idea data, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Idea data, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "{\n\"question\":\"Given the current research landscape in Environmental Anthropology, propose a novel research idea through logical analysis\",\n\"requirement\": \"Through rigorous analysis, propose a single research idea that addresses significant challenges, demonstrates feasibility with current technology.  NOTE: Only ONE concrete idea should be provided - focus on developing a single, well-reasoned proposal rather than multiple options.\",\n\"answer\": \"No reference answer\"\n}",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Academic Idea Generation”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "json"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "The optimized workflow obtained after six iterations of AFlow was:",
+    "translation": "该optimized workflow obtained after six iterations of AFlow was:。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "[title= Idea generation workflow, boxrule=2pt, arc=0mm, breakable]",
+    "translation": "[title= Idea generation workflow, boxrule=2pt, arc=0mm, breakable]。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "GENERATE_IDEA = \"\"\"\nGiven the current research landscape in the specified field, propose a novel and feasible research idea through logical analysis. Focus on developing a single, well-reasoned proposal that addresses significant challenges and demonstrates feasibility with current technology.\n\nYour response should be concise, providing only the title and a brief description of the research idea in no more than 3 sentences.\n\"\"\"\n\nPRIORITIZE_IDEA = \"\"\"\nAnalyze the given research ideas and prioritize the most promising one based on its potential impact and feasibility. Consider the following criteria:\n\n1. Novelty and originality\n2. Potential impact on the field\n3. Feasibility with current technology\n4. Alignment with current research trends\n\nProvide a brief explanation (2-3 sentences) for your selection, highlighting its strengths in relation to the above criteria.\n\"\"\"\n\nELABORATE_IDEA = \"\"\"\nElaborate on the prioritized research idea. Provide a comprehensive analysis including:\n\n1. Research objective\n2. Methodology\n3. Expected outcomes\n4. Potential challenges\n\nEnsure your response is well-structured, logically sound, and demonstrates the feasibility of the proposed research with current technology.\n\"\"\"\n\nEVALUATE_RESEARCH = \"\"\"\nEvaluate the elaborated research proposal. Consider the following aspects:\n\n1. Novelty and originality\n2. Feasibility with current technology\n3. Potential impact on the field\n4. Clarity and coherence of the proposal\n\nProvide a concise evaluation highlighting strengths and areas for improvement.\n\"\"\"\n\nREFINE_PROPOSAL = \"\"\"\nBased on the elaborated idea and its evaluation, refine the research proposal. Address any weaknesses identified in the evaluation and enhance the proposal's strengths. Ensure that the refined proposal:\n\n1. Clearly states the research objective\n2. Outlines a feasible methodology\n3. Describes expected outcomes and their significance\n4. Addresses potential challenges and mitigation strategies\n\nPresent the refined proposal in a well-structured format suitable for academic submission.\n\"\"\"\n\n    async def __call__(self, problem: str):\n        \"\"\"\n        Implementation of the workflow\n        \"\"\"\n        ideas = []\n        for _ in range(3):  # Generate 3 ideas\n            idea = await self.custom(input=problem, instruction=prompt_custom.GENERATE_IDEA)\n            ideas.append(idea['response'])\n        \n        best_idea = await self.sc_ensemble(solutions=ideas, problem=problem)\n        \n        prioritized_idea = await self.custom(input=f\"Ideas: {ideas}\\nBest idea: {best_idea['response']}\", instruction=prompt_custom.PRIORITIZE_IDEA)\n        \n        elaborated_idea = await self.custom(input=problem + f\"\\nPrioritized idea: {prioritized_idea['response']}\", instruction=prompt_custom.ELABORATE_IDEA)\n        \n        evaluation = await self.custom(input=elaborated_idea['response'], instruction=prompt_custom.EVALUATE_RESEARCH)\n        \n        final_solution = await self.custom(input=elaborated_idea['response'] + f\"\\nEvaluation: {evaluation['response']}\", instruction=prompt_custom.REFINE_PROPOSAL)\n        \n        return final_solution['response'], self.llm.cost_manager.total_cost",
+    "translation": "代码说明：这段代码或 JSON 配置来自“Academic Idea Generation”部分，用于展示论文方法中的 prompt、数据结构、任务配置或可执行流程。",
+    "kind": "code",
+    "language": "python"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "Due to space constraints, we provide the original LLM and AFlow-generated ideas in the supplementary materials. The results below demonstrate substantial improvements in idea generation quality and specificity compared to baseline responses, with consistent performance gains achieved after just six iterations.",
+    "translation": "Due to space constraints, we provide the original LLM and AFlow-generated ideas in the supplementary materials.。该results below demonstrate substantial improvements in idea generation quality and specificity compared to 基线 responses, with consistent performance gains achieved after just six iterations.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Academic Idea Generation",
+    "page": 6,
+    "sourceText": "Idea generation Workflow Performance Comparison between LLM and Human Scores Across Different Rounds, with Rankings and Total Costs per Iteration",
+    "translation": "表格说明：Idea generation Workflow Performance Comparison between LLM and Human Scores Across Different Rounds, with Rankings and Total Costs per Iteration。",
+    "kind": "table"
+  },
+  {
+    "section": "Discussion on Theoretical Properties of AFlow",
+    "page": 6,
+    "sourceText": "Discussion on Theoretical Properties of AFlow",
+    "translation": "Discussion on Theoretical Properties of AFlow",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Search Space Completeness",
+    "page": 6,
+    "sourceText": "Search Space Completeness",
+    "translation": "Search Space Completeness",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Search Space Completeness",
+    "page": 6,
+    "sourceText": "AFlow's search space completeness relies on two key properties: • Code-represented edge structure can express all valid node relationships • LLM expansion generates valid workflow modifications with non-zero probability These properties ensure AFlow can traverse from any initial workflow to any point in the search space, avoiding local optima.",
+    "translation": "AFlow's 搜索空间 completeness relies on two key properties: • Code-represented edge structure can express all valid node relationships • LLM expansion generates valid workflow modifications with non-zero probability These properties ensure AFlow can traverse from any initial workflow to any point in the 搜索空间, avoiding local optima.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Convergence Properties",
+    "page": 6,
+    "sourceText": "Convergence Properties",
+    "translation": "Convergence Properties",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Convergence Properties",
+    "page": 6,
+    "sourceText": "AFlow achieves optimal performance within finite iterations under three conditions: • Bounded evaluation function $G(W,T)$ • Valid workflows maintained by code-represented edge structure • Non-zero probability of LLM generating improvements While the convergence sequence may not be strictly monotonic, MCTS properties and soft mixed probability selection balance exploration and exploitation to achieve convergence.",
+    "translation": "AFlow achieves optimal performance within finite iterations under three conditions: • Bounded 评估 function $G(W,T)$ • Valid workflows maintained by code-represented edge structure • Non-zero probability of LLM generating improvements While the convergence sequence may not be strictly monotonic, MCTS properties and soft mixed probability selection balance exploration and exploitation to achieve convergence.。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Search Efficiency",
+    "page": 6,
+    "sourceText": "Search Efficiency",
+    "translation": "Search Efficiency",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Search Efficiency",
+    "page": 6,
+    "sourceText": "AFlow enhances search efficiency through three key mechanisms. First, Operators increase the probability of generating improvements in each iteration by providing predefined node combinations that encode successful patterns. Second, Tree-Structured Experience enables efficient reuse of successful modifications while avoiding repeated failures through systematic path tracking. Finally, Execution Feedback provides direct performance measurements that guide the optimization process, helping AFlow identify and prioritize promising directions in the search space.",
+    "translation": "AFlow enhances search efficiency through three key mechanisms.。First, Operators increase the probability of generating improvements in each iteration by providing predefined node combinations that encode successful patterns.。Second, Tree-Structured Experience enables efficient reuse of successful modifications while avoiding repeated failures through systematic path tracking.。Finally, Execution Feedback provides direct performance measurements that guide the optimization process, helping AFlow identify and prioritize promising directions in the 搜索空间.。",
+    "kind": "paragraph"
+  }
+]

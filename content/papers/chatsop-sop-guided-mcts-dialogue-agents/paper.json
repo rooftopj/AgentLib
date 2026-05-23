@@ -1,0 +1,158 @@
+{
+  "slug": "chatsop-sop-guided-mcts-dialogue-agents",
+  "title": "ChatSOP: An SOP-Guided MCTS Planning Framework for Controllable LLM Dialogue Agents",
+  "authors": [
+    "Zhigen Li",
+    "Jianxiang Peng",
+    "Yanmeng Wang",
+    "Yong Cao",
+    "Tianhao Shen",
+    "Minghui Zhang",
+    "Linxi Su",
+    "Shang Wu",
+    "Yihang Wu",
+    "Yuqian Wang",
+    "Ye Wang",
+    "Wei Hu",
+    "Jianfeng Li",
+    "Shaojun Wang",
+    "Jing Xiao",
+    "Deyi Xiong"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Zhigen Li",
+      "institutionIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Jianxiang Peng",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yanmeng Wang",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Yong Cao",
+      "institutionIds": [
+        3
+      ]
+    },
+    {
+      "name": "Tianhao Shen",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Minghui Zhang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Linxi Su",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Shang Wu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yihang Wu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yuqian Wang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Ye Wang",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Wei Hu",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Jianfeng Li",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Shaojun Wang",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Jing Xiao",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Deyi Xiong",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "College of Intelligence and Computing, Tianjin University, Tianjin, China",
+      "translation": "天津大学智能与计算学部，中国天津"
+    },
+    {
+      "id": 2,
+      "name": "Ping An Technology",
+      "translation": "平安科技"
+    },
+    {
+      "id": 3,
+      "name": "Tübingen AI Center, University of Tübingen",
+      "translation": "图宾根大学图宾根 AI 中心"
+    }
+  ],
+  "institutions": [
+    "College of Intelligence and Computing, Tianjin University, Tianjin, China",
+    "Ping An Technology",
+    "Tübingen AI Center, University of Tübingen"
+  ],
+  "year": 2024,
+  "venue": "ACL / arXiv",
+  "category": "multi-agent",
+  "categoryLabel": "多智能体协作",
+  "tags": [
+    "ChatSOP",
+    "SOP",
+    "MCTS",
+    "可控对话",
+    "任务型对话"
+  ],
+  "summary": "ChatSOP 把企业式标准操作流程引入 LLM 对话智能体，先离线预测 SOP 图，再在对话中用 SOP-guided MCTS 规划下一步动作。论文同时构建 SOP 标注多场景对话数据集，并展示该方法在动作准确率、主动性、可控性和任务完成方面优于 CoT 与 CoT+SOP 基线。",
+  "arxivId": "2407.03884",
+  "arxivUrl": "https://arxiv.org/abs/2407.03884",
+  "sourcePath": "assets/papers/multi-agent/arXiv-2407.03884v3"
+}

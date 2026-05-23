@@ -1,0 +1,52 @@
+[
+  {
+    "slug": "architecture",
+    "label": "Agent 架构",
+    "description": "关注 agent workflow、模块协作、任务分解、搜索与自我改进。"
+  },
+  {
+    "slug": "planning",
+    "label": "规划与推理",
+    "description": "关注任务规划、推理策略、分解求解、反思和长程决策。"
+  },
+  {
+    "slug": "memory",
+    "label": "记忆系统",
+    "description": "关注短期记忆、长期记忆、情节记忆、经验复用和状态管理。"
+  },
+  {
+    "slug": "rag",
+    "label": "RAG 与知识",
+    "description": "关注检索增强生成、知识库构建、上下文选择和外部知识利用。"
+  },
+  {
+    "slug": "evaluation",
+    "label": "评测与基准",
+    "description": "关注任务设计、指标、实验协议和结果解释。"
+  },
+  {
+    "slug": "evolution",
+    "label": "演化与自我改进",
+    "description": "关注 agent 自动优化、workflow 演化、搜索、反馈学习和持续改进。"
+  },
+  {
+    "slug": "multi-agent",
+    "label": "多智能体协作",
+    "description": "关注多 agent 通信、角色分工、协作协议、群体决策和组织结构。"
+  },
+  {
+    "slug": "tools",
+    "label": "工具使用",
+    "description": "关注函数调用、工具路由、环境交互和代码执行。"
+  },
+  {
+    "slug": "code-agents",
+    "label": "代码与软件工程",
+    "description": "关注代码生成、程序修复、软件工程自动化、测试和仓库级任务。"
+  },
+  {
+    "slug": "safety",
+    "label": "安全与可靠性",
+    "description": "关注鲁棒性、权限边界、攻击防护、对齐、安全执行和失败恢复。"
+  }
+]
