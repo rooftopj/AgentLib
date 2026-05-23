@@ -5,6 +5,7 @@ import katex from "katex";
 import AlgorithmBlock from "@/components/AlgorithmBlock";
 import CodeBlock from "@/components/CodeBlock";
 import MathBlock from "@/components/MathBlock";
+import { publicPath } from "@/lib/public-path";
 import type { ReadingBlock } from "@/lib/papers";
 import { getPaper, papers } from "@/lib/papers";
 
@@ -99,6 +100,7 @@ function ReadingItem({ item, index, showHeading }: {
   const isEquation = item.kind === "equation";
   const isCode = item.kind === "code";
   const resolvedAssetPath = item.assetPath;
+  const displayAssetPath = resolvedAssetPath ? publicPath(resolvedAssetPath) : "";
   const isPng = resolvedAssetPath?.endsWith(".png");
   const algorithm = isAlgorithm ? parseAlgorithmSource(item.sourceText) : null;
 
@@ -121,9 +123,9 @@ function ReadingItem({ item, index, showHeading }: {
       ) : isFigure || isTable || isAlgorithm ? (
         <figure className="paper-inline-asset">
           {resolvedAssetPath && isPng ? (
-            <img src={resolvedAssetPath} alt={item.sourceText} />
+            <img src={displayAssetPath} alt={item.sourceText} />
           ) : resolvedAssetPath ? (
-            <object data={resolvedAssetPath} type="application/pdf" aria-label={item.sourceText} />
+            <object data={displayAssetPath} type="application/pdf" aria-label={item.sourceText} />
           ) : null}
           {!resolvedAssetPath && isTable ? <pre className="reading-raw-block">{item.sourceText}</pre> : null}
           <figcaption>

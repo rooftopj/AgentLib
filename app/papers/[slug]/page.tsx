@@ -8,6 +8,7 @@ import AlgorithmBlock from "@/components/AlgorithmBlock";
 import CodeBlock from "@/components/CodeBlock";
 import ConceptTabs from "@/components/ConceptTabs";
 import MathBlock from "@/components/MathBlock";
+import { publicPath } from "@/lib/public-path";
 import { getPaper, papers } from "@/lib/papers";
 
 export function generateStaticParams() {
@@ -55,12 +56,13 @@ function resolveAssetSrc(src: string) {
 
 function FigureBlock({ src, caption }: { src: string; caption: string }) {
   const resolvedSrc = resolveAssetSrc(src);
+  const displaySrc = publicPath(resolvedSrc);
   return (
     <figure className="explainer-figure">
       {resolvedSrc.endsWith(".png") ? (
-        <img src={resolvedSrc} alt={caption} />
+        <img src={displaySrc} alt={caption} />
       ) : (
-        <object data={resolvedSrc} type="application/pdf" aria-label={caption} />
+        <object data={displaySrc} type="application/pdf" aria-label={caption} />
       )}
       <figcaption>{caption}</figcaption>
     </figure>

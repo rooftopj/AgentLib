@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SearchDialog from "@/components/SearchDialog";
+import { publicPath } from "@/lib/public-path";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <header className="site-header">
           <Link href="/" className="brand" aria-label="返回首页">
-            <img className="brand-mark" src="/agent-paper-logo.png" alt="" aria-hidden="true" />
+            <img className="brand-mark" src={publicPath("/agent-paper-logo.png")} alt="" aria-hidden="true" />
             <span>
               <strong>Agent Lib</strong>
             </span>
