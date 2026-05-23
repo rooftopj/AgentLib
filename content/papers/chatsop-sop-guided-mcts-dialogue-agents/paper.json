@@ -142,8 +142,8 @@
   ],
   "year": 2024,
   "venue": "ACL / arXiv",
-  "category": "multi-agent",
-  "categoryLabel": "多智能体协作",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
   "tags": [
     "ChatSOP",
     "SOP",
@@ -154,5 +154,5 @@
   "summary": "ChatSOP 把企业式标准操作流程引入 LLM 对话智能体，先离线预测 SOP 图，再在对话中用 SOP-guided MCTS 规划下一步动作。论文同时构建 SOP 标注多场景对话数据集，并展示该方法在动作准确率、主动性、可控性和任务完成方面优于 CoT 与 CoT+SOP 基线。",
   "arxivId": "2407.03884",
   "arxivUrl": "https://arxiv.org/abs/2407.03884",
-  "sourcePath": "assets/papers/multi-agent/arXiv-2407.03884v3"
+  "sourcePath": "assets/papers/arXiv-2407.03884v3"
 }
