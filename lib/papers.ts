@@ -38,6 +38,7 @@ export type Paper = {
   pdfPath?: string;
   arxivId?: string;
   arxivUrl?: string;
+  codeUrl?: string;
   sourcePath?: string;
   sections: Array<{ id: string; title: string }>;
   reading: ReadingBlock[];

@@ -98,6 +98,9 @@ export default async function PaperPage({ params }: { params: Promise<{ slug: st
             {paper.arxivUrl ? (
               <a className="button" href={paper.arxivUrl} target="_blank" rel="noreferrer">arXiv</a>
             ) : null}
+            {paper.codeUrl ? (
+              <a className="button" href={paper.codeUrl} target="_blank" rel="noreferrer">GitHub</a>
+            ) : null}
             {paper.pdfPath ? <a className="button" href={paper.pdfPath}>打开 PDF</a> : null}
           </div>
         </header>

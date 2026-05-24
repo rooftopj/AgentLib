@@ -14,5 +14,7 @@ artifacts/
 !.agents/skills/blog-to-site/**
 !.agents/skills/annotation-to-site/
 !.agents/skills/annotation-to-site/**
+!.agents/skills/paper-to-site/
+!.agents/skills/paper-to-site/**
 .tmp/
 assets/papers/
