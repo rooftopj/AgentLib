@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { renderInlineText } from "./InlineText";
 
 type AlgorithmBlockProps = {
   title: string;
@@ -37,7 +38,7 @@ export default function AlgorithmBlock({ title, code, explanation }: AlgorithmBl
           ))}
         </code>
       </pre>
-      {explanation ? <p>{explanation}</p> : null}
+      {explanation ? <p>{renderInlineText(explanation)}</p> : null}
     </figure>
   );
 }
