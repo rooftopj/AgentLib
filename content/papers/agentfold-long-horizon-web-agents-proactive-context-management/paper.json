@@ -1,0 +1,138 @@
+{
+  "slug": "agentfold-long-horizon-web-agents-proactive-context-management",
+  "title": "AgentFold: Long-Horizon Web Agents with Proactive Context Management",
+  "authors": [
+    "Rui Ye",
+    "Zhongwang Zhang",
+    "Kuan Li",
+    "Huifeng Yin",
+    "Zhengwei Tao",
+    "Yida Zhao",
+    "Liangcai Su",
+    "Liwen Zhang",
+    "Zile Qiao",
+    "Xinyu Wang",
+    "Pengjun Xie",
+    "Fei Huang",
+    "Siheng Chen",
+    "Jingren Zhou",
+    "Yong Jiang"
+  ],
+  "institutions": [
+    "Tongyi Lab, Alibaba Group"
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Tongyi Lab, Alibaba Group",
+      "translation": "阿里巴巴通义实验室"
+    }
+  ],
+  "year": 2025,
+  "venue": "arXiv",
+  "category": "memory",
+  "categoryLabel": "记忆系统",
+  "tags": [
+    "AgentFold",
+    "网页智能体",
+    "上下文折叠",
+    "长程任务",
+    "主动记忆管理"
+  ],
+  "summary": "AgentFold 面向长程网页信息检索任务，提出让 agent 主动管理上下文的 context folding 范式。它把上下文划分为用户问题、工具、多尺度状态摘要和最近交互，并让模型每步同时输出思考、折叠指令、解释和工具调用。折叠操作既可以做细粒度压缩以保留关键细节，也可以做深度合并来抽象整段失败或完成的子任务。实验显示，基于 Qwen3-30B-A3B 监督微调得到的 AgentFold-30B-A3B 在 BrowseComp、BrowseComp-ZH、WideSearch 和 GAIA 上达到强开源结果，并显著控制长程交互中的 token 和上下文块增长。",
+  "arxivId": "2510.24699",
+  "arxivUrl": "https://arxiv.org/abs/2510.24699",
+  "sourcePath": "assets/papers/arXiv-2510.24699v1",
+  "authorAffiliations": [
+    {
+      "name": "Rui Ye",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Zhongwang Zhang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Kuan Li",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Huifeng Yin",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Zhengwei Tao",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yida Zhao",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Liangcai Su",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Liwen Zhang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Zile Qiao",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Xinyu Wang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Pengjun Xie",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Fei Huang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Siheng Chen",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Jingren Zhou",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yong Jiang",
+      "institutionIds": [
+        1
+      ]
+    }
+  ]
+}

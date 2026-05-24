@@ -1,0 +1,1010 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models",
+    "translation": "题目可以译为“智能体式上下文工程：为自我改进语言模型演化上下文”。它把论文的重心直接放在上下文，而不是模型权重：系统通过持续积累、筛选和组织经验，让提示词、记忆和任务策略像可维护的 playbook 一样随反馈演化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Large language model (LLM) applications such as agents and domain-specific reasoning increasingly rely on context adaptation: modifying inputs with instructions, strategies, or evidence, rather than weight updates. Prior approaches improve usability but often suffer from brevity bias, which drops domain insights for concise summaries, and from context collapse, where iterative rewriting erodes details over time. We introduce ACE (Agentic Context Engineering), a framework that treats contexts as evolving playbooks that accumulate, refine, and organize strategies through a modular process of generation, reflection, and curation. ACE prevents collapse with structured, incremental updates that preserve detailed knowledge and scale with long-context models. Across agent and domain-specific benchmarks, ACE optimizes contexts both offline (e.g. system prompts) and online (e.g. agent memory), consistently outperforming strong baselines: +10.6% on agents and +8.6% on finance, while significantly reducing adaptation latency and rollout cost. Notably, ACE could adapt effectively without labeled supervision and instead by leveraging natural execution feedback. On the AppWorld leaderboard, ACE matches the top-ranked production-level agent on the overall average and surpasses it on the harder test-challenge split, despite using a smaller open-source model. These results show that comprehensive, evolving contexts enable scalable, efficient, and self-improving LLM systems with low overhead.",
+    "translation": "大语言模型应用，尤其是智能体和领域推理系统，越来越依赖上下文适应：系统不是改模型权重，而是通过指令、策略、证据和经验来修改输入。作者指出，已有方法虽然提升了可用性，却常出现两类失败：简短偏置会丢掉领域细节，上下文坍缩会在多轮重写中磨损已经积累的知识。ACE 将上下文视为持续演化的 playbook，通过生成、反思和整理三个模块积累并组织策略，在 agent 和金融等基准上分别获得约百分之十点六和百分之八点六的平均提升，同时降低适应延迟和 rollout 成本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "language=prompt, basicstyle=, numbers=left, numberstyle=, numbersep=9pt, stepnumber=1, columns=fullflexible, keepspaces=true, showstringspaces=false, breaklines=true, breakatwhitespace=true, frame=none, escapeinside=(*@@*), literate= …1 –--1 —---1 “\"1 ”\"1 ’'1 •1",
+    "translation": "摘要这一块说明 ACE 论文中的一个具体论证环节。它强调上下文不是一次性提示，而是可被执行反馈持续更新的知识资产；系统需要保存任务策略、工具规则、失败教训和领域细节，并通过结构化条目、增量更新、整理剪枝来避免信息丢失。原文中的关键数字或术语可对应为：9 1 1 --1 ---1 1 1 1 1。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "本节进入引言，论文将问题从传统提示词优化推进到更广义的上下文工程：大模型应用越来越依赖外部输入、系统提示、经验记忆和工具说明，而不是只依赖模型权重本身。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Overall Performance Results. Our proposed framework, ACE, consistently outperforms strong baselines across agent and domain-specific tasks.",
+    "translation": "这张图汇总 ACE 在智能体任务和领域任务上的整体表现。它的作用不是展示单个案例，而是先给读者一个总览：当上下文可以持续演化并保留细粒度经验时，系统在多个基准上都能超过强基线。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/figure_1_CR.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Modern AI applications based on large language models (LLMs), such as LLM agents~[cite: yao2023react, yang2024swe] and compound AI systems~[cite: zaharia2024compoundGS], increasingly depend on context adaptation. Instead of modifying model weights, context adaptation improves performance after model training by incorporating clarified instructions, structured reasoning steps, or domain-specific input formats directly into the model's inputs. Contexts underpin many AI system components, including system prompts that guide downstream tasks~[cite: opsahl2024optimizing, agrawal2025gepa], memory that carries past facts and experiences~[cite: suzgun2025dynamic, xu2025mem], and factual evidence that reduces hallucination and supplements knowledge~[cite: asai2024self].",
+    "translation": "大语言模型应用，尤其是智能体和领域推理系统，越来越依赖上下文适应：系统不是改模型权重，而是通过指令、策略、证据和经验来修改输入。作者指出，已有方法虽然提升了可用性，却常出现两类失败：简短偏置会丢掉领域细节，上下文坍缩会在多轮重写中磨损已经积累的知识。ACE 将上下文视为持续演化的 playbook，通过生成、反思和整理三个模块积累并组织策略，在 agent 和金融等基准上分别获得约百分之十点六和百分之八点六的平均提升，同时降低适应延迟和 rollout 成本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Adapting through contexts rather than weights offers several key advantages. Contexts are interpretable and explainable for users and developers~[cite: wei2022chain, wang2022self], allow rapid integration of new knowledge at runtime~[cite: lewis2020retrieval, borgeaud2022improving], and can be shared across models or modules in a compound system~[cite: khot2022decomposed]. Meanwhile, advances in long-context LLMs~[cite: peng2023yarn] and context-efficient inference such as KV cache reuse~[cite: gim2024prompt, yao2025cacheblend] are making context-based approaches increasingly practical for deployment. As a result, context adaptation is emerging as a central paradigm for building capable, scalable, and self-improving AI systems.",
+    "translation": "通过上下文而不是权重来适应任务有几个优点：上下文对用户和开发者可解释，可以快速更新，也能在不同模型或部署环境之间迁移。和微调相比，它不需要重新训练模型，更适合快速迭代的 agent 工程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Despite this progress, existing approaches to context adaptation face two limitations. First, brevity bias: many prompt optimizers prioritize concise applicable instructions over comprehensive accumulation. For example, GEPA~[cite: agrawal2025gepa] highlights brevity as a strength, but such abstraction can omit domain-specific heuristics, tool-use guidelines, or common failure modes that matter in practice~[cite: gao2025prompt]. This objective aligns with validation metrics in some settings, but often fails to capture the detailed strategies required by agents and knowledge-intensive applications. Second, context collapse: methods that rely on monolithic rewriting by an LLM often degrade into shorter, less informative summaries over time, causing sharp performance declines (Figure fig:context-collapse). In domains such as interactive agents~[cite: trivedi2024appworld, patil2024gorilla, zhang2024caravan], domain-specific programming~[cite: ye2023generating, zhang2025adaptive, zhang2025accelopt, mang2025frontiercs], and financial or legal analysis~[cite: loukas2022finer, guha2023legalbench, wang2025finlora], strong performance depends on retaining detailed, task-specific knowledge rather than compressing it away.",
+    "translation": "作者把现有方法的第一类问题称为简短偏置：许多提示优化器为了得到看似通用、简洁的指令，会舍弃具体经验、边界条件和领域知识。对于需要精确工具调用或专业概念的任务，这种压缩会让模型失去真正有用的操作细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "As applications like agents and knowledge-intensive reasoning demand greater reliability, recent work has shifted toward saturating contexts with abundant, potentially useful information~[cite: jiang2025putting, chung2025long, chen2025flora], enabled by advances in long-context LLMs~[cite: peng2023yarn, mao2024lift]. We argue that contexts should function not as concise summaries, but as comprehensive, structured playbooks that are detailed, inclusive, and rich with domain insights. Unlike humans, who often benefit from concise generalization, LLMs are more effective when provided with long, detailed contexts and can distill relevance autonomously~[cite: jiang2025putting, liu2025selfelicit, suzgun2025dynamic]. Thus, instead of compressing away domain-specific heuristics and tactics, contexts should preserve them, allowing the model to decide what matters during inference time.",
+    "translation": "为了提高可靠性，近期工作开始把更多潜在有用的信息放进上下文，包括示例、规则、历史轨迹和检索片段。但简单堆长上下文并不能解决问题，因为模型还需要知道哪些信息可复用、何时使用、如何避免旧经验互相冲突。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "To address these limitations, we introduce (Agentic Context Engineering), a framework for comprehensive context adaptation in both offline settings (e.g. system prompt optimization) and online settings (e.g. test-time memory adaptation). Rather than compressing contexts into distilled summaries, treats them as evolving playbooks that accumulate and organize strategies over time. By design, incorporates a modular workflow of generation, reflection, and curation, while adding structured, incremental updates guided by a grow-and-refine principle. This design preserves detailed, domain-specific knowledge, prevents context collapse, and yields contexts that remain comprehensive and scalable throughout adaptation.",
+    "translation": "为了解决这些局限，论文提出 ACE。它既支持离线适应，例如优化系统提示，也支持在线适应，例如把任务执行反馈写入 agent memory。ACE 的重点不是生成一个最终提示，而是让上下文在多轮任务中不断学习、整理和复用。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "We evaluate on two categories of LLM applications that most benefit from comprehensive, evolving contexts: (1) agents~[cite: trivedi2024appworld], which require multi-turn reasoning, tool use, and environment interaction, where accumulated strategies can be reused across episodes; and (2) domain-specific benchmarks, which demand specialized tactics and knowledge, like financial analysis~[cite: loukas2022finer, wang2025finlora]. Our key findings are: • consistently outperforms strong baselines, yielding average gains of 10.6% on agents and 8.6% on domain-specific benchmarks, across both offline and online adaptation settings. • is able to construct effective contexts without labeled supervision, instead leveraging execution feedback and environment signals, key ingredients for self-improving LLMs and agents. • On the AppWorld benchmark leaderboard~[cite: AppWorldLeaderboard], surpasses the top-1-ranked production-level agent IBM-CUGA~[cite: marreed2025towards] (powered by GPT-4.1) while using an open-source model (DeepSeek-V3.1). • requires significantly fewer rollouts and achieves lower adaptation latency than existing adaptive methods, demonstrating that scalable self-improvement can be achieved with both higher accuracy and lower cost.",
+    "translation": "实验覆盖两类最需要演化上下文的应用：第一类是 AppWorld 这样的 agent 任务，需要多轮推理、工具调用和环境交互；第二类是金融等领域任务，需要保留大量专业规则和例外情况。ACE 在这些场景中都超过强基线，并在 AppWorld 排行榜上接近生产级系统。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Background and Motivation",
+    "page": 3,
+    "sourceText": "Background and Motivation",
+    "translation": "背景与动机部分解释为什么现有上下文适应方法仍不够。作者重点指出两个问题：过度追求简短会丢掉领域细节，反复整段重写会让上下文逐渐坍缩。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Context Adaptation",
+    "page": 3,
+    "sourceText": "Context Adaptation",
+    "translation": "上下文适应这一节定义研究对象：通过构造或修改输入上下文改善模型行为，而不是更新模型参数。它把提示词优化、示例选择、外部记忆和任务策略都放在同一条技术线上讨论。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Context Adaptation",
+    "page": 3,
+    "sourceText": "Context adaptation (or context engineering) refers to methods that improve model behavior by constructing or modifying inputs to an LLM, rather than altering its weights. The current state of the art leverages natural language feedback~[cite: shinn2023reflexion, yuksekgonul2024textgrad, agrawal2025gepa]. In this paradigm, a language model inspects the current context along with signals such as execution traces, reasoning steps, or validation results, and generates natural language feedback on how the context should be revised. This feedback is then incorporated into the context, enabling iterative adaptation. Representative methods include Reflexion~[cite: shinn2023reflexion], which reflects on failures to improve agent planning; TextGrad~[cite: yuksekgonul2024textgrad], which optimizes prompts via gradient-like textual feedback; GEPA~[cite: agrawal2025gepa], which refines prompts iteratively based on execution traces and achieves strong performance, even surpassing reinforcement learning approaches in some settings; and Dynamic Cheatsheet~[cite: krause2019dynamic], which constructs an external memory that accumulates strategies and lessons from past successes and failures during inference. These natural language feedback methods represent a major advance, offering flexible and interpretable signals for improving LLM systems beyond weight updates.",
+    "translation": "上下文适应指通过构造或修改大模型输入来改善行为，而不是改变模型权重。它包括系统提示、任务示例、检索到的证据、外部记忆和执行策略。ACE 将这些信息统一看作可维护的上下文资产。更完整地说，当前最先进的上下文适应通常会让语言模型检查已有上下文、执行轨迹、推理步骤或验证结果，再用自然语言反馈指出应该如何修改提示或记忆。这个范式的价值在于它把失败经验显式化，但风险在于反馈如果过于概括，就会把可操作知识压缩掉。ACE 继承自然语言反馈的可解释性，同时要求反馈以结构化条目进入 playbook。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations of Existing Context Adaptation Methods",
+    "page": 4,
+    "sourceText": "Limitations of Existing Context Adaptation Methods",
+    "translation": "这一节集中讨论现有上下文适应方法的局限。核心矛盾是：真实任务需要保留大量具体经验，但许多优化器倾向于把上下文压成短而泛的提示。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations of Existing Context Adaptation Methods",
+    "page": 4,
+    "sourceText": "Brevity Bias. A recurring limitation of context adaptation methods is brevity bias: the tendency of optimization to collapse toward short, generic prompts. Gao et al.~[cite: gao2025prompt] document this effect in prompt optimization for test generation, where iterative methods repeatedly produced near-identical instructions (e.g., “Create unit tests to ensure methods behave as expected”), sacrificing diversity and omitting domain-specific detail. This convergence not only narrows the search space but also propagates recurring errors across iterations, since optimized prompts often inherit the same faults as their seeds. More broadly, such bias undermines performance in domains that demand detailed, context-rich guidance—such as multi-step agents, program synthesis, or knowledge-intensive reasoning—where success hinges on accumulating rather than compressing task-specific insights.",
+    "translation": "作者把现有方法的第一类问题称为简短偏置：许多提示优化器为了得到看似通用、简洁的指令，会舍弃具体经验、边界条件和领域知识。对于需要精确工具调用或专业概念的任务，这种压缩会让模型失去真正有用的操作细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations of Existing Context Adaptation Methods",
+    "page": 4,
+    "sourceText": "Context Collapse. Monolithic rewriting of context by an LLM can collapse it into shorter, less informative summaries, leading to sharp performance drops.",
+    "translation": "这张图展示作者所谓的上下文坍缩：如果每一轮都让模型完整重写已有上下文，原本积累的细节会被压缩成更短、更泛化的摘要，随后性能明显下降。它支撑了 ACE 采用增量更新而不是整段重写的设计。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/figure_2_CR.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Limitations of Existing Context Adaptation Methods",
+    "page": 4,
+    "sourceText": "Context Collapse. In a case study on the AppWorld benchmark~[cite: trivedi2024appworld], we observe a phenomenon we call context collapse, which arises when an LLM is tasked with fully rewriting the accumulated context at each adaptation step. As the context grows large, the model tends to compress it into much shorter, less informative summaries, causing a dramatic loss of information. For instance, at step 60 the context contained 18,282 tokens and achieved an accuracy of 66.7, but at the very next step it collapsed to just 122 tokens, with accuracy dropping to 57.1—worse than the baseline accuracy of 63.7 without adaptation. While we highlight this through Dynamic Cheatsheet~[cite: suzgun2025dynamic], the issue is not specific to that method; rather, it reflects a fundamental risk of end-to-end context rewriting with LLMs, where accumulated knowledge can be abruptly erased instead of preserved.",
+    "translation": "上下文坍缩发生在模型被要求每轮完整重写累积上下文时。随着轮次增加，模型倾向于把细节压成短摘要，导致工具规则、失败案例和领域知识逐渐丢失。作者在 AppWorld 案例中观察到这种现象，并将其作为 ACE 增量更新机制的主要动机。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations of Existing Context Adaptation Methods",
+    "page": 5,
+    "sourceText": "Example ACE-Generated Context on the AppWorld Benchmark (partially shown). ACE-generated contexts contain detailed, domain-specific insights along with tools and code that are readily usable, serving as a comprehensive playbook for LLM applications.",
+    "translation": "这张图给出 AppWorld 上 ACE 生成的上下文片段。可以看到上下文不是一句抽象提示，而是包含领域规则、工具使用经验和可直接复用代码的操作手册，用来帮助后续智能体执行复杂任务。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/figure_3_CR.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Agentic Context Engineering (ACE)",
+    "page": 5,
+    "sourceText": "Agentic Context Engineering (ACE)",
+    "translation": "方法章节介绍 ACE，也就是智能体式上下文工程。它把上下文看作会持续增长和整理的经验手册，并用 Generator、Reflector、Curator 三个角色完成执行、反思和整理。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Agentic Context Engineering (ACE)",
+    "page": 5,
+    "sourceText": "We present ACE (Agentic Context Engineering), a framework for scalable and efficient context adaptation in both offline (e.g. system prompt optimization) and online (e.g. test-time memory adaptation) scenarios. Instead of condensing knowledge into terse summaries or static instructions, ACE treats contexts as evolving playbooks that continuously accumulate, refine, and organize strategies over time. Inspired by the agentic design of Dynamic Cheatsheet~[cite: suzgun2025dynamic], ACE introduces a structured division of labor across three roles (Figure fig:design): the Generator, which produces reasoning trajectories; the Reflector, which distills concrete insights from successes and errors; and the Curator, which integrates these insights into structured context updates. This mirrors how humans learn: experimenting, reflecting, and consolidating, while avoiding the bottleneck of overloading a single model with all responsibilities.",
+    "translation": "ACE 是一个面向离线和在线场景的可扩展上下文适应框架。它不把知识压缩成静态提示，而是把上下文当作会持续演化的 playbook：Generator 产生任务轨迹，Reflector 抽取成功经验和失败教训，Curator 将这些内容写入结构化上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Agentic Context Engineering (ACE)",
+    "page": 6,
+    "sourceText": "The Framework. Inspired by Dynamic Cheatsheet, ACE adopts an agentic architecture with three specialized components: a Generator, a Reflector, and a Curator.",
+    "translation": "这张图展示 ACE 的三角色框架：Generator 负责执行任务并产生轨迹，Reflector 从成功和失败中抽取经验，Curator 把这些经验合并成结构化上下文。它是理解整篇论文方法闭环的核心图。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/figure_4_CR.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Agentic Context Engineering (ACE)",
+    "page": 6,
+    "sourceText": "To address the limitations of prior methods discussed in:limitations (notably brevity bias and context collapse) ACE introduces three key innovations: (1) a dedicated Reflector that separates evaluation and insight extraction from curation, improving context quality and downstream performance (:results-ablation); (2) incremental delta updates (:delta-update) that replace costly monolithic rewrites with localized edits, reducing both latency and compute cost (:results-cost-speed); and (3) a grow-and-refine mechanism (:grow-and-refine) that balances steady context expansion with redundancy control.",
+    "translation": "作者把现有方法的第一类问题称为简短偏置：许多提示优化器为了得到看似通用、简洁的指令，会舍弃具体经验、边界条件和领域知识。对于需要精确工具调用或专业概念的任务，这种压缩会让模型失去真正有用的操作细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Agentic Context Engineering (ACE)",
+    "page": 6,
+    "sourceText": "As shown in Figure~fig:design, the workflow begins with the Generator producing reasoning trajectories for new queries, which surface both effective strategies and recurring pitfalls. The Reflector critiques these traces to extract lessons, optionally refining them across multiple iterations. The Curator then synthesizes these lessons into compact delta entries, which are merged deterministically into the existing context by lightweight, non-LLM logic. Because updates are itemized and localized, multiple deltas can be merged in parallel, enabling batched adaptation at scale. ACE further supports multi-epoch adaptation, where the same queries are revisited to progressively strengthen the context.",
+    "translation": "ACE 的工作流从 Generator 开始：它在新查询上执行推理并产生轨迹，这些轨迹暴露有效策略和常见错误。Reflector 阅读轨迹与反馈，把可复用洞见转成候选条目；Curator 再判断哪些条目应该加入、合并或改写到 playbook 中。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Incremental Delta Updates",
+    "page": 6,
+    "sourceText": "Incremental Delta Updates",
+    "translation": "增量 delta 更新是 ACE 的关键机制。系统不让模型每轮重写完整上下文，而是只生成小块候选经验，再由 Curator 进行合并、去重和组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Incremental Delta Updates",
+    "page": 6,
+    "sourceText": "A core design principle of ACE is to represent context as a collection of structured, itemized bullets, rather than a single monolithic prompt. The concept of a bullet is similar to the concept of a memory entry in LLM memory frameworks like Dynamic Cheatsheet~[cite: suzgun2025dynamic] and A-MEM~[cite: xu2025mem], but builds on top of that and consists of (1) metadata, including a unique identifier and counters tracking how often it was marked helpful or harmful; and (2) content, capturing a small unit such as a reusable strategy, domain concept, or common failure mode. When solving new problems, the Generator highlights which bullets were useful or misleading, providing feedback that guides the Reflector in proposing corrective updates.",
+    "translation": "ACE 把上下文表示为结构化条目，而不是一个整体提示。每个 bullet 类似一条可复用经验，可以包含适用条件、工具用法、领域规则或失败规避方式。这种表示让系统能局部更新，而不必冒险重写所有内容。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Incremental Delta Updates",
+    "page": 6,
+    "sourceText": "This itemized design enables three properties: (1) localization, so only the relevant bullets are updated; (2) fine-grained retrieval, so the Generator can focus on the most pertinent knowledge; and (3) incremental adaptation, allowing efficient merging, pruning, and de-duplication during inference.",
+    "translation": "条目化设计带来三点好处：更新可以定位到相关条目，检索时可以选择最相关经验，整理时可以合并重复或冲突内容。它让上下文更像数据库或知识库，而不是一段不断膨胀的自然语言。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Incremental Delta Updates",
+    "page": 6,
+    "sourceText": "Rather than regenerating contexts in full, ACE incrementally produces compact delta contexts: small sets of candidate bullets distilled by the Reflector and integrated by the Curator. This avoids the computational cost and latency of full rewrites, while ensuring that past knowledge is preserved and new insights are steadily appended. As contexts grow, this approach provides the scalability needed for long-horizon or domain-intensive applications.",
+    "translation": "ACE 不重新生成完整上下文，而是让 Reflector 产生小规模 delta context，再由 Curator 以确定性逻辑或轻量判断整合进去。这样既保留了新经验，又减少了模型在重写旧内容时遗忘细节的风险。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Grow-and-Refine",
+    "page": 6,
+    "sourceText": "Grow-and-Refine",
+    "translation": "Grow-and-Refine 机制负责让上下文既能扩张又不失控。新经验先被追加，随后在必要时合并相似条目、剪除低价值内容，从而保持上下文可读、可检索、可复用。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Grow-and-Refine",
+    "page": 6,
+    "sourceText": "Beyond incremental growth, ACE ensures that contexts remain compact and relevant through periodic or lazy refinement. In grow-and-refine, bullets with new identifiers are appended, while existing bullets are updated in place (e.g. incrementing counters). A de-duplication step then prunes redundancy by comparing bullets via semantic embeddings. This refinement can be performed proactively (after each delta) or lazily (only when the context window is exceeded), depending on application requirements for latency and accuracy.",
+    "translation": "Grow-and-Refine 让上下文先增长再整理。新条目可以快速追加以捕获新经验；当上下文过长或相似条目过多时，系统再进行合并、去重和剪枝，保持 playbook 紧凑且相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Grow-and-Refine",
+    "page": 6,
+    "sourceText": "Together, incremental updates and grow-and-refine maintain contexts that expand adaptively, remain interpretable, and avoid the potential variance introduced by monolithic context rewriting.",
+    "translation": "Grow-and-Refine这一块说明 ACE 论文中的一个具体论证环节。它强调上下文不是一次性提示，而是可被执行反馈持续更新的知识资产；系统需要保存任务策略、工具规则、失败教训和领域细节，并通过结构化条目、增量更新、整理剪枝来避免信息丢失。原文中的关键数字或术语可对应为：-- .。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results",
+    "page": 6,
+    "sourceText": "Results",
+    "translation": "结果章节给出论文的主要证据：ACE 能提升智能体任务和领域任务的表现，同时降低适应延迟、rollout 数和部分 token 成本，并在多个底座模型上保持收益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results",
+    "page": 6,
+    "sourceText": "Our evaluation of shows that: • Enabling High-Performance, Self-Improving Agents. ACE enables agents to self-improve by dynamically refining their input context, both in offline and online settings. It boosts accuracy on the AppWorld benchmark by up to 17.1% by learning to engineer better contexts from execution feedback alone, without needing ground-truth labels. (:agent-main-results) • Large Gains on Domain-Specific Benchmarks. On complex financial reasoning benchmarks, ACE delivers an average performance gain of 8.6% over strong baselines by constructing comprehensive playbooks with domain-specific concepts and insights. (:finance-main-results) • Effective by Design. Ablation studies confirm our design choices are key to success, with components like the Reflector, multi-epoch refinement, and incremental delta update each contributing substantial performance gains. (:results-ablation) • Lower Cost and Adaptation Latency. ACE achieves these gains efficiently, reducing adaptation latency by 86.9% on average, while requiring fewer rollouts and lower token dollar costs. (:results-cost-speed)",
+    "translation": "实验总结显示，ACE 让 agent 能通过动态改进输入上下文实现自我提升，在 AppWorld 上最高带来百分之十七点一的提升；在金融分析任务中，结构化领域 playbook 带来约百分之八点六平均增益；同时它还显著降低适应延迟和 rollout 成本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tasks and Datasets",
+    "page": 7,
+    "sourceText": "Tasks and Datasets",
+    "translation": "任务与数据集部分说明评测覆盖两大场景：一类是需要多轮推理、工具调用和环境交互的智能体任务；另一类是需要专门知识与细粒度规则的领域任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tasks and Datasets",
+    "page": 7,
+    "sourceText": "We evaluate on two categories of LLM applications that benefit most from evolving contexts: (1) LLM agent, which require multi-turn reasoning, tool use, and environment interaction; with ACE, agents can accumulate and reuse strategies across episodes and environments; and (2) domain-specific reasoning, which demand mastery of specialized concepts and tactics; we focus on financial analysis as a main case study, and show additional results on medical reasoning and text-to-SQL.",
+    "translation": "实验覆盖两类最需要演化上下文的应用：第一类是 AppWorld 这样的 agent 任务，需要多轮推理、工具调用和环境交互；第二类是金融等领域任务，需要保留大量专业规则和例外情况。ACE 在这些场景中都超过强基线，并在 AppWorld 排行榜上接近生产级系统。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tasks and Datasets",
+    "page": 7,
+    "sourceText": "• LLM Agent: AppWorld~[cite: trivedi2024appworld] is a suite of autonomous agent tasks involving API understanding, code generation, and environment interaction. It provides a realistic execution environment with common applications and APIs (e.g. email, file system) and tasks of two difficulty levels (normal and challenge). A public leaderboard~[cite: AppWorldLeaderboard] tracks performance, where, at the time of submission, the best system achieved only 60.3% average accuracy, highlighting the benchmark’s difficulty and realism. • Domain-Specific Reasoning: Financial, Medical, and Text-to-SQL Benchmarks We use finance as our main case study in:finance-main-results. For financial analysis, we focus on FiNER~[cite: loukas2022finer] and Formula~[cite: wang2025finlora], which test LLMs on financial reasoning tasks that rely on the eXtensible Business Reporting Language (XBRL). FiNER requires labeling tokens in XBRL financial documents with one of 139 fine-grained entity types, a key step for financial information extraction in regulated domains. Formula focuses on applying financial concepts and performing computations to answer queries, i.e. numerical reasoning. Beyond finance, we evaluate on two additional domain tasks from StreamBench~[cite: wu2024streambench]: DDXPlus~[cite: fansi2022ddxplus] (medical reasoning) and BIRD-SQL~[cite: li2023can] (text-to-SQL).",
+    "translation": "AppWorld 是自治 agent 基准，任务涉及理解 API、生成代码和与环境交互。它比静态问答更接近真实工作流，因此非常适合检验上下文 playbook 是否能保存工具使用规则和执行经验。AppWorld 的任务环境包含邮件、文件系统等常见应用和 API，并分为普通与挑战两种难度。公开排行榜显示，论文提交时最强系统平均准确率也只有六十点三，说明这个基准足够困难。正因为它需要多轮规划、工具调用和代码执行，ACE 才能展示上下文经验积累的优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tasks and Datasets",
+    "page": 8,
+    "sourceText": "Evaluation Metrics. For AppWorld, we follow the official benchmark protocol and report Task Goal Completion (TGC) and Scenario Goal Completion (SGC) on both the test-normal and test-challenge splits. For FiNER, Formula and DDXPlus, we follow the original setup and report accuracy, measured as the proportion of predicted answers that exactly match the ground truth. For BIRD-SQL, we use GPT-4o-mini~[cite: gpt4omini] under LLM-as-a-judge~[cite: zheng2023judging].",
+    "translation": "评价指标方面，AppWorld 使用任务目标完成率和场景目标完成率，并在普通测试和挑战测试上分别报告。领域任务则使用各自标准准确率。离线适应在训练集上优化，再到测试集评估；在线适应则在任务流中持续更新上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Tasks and Datasets",
+    "page": 8,
+    "sourceText": "All datasets follow the original train/validation/test splits. For offline context adaptation, methods are optimized on the training split and evaluated on the test split with pass@1 accuracy. For online context adaptation, methods are evaluated sequentially on the test split: for each sample, the model first predicts with the current context, then updates its context based on that sample. The same shuffled test split is used across all methods.",
+    "translation": "Tasks and Datasets这一块说明 ACE 论文中的一个具体论证环节。它强调上下文不是一次性提示，而是可被执行反馈持续更新的知识资产；系统需要保存任务策略、工具规则、失败教训和领域细节，并通过结构化条目、增量更新、整理剪枝来避免信息丢失。原文中的关键数字或术语可对应为：. 1 . . .。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "Baselines and Methods",
+    "translation": "基线部分交代比较对象，包括直接使用底座模型、上下文学习、MIPROv2、GEPA、动态备忘录以及 ACE 自身。这些基线覆盖静态提示、提示搜索和在线记忆三种思路。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "Base LLM. The base model is evaluated directly on each benchmark without any context engineering, using the default prompts provided by dataset authors. For AppWorld, we follow the official ReAct~[cite: yao2023react] implementation released by the benchmark authors, and build all other baselines and methods on top of this framework.",
+    "translation": "Base LLM 基线直接使用数据集作者给出的默认提示，不做额外上下文工程。对 AppWorld，所有方法都建立在官方 ReAct 实现上，这样比较的重点就落在上下文适应策略本身。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "In-Context Learning (ICL)~[cite: agarwal2024many]. ICL provides the model with task demonstrations in the input prompt (few-shot or many-shot). This allows the model to infer the task format and desired output without weight updates. We supply all training samples when they fit within the model’s context window; otherwise, we fill the window with as many demonstrations as possible.",
+    "translation": "上下文学习基线把任务示例放进提示中，让模型从 few-shot 或 many-shot 样例中归纳任务格式。它能提供局部参考，但不会随着执行反馈不断更新经验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "MIPROv2~[cite: opsahl2024optimizing]. MIPROv2 is a popular prompt optimizer for LLM applications that works by jointly optimizing system instructions and in-context demonstrations via bayesian optimization. We use the official DSPy implementation~[cite: DSPyMIPROv2], setting |auto=\"heavy\"| to maximize optimization performance.",
+    "translation": "MIPROv2 是提示优化器，联合优化系统指令和上下文示例。它代表传统离线提示搜索路线，适合找到较好的静态提示，但不擅长维护大量细粒度执行经验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "GEPA~[cite: agrawal2025gepa]. GEPA (Genetic-Pareto) is a sample-efficient prompt optimizer based on reflective prompt evolution. It collects execution traces (reasoning, tool calls, intermediate outputs) and applies natural-language reflection to diagnose errors, assign credit, and propose prompt updates. A genetic Pareto search maintains a frontier of high-performing prompts, mitigating local optima. Empirically, GEPA outperforms reinforcement learning methods such as GRPO and prompt optimizers like MIPROv2, achieving up to 10–20% higher accuracy with as much as 35× fewer rollouts. We use the official DSPy implementation~[cite: DSPyGEPA], setting |auto=\"heavy\"| to maximize optimization performance.",
+    "translation": "MIPROv2 是提示优化器，联合优化系统指令和上下文示例。它代表传统离线提示搜索路线，适合找到较好的静态提示，但不擅长维护大量细粒度执行经验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "Dynamic Cheatsheet (DC)~[cite: suzgun2025dynamic]. DC is a test-time learning approach that introduces an adaptive external memory of reusable strategies and code snippets. By continuously updating this memory with newly encountered inputs and outputs, DC enables models to accumulate knowledge and reuse it across tasks, often leading to substantial improvements over static prompting methods. A key advantage of DC is that it does not require ground-truth labels: the model can curate its own memory from its generations, making the method highly flexible and broadly applicable. We use the official implementation released by the authors~[cite: Suzgun2025_DynamicCheatsheet_code] and set it to use the cumulative mode (DC-CU).",
+    "translation": "动态备忘录是一种测试时学习方法，会维护外部策略和代码片段。它适合单轮推理任务，而 ACE 面向更长、更复杂的 agent 和领域场景，需要保留更细、更多、可检索的上下文条目。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Baselines and Methods",
+    "page": 8,
+    "sourceText": "ACE (ours). ACE optimizes LLM contexts for both offline and online adaptation through an agentic context engineering framework. To ensure fairness, we use the same LLM for the Generator, Reflector, and Curator (non-thinking mode of DeepSeek-V3.1~[cite: deepseekai2024deepseekv3technicalreport]), preventing knowledge transfer from a stronger Reflector or Curator to a weaker Generator. This isolates the benefit of context construction itself. We additionally evaluate ACE with other backbone LLMs in the appendix, where we observe consistent gains. We adopt a batch size of 1 (constructing a delta context from each sample). We set the maximum number of Reflector refinement rounds and the maximum number of epoch in offline adaptation to 5.",
+    "translation": "ACE 基线使用同一套语言模型担任 Generator、Reflector 和 Curator，以保证比较公平。它可以做离线系统提示优化，也可以在线把执行反馈转成记忆更新。作者还特别说明，为了隔离上下文构造本身的收益，Generator、Reflector 和 Curator 使用同一底座模型，避免让更强的反思器或整理器向较弱执行器转移隐含知识。附录再换用其他底座模型，检验 ACE 是否具有模型无关性。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Agent Benchmark",
+    "page": 8,
+    "sourceText": "Results on Agent Benchmark",
+    "translation": "智能体基准结果聚焦 AppWorld。作者使用官方 ReAct 实现作为底座，比较不同上下文适应方法在任务目标完成率和场景目标完成率上的改进。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Agent Benchmark",
+    "page": 8,
+    "sourceText": "Results on the AppWorld Agent Benchmark (DeepSeek-V3.1-671B as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation. We evaluate the ACE framework against multiple baselines on top of the official ReAct implementation, both for offline and online context adaptation. ReAct + ACE outperforms selected baselines by an average of 10.6%, and could achieve good performance even without access to GT labels.",
+    "translation": "这张表报告 AppWorld 智能体基准上的结果，并区分是否给 Reflector 使用真实标签。核心结论是，在 DeepSeek-V3.1、GPT-OSS-120B 或 GPT-5.1 等不同底座上，ReAct 加 ACE 通常都比直接 ReAct、ICL、GEPA 和动态备忘录更强，尤其在任务目标完成率和场景目标完成率上有明显提升。这张表的读法是先看是否有真实标签，再看离线和在线两种适应设置。即使 Reflector 没有真实标签，ACE 也能利用执行成功、失败和环境反馈形成有用经验。表中平均提升十点六个百分点，说明收益不只来自某个分割，而是在多项 AppWorld 指标上持续出现。",
+    "kind": "table"
+  },
+  {
+    "section": "Results on Agent Benchmark",
+    "page": 8,
+    "sourceText": "Analysis: AppWorld. As shown in Table~tab:appworld-results, ACE consistently improves over strong baselines on AppWorld. In the offline setting, ReAct + ACE outperforms both ReAct + ICL and ReAct + GEPA by significant margins (12.3% and 11.9%, respectively), demonstrating that structured, evolving, and detailed contexts enable more effective agent learning than fixed demonstrations or single optimized instruction prompts. These gains extend to the online setting, where ACE continues to outperform prior adaptive methods such as Dynamic Cheatsheet by an average of 7.6%.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Agent Benchmark",
+    "page": 8,
+    "sourceText": "In the agent use case, ACE remains effective even without access to ground-truth labels during adaptation: ReAct + ACE achieves an average improvement of 14.8% over the ReAct baseline in this setting. This robustness arises because ACE leverages signals naturally available during execution (e.g. code execution success or failure) to guide the Reflector and Curator in forming structured lessons of successes and failures. Together, these results establish ACE as a strong and versatile framework for building self-improving agents that adapt reliably both with and without labeled supervision.",
+    "translation": "一个重要结果是 ACE 在没有真实标签时仍然有效。对 agent 来说，代码执行成功与否、环境反馈和工具返回值都能成为自然反馈，Reflector 可以据此总结成功路径和失败原因。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Agent Benchmark",
+    "page": 8,
+    "sourceText": "Notably, on the latest AppWorld leaderboard (as of September 20, 2025; Figure fig:appworld-leaderboard), ReAct + ACE (59.4% average) matches the top-1-ranked IBM CUGA (60.3%), a production-level GPT-4.1–based agent~[cite: marreed2025towards], despite using the much smaller open-source model DeepSeek-V3.1. With online adaptation, ReAct + ACE even surpasses IBM CUGA by 8.4% in TGC and 0.7% in SGC on test-challenge, underscoring the effectiveness of in building comprehensive and self-evolving contexts for agents.",
+    "translation": "作者还将结果与 AppWorld 排行榜做参照：ReAct 加 ACE 的平均表现接近当时排名第一的 IBM CUGA，并且在更难的 test-challenge 分割上在线适应结果更强。这不是严格同设置基线比较，但说明 ACE 的效果达到了有竞争力的系统水平。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Domain-Specific Benchmark",
+    "page": 8,
+    "sourceText": "Results on Domain-Specific Benchmark",
+    "translation": "领域基准结果说明 ACE 不只适用于 agent，在金融、医疗和文本到 SQL 这类知识密集任务中也能通过积累领域规则提升准确率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Domain-Specific Benchmark",
+    "page": 8,
+    "sourceText": "Results on Financial Analysis Benchmark (DeepSeek-V3.1-671B as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation. With GT labels, ACE achieves consistent improvements in both offline and online settings, highlighting the advantage of structured and evolving contexts for domain-specific reasoning. However, we also observe that in the absence of reliable feedback signals (e.g. ground-truth labels or execution outcomes), both ACE and other adaptive methods such as Dynamic Cheatsheet may degrade, suggesting that context adaptation depends critically on feedback quality.",
+    "translation": "这张表展示金融分析基准上的结果，重点比较 ACE 在有无真实标签反馈时的表现。它说明 playbook 式上下文对金融概念、报表规则和细粒度领域知识尤其有帮助，但也提醒读者：反馈信号不可靠时，在线自适应可能会退化。",
+    "kind": "table"
+  },
+  {
+    "section": "Results on Domain-Specific Benchmark",
+    "page": 8,
+    "sourceText": "Analysis: Finance Benchmark. As shown in Table~tab:ds-results, ACE delivers strong improvements on financial analysis benchmarks. In the offline setting, when provided with ground-truth answers from the training split, ACE surpasses ICL, MIPROv2, and GEPA by clear margins (an average of 10.9%), showing that structured and evolving contexts are particularly effective when tasks require precise domain knowledge (e.g. financial concepts, XBRL rules) that goes beyond fixed demonstrations or monolithic optimized prompts. In the online setting, ACE continues to exceed prior adaptive methods such as DC by an average of 6.2%, further confirming the benefit of agentic context engineering for accumulating reusable insights across specialized domains.",
+    "translation": "MIPROv2 是提示优化器，联合优化系统指令和上下文示例。它代表传统离线提示搜索路线，适合找到较好的静态提示，但不擅长维护大量细粒度执行经验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Domain-Specific Benchmark",
+    "page": 8,
+    "sourceText": "Moreover, we also observe that when ground-truth supervision or reliable execution signals are absent, both ACE and DC may degrade in performance. In such cases, the constructed context can be polluted by spurious or misleading signals, highlighting a potential limitation of inference-time adaptation without reliable feedback. This suggests that while ACE is robust under rich feedback (e.g. code execution results or formula correctness in agent tasks), its effectiveness depends on the availability of signals that allow the Reflector and Curator to make sound judgments. We return to this limitation in:discussion.",
+    "translation": "这一段强调反馈质量是 ACE 的边界条件。上下文适应并不会自动变好；如果 Reflector 看到的反馈不可靠，Curator 可能把错误规则写入 playbook，导致后续任务反复犯错。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results on Domain-Specific Benchmark",
+    "page": 8,
+    "sourceText": "Analysis: Medical and Text-to-SQL Benchmark. While this subsection focuses on finance as a detailed case study, ACE is not finance-specific: we also see consistent gains on other domain-specific tasks, including medical reasoning and text-to-SQL, suggesting that the same playbook-style context adaptation transfers across domains. Full results are reported in Appendix~:streambench-results.",
+    "translation": "医疗和文本到 SQL 结果说明 ACE 不是金融专用方法。只要任务包含可复用规则和可评价反馈，结构化上下文演化就可能帮助模型积累领域知识并提升泛化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generalization across LLMs",
+    "page": 8,
+    "sourceText": "Generalization across LLMs",
+    "translation": "跨模型泛化部分说明 ACE 不依赖某个特定底座模型。它读取执行轨迹并更新上下文，因此理论上可以套在不同开源或闭源语言模型上。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ablation Study and Sensitivity Analysis",
+    "page": 8,
+    "sourceText": "Ablation Study and Sensitivity Analysis",
+    "translation": "消融与敏感性分析用于拆解 ACE 的贡献来源。论文分别考察 Reflector、多轮适应、离线 warmup、增量更新和超参数选择对结果的影响。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ablation Study and Sensitivity Analysis",
+    "page": 8,
+    "sourceText": "Ablation Study. Table~tab:ablation reports ablation studies on AppWorld, analyzing how individual design choices of contribute to effective context adaptation. We examine three factors: (1) the Reflector with iterative refinement, our addition to the agentic framework beyond Dynamic Cheatsheet, (2) multi-epoch adaptation, which refines contexts over training samples multiple times, and (3) offline warmup, which initializes the context through offline adaptation before online adaptation begins. Additionally, we study the effect of incremental context update and why it is a key enabler for ACE's performance gain in Appendix~:incremental-update-ablation.",
+    "translation": "消融与敏感性分析用于拆解 ACE 的贡献来源。论文分别考察 Reflector、多轮适应、离线 warmup、增量更新和超参数选择对结果的影响。这段还说明三个被检验的因素：Reflector 的迭代式细化是否提供额外收益，多 epoch 适应是否能在训练样本上反复强化上下文，离线 warmup 是否能在在线适应开始前给系统一个更好的初始 playbook。消融的目的就是证明 ACE 的收益来自这些机制组合，而不是偶然的提示更长。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ablation Study and Sensitivity Analysis",
+    "page": 8,
+    "sourceText": "Ablation Studies on AppWorld. We study how particular design choices of (iterative refinement, multi-epoch adaptation, and offline warmup) could help high-quality context adaptation.",
+    "translation": "这张消融表用于回答哪些设计真正重要。论文比较去掉 Reflector、多轮适应、离线 warmup 或增量更新后的结果，显示结构化反思、多 epoch 学习和增量上下文更新都在推动 ACE 的性能提升。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation Study and Sensitivity Analysis",
+    "page": 8,
+    "sourceText": "Robustness to Reflection Quality. is robust to reflection quality: it remains effective with a much weaker Reflector and shows only modest additional gains from stronger reflectors, and it degrades gracefully under noisy/harmful reflections, staying above the base model except under fully adversarial updates every iteration. Full experiment results are in Appendix~:robust-reflection.",
+    "translation": "反思质量实验表明 ACE 不必须依赖最强 Reflector。较弱反思器仍能带来收益，中等噪声也可被整理机制吸收；但如果持续注入冲突或有害条目，性能仍会受到影响。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ablation Study and Sensitivity Analysis",
+    "page": 8,
+    "sourceText": "Sensitivity to Hyperparameter Choice. 's gains are stable across a wide range of reasonable hyperparameter settings (e.g. Reflector refinement rounds, number of adaptation epochs, and grow-and-refine thresholds): performance changes are modest, and ACE consistently remains above the corresponding baselines. Full discussion and detailed results are reported in Appendix~:hyperparam-sensitivity.",
+    "translation": "超参数敏感性结果表明 ACE 在合理设置下比较稳健。反思轮数过少会漏掉经验，过多可能引入噪声；去重阈值和剪枝阈值则控制知识保留与冗余之间的平衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Cost and Speed Analysis",
+    "page": 8,
+    "sourceText": "Cost and Speed Analysis",
+    "translation": "成本与速度分析回答一个重要疑问：更丰富的上下文会不会太贵。作者的答案是，ACE 在适应阶段更高效，并且可借助 KV cache 缓解长上下文服务成本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Cost and Speed Analysis",
+    "page": 8,
+    "sourceText": "Due to its support for incremental, \"delta\" context updates and non-LLM-based context merging and de-duplication, demonstrates particular advantages in reducing the cost (in terms of the number of rollouts or the amount of dollar cost for token ingestion/generation) and latency of adaptation.",
+    "translation": "由于使用增量 delta 更新和非 LLM 的合并去重，ACE 在成本上有明显优势。它避免 GEPA 那种反复生成、验证完整提示的流程，也避免在线备忘录频繁重写整段记忆。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Cost and Speed Analysis",
+    "page": 8,
+    "sourceText": "As examples, on the offline adaptation of AppWorld, ACE achieves 82.3% reduction in adaptation latency and 75.1% reduction in the number of rollouts as compared to GEPA (Table tab:cost-speed(a)). On the online adaptation of FiNER, ACE achieves 91.5% reduction in adaptation latency and 83.6% reduction in token dollar cost for token ingestion/generation as compared to DC (Table tab:cost-speed(b)).",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Cost and Speed Analysis",
+    "page": 8,
+    "sourceText": "Cost and Speed Analysis. We measure the context adaptation latency, number of rollouts, and dollar costs of against GEPA (offline) and DC (online).",
+    "translation": "这张成本表统计适应阶段或评估阶段的延迟、rollout 数、token 使用和美元成本。它强调 ACE 虽然可能生成更长上下文，但由于减少重复验证、避免整段重写并利用缓存，整体适应成本反而低于 GEPA 或动态备忘录。",
+    "kind": "table"
+  },
+  {
+    "section": "Cost and Speed Analysis",
+    "page": 8,
+    "sourceText": "Fine-Grained Cost Analysis. We conduct a fine-grained cost analysis of and GEPA (as a representative baseline). On AppWorld, is substantially cheaper during offline adaptation, reducing input/output token usage by 80.8%/83.6% vs.~GEPA: avoids GEPA's prompt-validation loop and replaces repeated full rewrites with localized delta updates. At evaluation time, while may use more raw input tokens due to a richer playbook, this does not necessarily translate to higher billed serving cost because a large fraction of the context is reused by KV caching; we quantify this effect in the next paragraph. Full results, including a component-wise token breakdown for both methods, are in Appendix~:fine-grained-cost-breakdown.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Cost and Speed Analysis",
+    "page": 8,
+    "sourceText": "KV Cache Reuse: Longer Context $$ Higher Serving Cost. Although produces longer contexts than methods such as GEPA, this does not translate to linearly higher inference cost or GPU memory usage. Modern serving infrastructures are increasingly optimized for long-context workloads through techniques such as the reuse~[cite: gim2024prompt, yao2025cacheblend], compression~[cite: liu2024kivi, liu2024cachegen], and offload~[cite: lee2024infinigen, li2025continuum] of KV cache. These mechanisms allow frequently reused context segments to be cached locally or remotely, avoiding repetitive and expensive prefill operations. Ongoing advances in ML systems suggest that the amortized cost of handling long contexts is likely to decrease, making context-rich approaches like increasingly practical in deployment. In our prompt-caching study with the OpenAI API (GPT-5.1), we find that achieves high cache reuse: 91.8% of input tokens are served from cache during evaluation stage, which reduces billed input-token cost by 82.6% relative to counting raw context tokens.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。这里真正讨论的是长上下文服务成本。虽然 ACE 生成的上下文可能比 GEPA 更长，但现代推理系统可以复用、压缩或卸载 KV cache，让共享前缀不必在每个请求中重复计算。因此在多任务共享同一 playbook 时，长上下文的边际成本会被摊薄，不能只按原始 token 数线性估算。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion",
+    "page": 9,
+    "sourceText": "Discussion",
+    "translation": "讨论部分把 ACE 放到在线学习和持续学习的视角中。它强调 ACE 是一种不改权重的自我改进路径，同时承认其效果依赖反馈质量和反思器能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion",
+    "page": 9,
+    "sourceText": "Implications for Online and Continual Learning. Online and continual learning are key research directions in machine learning for addressing issues like distribution shifts~[cite: koh2021wilds,gulrajani2021domain] and limited training data~[cite: pan2010survey,hutchinson2017overcoming,zhuang2019transfer]. offers a flexible and efficient alternative to conventional model fine-tuning, as adapting contexts is generally cheaper than updating model weights~[cite: brown2020gpt3,lester2021prompttuning,li2021prefixtuning,hu2021lora]. Moreover, because contexts are human-interpretable, enables selective unlearning~[cite: cao2015unlearning,bourtoule2021sisa,liu2024rethinkingllmunlearning], whether due to privacy or legal constraints~[cite: gdpr2016art17,ccpa1798_105], or when outdated or incorrect information is identified by domain experts. These are promising directions for future work, where could play a central role in advancing continuous and responsible learning.",
+    "translation": "ACE 和在线学习、持续学习的关系在于：它不更新权重，却能在任务流中积累经验。相比参数更新，这种方式更易审计、可回滚，也更适合部署在已有大模型之上。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussion",
+    "page": 10,
+    "sourceText": "Limitations and Challenges. A limitation of is its reliance on a reasonably strong Reflector: if the Reflector fails to extract meaningful insights from generated traces or outcomes, the constructed context may become noisy or even harmful. In domain-specific tasks where no model can extract useful insights, the resulting context will naturally lack them. This dependency is similar to Dynamic Cheatsheet~[cite: suzgun2025dynamic], where the quality of adaptation hinges on the underlying model’s ability to curate memory. We also note that not all applications require rich or detailed contexts. Tasks like HotPotQA~[cite: yang2018hotpotqa] often benefit more from concise, high-level instructions (e.g. how to retrieve and synthesize evidence) than from long contexts. Similarly, games with fixed strategies such as Game of 24~[cite: suzgun2025dynamic] may only need a single reusable rule, rendering additional context redundant. Overall, is most beneficial in settings that demand detailed domain knowledge, complex tool use, or environment-specific strategies that go beyond what is already embedded in model weights or simple system instructions.",
+    "translation": "动态备忘录是一种测试时学习方法，会维护外部策略和代码片段。它适合单轮推理任务，而 ACE 面向更长、更复杂的 agent 和领域场景，需要保留更细、更多、可检索的上下文条目。这里真正讨论的是 ACE 的局限。它依赖一个足够可靠的 Reflector；如果反思器无法从轨迹和结果中抽取有意义洞见，或者领域任务本身没有可靠反馈，生成的上下文就会混入噪声甚至有害规则。作者把这个问题和动态备忘录类方法相提并论，因为二者都依赖模型把经验总结成可复用知识。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Acknowledgement",
+    "page": 11,
+    "sourceText": "Acknowledgement",
+    "translation": "致谢部分感谢匿名审稿人与领域主席，并列出部分作者获得的研究资助。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Acknowledgement",
+    "page": 11,
+    "sourceText": "We thank the anonymous reviewers and area chair for their constructive feedback, which improved this paper. Qizheng Zhang is supported by NSF award CNS-2211384 and DARPA award TFAWI-HR00112520038. We also thank Lakshya A Agrawal, Xuekai Zhu, Yuhan Liu, Junchen Jiang, and Azalia Mirhoseini for helpful discussions.",
+    "translation": "作者感谢审稿人和领域主席的建设性反馈，并说明部分研究获得 NSF 和 DARPA 等项目支持。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "伦理声明",
+    "page": 11,
+    "sourceText": "Ethics Statement",
+    "translation": "伦理声明指出，这项工作关注大模型上下文适应算法和系统框架，实验使用公开基准与开源模型，不涉及人类受试者、敏感数据或隐私数据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "伦理声明",
+    "page": 11,
+    "sourceText": "This work does not raise specific ethical concerns. Our contributions focus on developing algorithms and system frameworks for effective context adaptation in large language models (LLMs). All experiments are conducted on publicly available benchmarks with open-source models, without involving human subjects, sensitive data, or privacy-related information. No potential conflicts of interest are present.",
+    "translation": "作者认为这项工作没有特定伦理风险，因为贡献集中在上下文适应算法和系统框架，实验使用公开基准、开源模型和非敏感数据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Reproducibility Statement",
+    "page": 11,
+    "sourceText": "Reproducibility Statement",
+    "translation": "可复现性声明给出代码仓库，并说明论文详细描述了数据集、基准、指标、基线和超参数。读者可以据此复现实验设置。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Reproducibility Statement",
+    "page": 11,
+    "sourceText": "Our code is available at github.com/ace-agent/ace. We provide detailed descriptions of our experimental setup, including datasets, benchmarks, evaluation metrics, baselines, and hyperparameter choices. Additional details, such as prompts for large language models and extended experimental settings, are included in the appendix. With this information, readers with reasonable computational resources should be able to reproduce our results.",
+    "translation": "代码可在 github.com/ace-agent/ace 获取。论文还提供数据集、基准、指标、基线和超参数细节，以支持读者复现实验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Extended Results",
+    "page": 11,
+    "sourceText": "Extended Results",
+    "translation": "扩展结果补充正文未完全展开的跨模型、跨领域、成本、鲁棒性、消融和超参数分析，是理解 ACE 稳定性与边界的重要材料。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Generalization across Different LLMs",
+    "translation": "Generalization across Different LLMs这一块说明 ACE 论文中的一个具体论证环节。它强调上下文不是一次性提示，而是可被执行反馈持续更新的知识资产；系统需要保存任务策略、工具规则、失败教训和领域细节，并通过结构化条目、增量更新、整理剪枝来避免信息丢失。这一内容服务于论文关于上下文演化、自我改进和可靠反馈的主线。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "is a model-agnostic framework that operates on execution traces and contextual deltas, and does not rely on any architectural or training-specific features of DeepSeek-V3.1 (the default backbone we use in the main text). We evaluated with three additional models of varying size, cost, and capability: GPT-OSS-120B (Table~tab:appworld-results-gpt-oss-120b and tab:ds-results-gpt-oss-120b), GPT-5.1 (Table~tab:appworld-results-gpt51 and tab:ds-results-gpt51), and Llama-3.3-70B-Instruct (Table~tab:ds-results-llama70b). In each case, the Generator, Reflector, and Curator were all switched to the new model without changes to the algorithm.",
+    "translation": "ACE 是模型无关框架：它依赖执行轨迹和上下文 delta，而不依赖 DeepSeek-V3.1 的训练细节或架构特性。因此作者可以把同一算法套到 GPT-OSS、GPT-5.1 和 Llama 等底座上。作者额外评测三种大小、成本和能力不同的模型，分别覆盖开放模型和更强闭源模型。这样做的意义是排除一个解释：ACE 不是只在默认底座上调出来的技巧，而是只要模型能读取轨迹、生成反思并利用长上下文，就有机会从该框架受益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Analysis. Across all four LLM families we tested (DeepSeek-V3.1, GPT-OSS-120B, GPT-5.1, and Llama-3.3-70B-Instruct), consistently improves performance over both the base LLM/agent, GEPA, and other baselines, often by 5 to 12 points depending on the task and supervision setting. The relative gains of remain stable even when switching to models that differ significantly in size, cost, and training recipe, and delivers benefits with or without ground-truth labels, validating the robustness of its context adaptation mechanism. The online variant reliably achieves the strongest performance across all models.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "We note that the magnitude of improvement can vary across model families: for example, Llama-3.3-70B-Instruct shows smaller gains compared to GPT-5.1 or GPT-OSS-120B. This is expected since relies on the quality of intermediate reflections and calibrations, and smaller or weaker models naturally generate noisier feedback. Even in these cases, however, remains beneficial, demonstrating that the framework is broadly applicable while still reflecting the inherent capability limits of the underlying LLM, as we discussed in the “Limitations and Challenges” paragraph in:discussion.",
+    "translation": "作者承认不同模型的收益并不相同。比如 Llama-3.3-70B-Instruct 的提升较小，可能因为它执行复杂 agent 轨迹和利用长上下文的能力弱于更强底座。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Results on the AppWorld Agent Benchmark (GPT-OSS-120B as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation. We evaluate the framework against multiple baselines on top of the official ReAct implementation, both for offline and online context adaptation.",
+    "translation": "这张表报告 AppWorld 智能体基准上的结果，并区分是否给 Reflector 使用真实标签。核心结论是，在 DeepSeek-V3.1、GPT-OSS-120B 或 GPT-5.1 等不同底座上，ReAct 加 ACE 通常都比直接 ReAct、ICL、GEPA 和动态备忘录更强，尤其在任务目标完成率和场景目标完成率上有明显提升。这张附录表把底座换成一千二百亿参数级别的开放模型，仍然沿用官方 ReAct 实现和相同适应协议。读者应关注 ACE 是否在有标签与无标签、离线与在线场景下都保持增益，从而判断方法是否依赖某一个默认模型。",
+    "kind": "table"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Results on the AppWorld Agent Benchmark (GPT-5.1 as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation. We evaluate the framework against multiple baselines on top of the official ReAct implementation, both for offline and online context adaptation.",
+    "translation": "这张表报告 AppWorld 智能体基准上的结果，并区分是否给 Reflector 使用真实标签。核心结论是，在 DeepSeek-V3.1、GPT-OSS-120B 或 GPT-5.1 等不同底座上，ReAct 加 ACE 通常都比直接 ReAct、ICL、GEPA 和动态备忘录更强，尤其在任务目标完成率和场景目标完成率上有明显提升。这张附录表把底座换成 GPT-5.1，用来检验更强模型是否仍然需要 playbook 式上下文。若强模型也能从 ACE 获益，就说明问题不只是底座能力不足，而是复杂任务确实需要外部经验结构来稳定利用反馈。",
+    "kind": "table"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Results on Financial Analysis Benchmark (GPT-OSS-120B as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation.",
+    "translation": "这张表展示金融分析基准上的结果，重点比较 ACE 在有无真实标签反馈时的表现。它说明 playbook 式上下文对金融概念、报表规则和细粒度领域知识尤其有帮助，但也提醒读者：反馈信号不可靠时，在线自适应可能会退化。",
+    "kind": "table"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Results on Financial Analysis Benchmark (GPT-5.1 as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation.",
+    "translation": "这张表展示金融分析基准上的结果，重点比较 ACE 在有无真实标签反馈时的表现。它说明 playbook 式上下文对金融概念、报表规则和细粒度领域知识尤其有帮助，但也提醒读者：反馈信号不可靠时，在线自适应可能会退化。",
+    "kind": "table"
+  },
+  {
+    "section": "Generalization across Different LLMs",
+    "page": 11,
+    "sourceText": "Results on Financial Analysis Benchmark (Llama-3.3-70B-Instruct as the Base LLM). \"GT labels\" indicates whether ground-truth labels are available to the Reflector during adaptation.",
+    "translation": "这张表展示金融分析基准上的结果，重点比较 ACE 在有无真实标签反馈时的表现。它说明 playbook 式上下文对金融概念、报表规则和细粒度领域知识尤其有帮助，但也提醒读者：反馈信号不可靠时，在线自适应可能会退化。",
+    "kind": "table"
+  },
+  {
+    "section": "Beyond Finance: Additional Domain Tasks",
+    "page": 11,
+    "sourceText": "Beyond Finance: Additional Domain Tasks",
+    "translation": "这一节把领域任务从金融扩展到医疗推理和文本到 SQL，说明 ACE 的关键前提不是某个行业，而是任务能提供可用于反思和整理的反馈。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Beyond Finance: Additional Domain Tasks",
+    "page": 11,
+    "sourceText": "We evaluate on two additional domain tasks from StreamBench~[cite: wu2024streambench] under the non-streaming setting (i.e. offline adaptation): DDXPlus~[cite: fansi2022ddxplus] for medical reasoning (Table~tab:ddxplus-streambench) and BIRD-SQL~[cite: li2023can] for Text-to-SQL generation (Table~tab:birdsql-streambench). For, we perform offline adaptation using 1000 randomly sampled training examples. For GEPA, we use the same 1000 examples for training, and reserve a separate validation set of 500 examples for BIRD-SQL or 372 examples for DDXPlus (StreamBench provides 1372 train/val examples for DDXPlus in total). All other settings follow the main-text configuration unless stated otherwise.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Beyond Finance: Additional Domain Tasks",
+    "page": 11,
+    "sourceText": "Analysis. On DDXPlus, substantially improves over the base LLM, rising from 75.2 to 90.2 accuracy (+15.0). In contrast, GEPA yields a much smaller gain (76.4, +1.2). This suggests that 's test-time evolving context transfers well to multi-step, domain-heavy diagnostic reasoning. On BIRD-SQL, also improves consistently over the base model on all splits, achieving better overall average (52.9, +5.1). The gains are driven mainly by the Simple subset (53.5, +7.1). While GEPA yields larger gains on Moderate and Challenging, still improves over the base model on both splits. Overall, these results indicate that generalizes beyond finance to both knowledge-intensive reasoning and structured code generation tasks.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Beyond Finance: Additional Domain Tasks",
+    "page": 11,
+    "sourceText": "Results on Medical Reasoning Benchmark (DeepSeek-V3.1-671B as the Base LLM). We use DDXPlus from StreamBench.",
+    "translation": "这张表把 ACE 扩展到医疗推理和文本到 SQL 任务。结果说明该方法不局限于金融或 AppWorld，只要任务能产生可评价的反馈，结构化经验积累就可能带来跨领域收益。",
+    "kind": "table"
+  },
+  {
+    "section": "Beyond Finance: Additional Domain Tasks",
+    "page": 11,
+    "sourceText": "Results on Text-to-SQL Benchmark (DeepSeek-V3.1-671B as the Base LLM). We use BIRD-SQL from StreamBench.",
+    "translation": "这张表把 ACE 扩展到医疗推理和文本到 SQL 任务。结果说明该方法不局限于金融或 AppWorld，只要任务能产生可评价的反馈，结构化经验积累就可能带来跨领域收益。",
+    "kind": "table"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Fine-Grained Cost Analysis",
+    "translation": "细粒度成本分析把适应阶段和评估阶段拆开统计，帮助读者理解 ACE 的省钱来源：少做整段重写、少做验证 rollout，并把新经验以局部 delta 形式合并。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "We perform a fine-grained cost analysis of and GEPA for both the adaptation and evaluation stages (offline adaptation setting), using AppWorld as a representative application. For, we run offline adaptation with 1 epoch and 1 reflector refinement round. While increasing the number of epochs or refinement rounds will increase cost, the qualitative trends below should remain: avoids expensive validation-time re-evaluation and performs localized updates rather than repeated full rewrites. For GEPA, we use the official DSPy implementation~[cite: DSPyMIPROv2] with |auto=\"heavy\"| to maximize optimization strength.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Adaptation Stage. Across adaptation (Table~tab:cost-adapt-aggregate and Table~tab:cost-adapt-average), reduces input-token usage by 80.8% relative to GEPA (204.1M $$ 39.3M) and output-token usage by 83.6% (1.87M $$ 0.31M). This gap is primarily driven by (1) GEPA's prompt-validation loop, which repeatedly evaluates candidate prompts on a held-out validation set (57 queries), incurring substantial additional LLM calls and validation tokens, and (2) 's incremental context updates, which replace full prompt rewrites with localized Generator-Reflector-Curator updates.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Evaluation Stage. At evaluation time (Table~tab:cost-eval-aggregate and Table~tab:cost-eval-average), uses more raw input tokens per query than GEPA due to its richer, more actionable playbook. However, output-token usage is similar (115.0 vs.~101.8), and the number of rollouts is comparable across methods. Moreover, under modern prompt/KV-caching infrastructures, the additional input tokens can be largely amortized: using OpenAI's default prompt caching, 91.8% of 's input tokens are served from cache, resulting in an 82.6% reduction in billed input-token cost (see:results-cost-speed).",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Adaptation-Stage Aggregate Cost Statistics on AppWorld. The percentages compare (total) against GEPA (total).",
+    "translation": "这张成本表统计适应阶段或评估阶段的延迟、rollout 数、token 使用和美元成本。它强调 ACE 虽然可能生成更长上下文，但由于减少重复验证、避免整段重写并利用缓存，整体适应成本反而低于 GEPA 或动态备忘录。",
+    "kind": "table"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Adaptation-Stage Average Cost Statistics on AppWorld. The percentages compare (total) against GEPA (total).",
+    "translation": "这张成本表统计适应阶段或评估阶段的延迟、rollout 数、token 使用和美元成本。它强调 ACE 虽然可能生成更长上下文，但由于减少重复验证、避免整段重写并利用缓存，整体适应成本反而低于 GEPA 或动态备忘录。",
+    "kind": "table"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Evaluation-Stage Aggregate Cost Statistics on AppWorld. The percentages compare against GEPA.",
+    "translation": "这张成本表统计适应阶段或评估阶段的延迟、rollout 数、token 使用和美元成本。它强调 ACE 虽然可能生成更长上下文，但由于减少重复验证、避免整段重写并利用缓存，整体适应成本反而低于 GEPA 或动态备忘录。",
+    "kind": "table"
+  },
+  {
+    "section": "Fine-Grained Cost Analysis",
+    "page": 11,
+    "sourceText": "Evaluation-Stage Average Cost Statistics on AppWorld. The percentages compare against GEPA.",
+    "translation": "这张成本表统计适应阶段或评估阶段的延迟、rollout 数、token 使用和美元成本。它强调 ACE 虽然可能生成更长上下文，但由于减少重复验证、避免整段重写并利用缓存，整体适应成本反而低于 GEPA 或动态备忘录。",
+    "kind": "table"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "Robustness to Reflection Quality",
+    "translation": "反思质量鲁棒性部分检验 Reflector 换成更弱模型或输出有害经验时 ACE 是否还能工作。结论是它有一定容错性，但长期错误反馈仍然是实际部署风险。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "We conduct two analyses to evaluate 's sensitivity to reflection quality. Unless otherwise noted, experiments are run on FiNER with offline adaptation.",
+    "translation": "Robustness to Reflection Quality这一块说明 ACE 论文中的一个具体论证环节。它强调上下文不是一次性提示，而是可被执行反馈持续更新的知识资产；系统需要保存任务策略、工具规则、失败教训和领域细节，并通过结构化条目、增量更新、整理剪枝来避免信息丢失。原文中的关键数字或术语可对应为：. .。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "Using Weaker Reflector Models. To test whether requires a strong reflector, we vary the Reflector across three models with substantially different capability: GPT-OSS-120B, DeepSeek-V3.1-671B, and GPT-5.1 (Table~tab:weaker-reflector). Across all choices, consistently improves over the base LLM, including when the Reflector is much weaker. While stronger reflectors yield larger gains, the method remains effective across a wide range of reflector strengths.",
+    "translation": "较弱 Reflector 实验把反思器换成能力不同的模型，而 Generator 和 Curator 保持固定。结果用于检验 ACE 是否必须依赖昂贵的最强模型才能产生有效经验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "Robustness to Noisy or Harmful Reflector Feedback. We further stress-test with actively harmful reflector outputs by injecting adversarial or conflicting bullets: we invoke a \"harmful\" reflector that is explicitly instructed to inject harmful reflection once every $X$ adaptation steps, where larger $X$ means less frequent corruption (Table~tab:harmful-reflector-frequency). is robust to moderate noise levels: performance degrades gradually as corruption becomes more frequent and stays above the base LLM except in the extreme case of injecting harmful updates every iteration. This suggests that 's update mechanism tolerates substantial noise in the reflection stream, with failures emerging only under intentionally adversarial conditions.",
+    "translation": "有害反馈实验故意定期注入冲突或错误条目，压力测试 Curator 和去重剪枝机制。结果表明中等噪声可以被吸收，但高频错误反馈仍会破坏 playbook。具体做法是每隔若干适应步骤调用一次被要求输出有害反思的模型，间隔越小代表污染越频繁。结果显示，当污染频率适中时，Curator、去重和已有上下文可以抵消一部分坏条目；但污染过于频繁时，错误经验会累积，最终压低表现。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "Takeaway and Mitigation. is not highly sensitive to reflector quality: (1) weaker reflectors still provide substantial gains, (2) moderate noise or conflicting updates are largely tolerated, and (3) performance drops below the base model only under sustained adversarial corruption. In practice, 's bullet-point analyzer (\"grow-and-refine\";:grow-and-refine), which merges and deduplicates semantically similar bullets and can filter entries flagged as potentially harmful via metadata, serves as a first line of defense against context noise. Additional safeguards (e.g. contradiction detection, prompting the Curator to prioritize high-confidence updates, or periodic pruning of outdated entries) are compatible extensions that could further improve playbook compactness and consistency~[cite: zhou2024defending].",
+    "translation": "作者的结论是 ACE 对反思质量有一定鲁棒性，但不是免疫。实际部署时应结合置信度、验证样例、人工审核或回滚机制，避免错误经验长期污染上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "Weaker Reflector Models on FiNER. We vary the Reflector while keeping the Generator/Curator fixed. Parentheses report deltas vs. the base LLM.",
+    "translation": "这张表考察 Reflector 质量对 ACE 的影响。作者通过更弱模型和有害反馈压力测试说明：ACE 对中等噪声有一定鲁棒性，但当反思器持续产出错误经验时，仍需要 Curator 和剪枝机制来控制风险。",
+    "kind": "table"
+  },
+  {
+    "section": "Robustness to Reflection Quality",
+    "page": 11,
+    "sourceText": "Robustness to Noisy or Harmful Reflector Feedback on FiNER. We invoke a harmful reflector once every $X$ adaptation steps. Parentheses report deltas vs. the base LLM.",
+    "translation": "这张表考察 Reflector 质量对 ACE 的影响。作者通过更弱模型和有害反馈压力测试说明：ACE 对中等噪声有一定鲁棒性，但当反思器持续产出错误经验时，仍需要 Curator 和剪枝机制来控制风险。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation on Incremental Context Update",
+    "page": 11,
+    "sourceText": "Ablation on Incremental Context Update",
+    "translation": "增量更新消融直接验证 ACE 的核心假设：去掉增量上下文更新后，AppWorld 上的任务完成率和场景完成率都会明显下降。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ablation on Incremental Context Update",
+    "page": 11,
+    "sourceText": "In this ablation, we run offline context adaptation on AppWorld using with and without incremental context updates, and evaluate on the test-normal split with DeepSeek-V3.1. We find that incremental updates are critical: by preserving useful information that would otherwise be lost to context collapse, they account for a large share of ’s gains.",
+    "translation": "增量更新消融在 AppWorld 上直接比较有无增量上下文更新。去掉该机制后，任务目标完成率和场景目标完成率都下降，说明 ACE 的核心不是简单多写内容，而是以局部 delta 保留和维护经验。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ablation on Incremental Context Update",
+    "page": 11,
+    "sourceText": "Ablation on Incremental Context Updates (AppWorld, DeepSeek-V3.1). We run offline context adaptation with with/without incremental updates and evaluate on test-normal. Improvements are relative to ReAct.",
+    "translation": "这张消融表用于回答哪些设计真正重要。论文比较去掉 Reflector、多轮适应、离线 warmup 或增量更新后的结果，显示结构化反思、多 epoch 学习和增量上下文更新都在推动 ACE 的性能提升。",
+    "kind": "table"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Sensitivity Analysis on Hyperparameter Choice",
+    "translation": "超参数敏感性分析讨论反思轮数、去重阈值和剪枝触发长度。它说明 ACE 的收益在合理参数范围内比较稳定，但极端设置会削弱经验抽取或引入噪声。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Reflection Iterations. This parameter trades off (1) extracting enough high-quality insights from the inference traces and (2) avoiding \"overthinking\" that introduces noisy or unnecessary updates. Empirically, 5 rounds offers a good balance. On AppWorld, 1 round under-extracts useful strategy fragments and leaves clear headroom, while too many rounds (e.g. 10) can degrade performance.",
+    "translation": "反思轮数控制从轨迹中提取经验的深度。轮数太少会提炼不足，轮数过多可能过度思考并引入噪声。作者发现五轮在 AppWorld 上取得较好平衡。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Effect of Reflection Iterations (AppWorld, DeepSeek-V3.1). We report test-normal results under offline context adaptation. Improvements are relative to running ReAct without.",
+    "translation": "这张表分析反思轮数、去重阈值或剪枝触发长度等超参数。总体趋势是 ACE 对合理范围内的参数并不敏感，但过少反思会抽取不足，过多反思又可能带来噪声。",
+    "kind": "table"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Deduplication Threshold. This controls how aggressively newly extracted insights are merged with existing entries. On FiNER, performance changes only mildly across the tested range, suggesting is robust to moderate variation in dedup aggressiveness.",
+    "translation": "去重阈值控制新经验和已有条目的合并力度。阈值过低会过早合并而损失细节，阈值过高会留下重复内容；实验显示合理范围内影响较温和。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Effect of Deduplication Threshold (FiNER, DeepSeek-V3.1).",
+    "translation": "这张表分析反思轮数、去重阈值或剪枝触发长度等超参数。总体趋势是 ACE 对合理范围内的参数并不敏感，但过少反思会抽取不足，过多反思又可能带来噪声。",
+    "kind": "table"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Pruning Trigger (Maximum Context Length). This threshold determines when merges and prunes older or low-utility entries to prevent unbounded growth. It balances (1) retaining enough accumulated context to improve learning from experience and (2) keeping the context compact to reduce cost and limit noise. On FiNER, performance is stable from 10K to 100K tokens, indicating does not require finely tuned length thresholds; pruning mainly removes stale or harmful fragments while preserving core reusable strategies.",
+    "translation": "剪枝触发长度决定何时压缩或移除低价值条目。它需要在保留充分经验和避免上下文无限增长之间折中，也是 ACE 能长期运行的工程参数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Effect of Pruning Trigger (FiNER, DeepSeek-V3.1).",
+    "translation": "这张表分析反思轮数、去重阈值或剪枝触发长度等超参数。总体趋势是 ACE 对合理范围内的参数并不敏感，但过少反思会抽取不足，过多反思又可能带来噪声。",
+    "kind": "table"
+  },
+  {
+    "section": "Sensitivity Analysis on Hyperparameter Choice",
+    "page": 11,
+    "sourceText": "Overall, is not highly sensitive to these hyperparameters: reasonable choices (e.g. 3-5 reflection rounds, 50-90% dedup threshold, and 10K-100K pruning triggers) consistently yield strong performance.",
+    "translation": "总体来看，ACE 对这些超参数不高度敏感。三到五轮反思、适中的去重阈值和一万到十万 token 的剪枝触发范围通常都能保持收益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Extended Related Work",
+    "page": 11,
+    "sourceText": "Extended Related Work",
+    "translation": "扩展相关工作把 ACE 和 agent memory、提示优化、测试时适应等研究线联系起来，说明它继承了外部记忆的思想，但处理的是更综合的上下文演化问题。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Agent Memory",
+    "page": 11,
+    "sourceText": "Agent Memory",
+    "translation": "Agent memory 小节回顾让智能体从历史轨迹中积累经验的工作。ACE 与这些方法的共同点是利用外部记忆，区别是它强调结构化、可增量维护的上下文 playbook。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Agent Memory",
+    "page": 11,
+    "sourceText": "A growing body of work explores how agents can accumulate experience from past trajectories and leverage external (often non-parametric) memory to guide future actions. AgentFly~[cite: zhou2025agentfly] presents an extensible framework where memory evolves continuously as agents solve tasks, enabling scalable reinforcement learning and long-horizon reasoning across diverse environments. AWM (Agent Workflow Memory)~[cite: wang2024agent] induces reusable workflows, i.e. structured routines distilled from past trajectories, and selectively injects them into memory to improve efficiency and generalization in web navigation benchmarks. A-MEM~[cite: xu2025mem] introduces a dynamically organized memory system inspired by the Zettelkasten method: each stored memory is annotated with structured attributes (e.g. tags, keywords, contextual descriptions) and automatically linked to relevant past entries, while existing entries are updated to integrate new knowledge, yielding adaptive and context-aware retrieval. Agentic Plan Caching~[cite: zhang2025cost] instead focuses on cost efficiency by extracting reusable plan templates from agent trajectories and caching them for fast execution at test time.",
+    "translation": "相关工作指出，越来越多研究让 agent 从历史轨迹中积累经验，并用外部非参数记忆指导未来行为。ACE 属于这条路线，但它更强调上下文资产的结构化维护和跨任务复用。文中提到的 AgentFly、Agent Workflow Memory 等工作都说明，外部记忆可以从过去轨迹中提炼可复用流程，帮助 agent 在长程任务中提高效率。ACE 的扩展点在于它不只保存 workflow，还保存提示、工具规则、领域概念、失败案例和整理策略。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Agent Memory",
+    "page": 12,
+    "sourceText": "Together, these works demonstrate the value of external memory for improving adaptability, efficiency, and generalization in LLM agents. Our work differs by tackling the broader challenge of context adaptation, which spans not only agent memory but also system prompts, factual evidence, and other inputs underpinning AI systems. We further highlight two fundamental limitations of existing adaptation methods: brevity bias and context collapse; and show that addressing them is essential for robustness, reliability, and scalability beyond raw task performance. Accordingly, our evaluation considers not only accuracy but also cost, latency, and scalability.",
+    "translation": "作者把现有方法的第一类问题称为简短偏置：许多提示优化器为了得到看似通用、简洁的指令，会舍弃具体经验、边界条件和领域知识。对于需要精确工具调用或专业概念的任务，这种压缩会让模型失去真正有用的操作细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Extended Discussions",
+    "page": 12,
+    "sourceText": "Extended Discussions",
+    "translation": "扩展讨论进一步比较 ACE 与 GEPA、动态备忘录的适用范围和更新机制，帮助读者判断什么时候应该选择 ACE。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ACE vs. GEPA",
+    "page": 12,
+    "sourceText": "ACE vs. GEPA",
+    "translation": "这一节比较 ACE 和 GEPA。二者都不改模型权重，但 GEPA 更像提示变体搜索，而 ACE 更像长期经验手册的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ACE vs. GEPA",
+    "page": 12,
+    "sourceText": "Scope and Objective Both GEPA and ACE improve model or agent behavior by adapting context at test time (rather than updating model weights), but they are designed for different forms of adaptation. GEPA treats adaptation as prompt evolution: it iteratively proposes and selects improved instruction prompts using rollout trajectories and reflective feedback, aiming to maximize a task evaluator under a rollout budget. ACE targets settings where performance depends on accumulating and preserving many granular, reusable insights over long horizons. For multi-turn agents (e.g. AppWorld), the model must retain step-by-step procedures and tool-use rules across an interaction. For domain-specific and knowledge-intensive benchmarks (e.g. FiNER, Formula), accuracy depends on keeping many specific rules, edge cases, and domain concepts that are difficult to compress into a single instruction prompt without losing detail.",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。GEPA 的优化目标是在 rollout 预算下找到能让评测器得分更高的提示；ACE 的目标则是在长期任务中保存许多细粒度、可复用的洞见。对 AppWorld、FiNER 或 Formula 这类任务来说，性能依赖大量具体规则，很难把所有知识压成一个短 prompt。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ACE vs. GEPA",
+    "page": 13,
+    "sourceText": "Update Mechanism and Representation GEPA updates context by generating and selecting new prompt variants in an evolutionary loop, where each candidate is a full prompt optimized end-to-end. ACE instead represents context as a structured, itemized Playbook and applies incremental delta updates: the Curator writes only the new insight, and we merge it into the Playbook with simple deterministic logic. This avoids repeated full-prompt rewrites, helps keep earlier rules stable over long runs, and enables fine-grained bookkeeping (e.g. de-duplication, targeted refinement, and tracking which entries helped or harmed accuracy).",
+    "translation": "GEPA 通过反思式提示演化收集执行轨迹并改写提示候选，再用多目标选择保留好版本。它和 ACE 都利用反馈，但 GEPA 更偏完整提示变体搜索，ACE 则强调结构化条目的增量维护。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ACE vs. Dynamic Cheatsheet (DC)",
+    "page": 13,
+    "sourceText": "ACE vs. Dynamic Cheatsheet (DC)",
+    "translation": "这一节比较 ACE 和动态备忘录。动态备忘录适合单轮、相对独立的问题，ACE 更适合多轮 agent 或知识密集任务中需要保留大量细节的场景。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ACE vs. Dynamic Cheatsheet (DC)",
+    "page": 13,
+    "sourceText": "Scope and Objective Both DC and ACE collect reusable insights at test time, but they are aimed at different settings. DC is mainly evaluated on single-turn reasoning benchmarks (e.g. AIME, Game-of-24, GPQA) where each query is independent. In this regime, improvements often come from saving short, reusable heuristics and executable artifacts (e.g. code snippets) that help on later problems. ACE focuses on settings where the details and high-fidelity guidenace need to stick around. For multi-turn agents (e.g. AppWorld), the model must remember step-by-step procedures and tool-use rules across an interaction. For domain-specific and knowledge-intensive benchmarks (e.g. FiNER, Formula), accuracy depends on keeping many specific rules, edge cases, and domain concepts, which are hard to compress without losing information.",
+    "translation": "动态备忘录和 ACE 都收集测试时经验，但适用场景不同。动态备忘录主要面向单轮推理题，ACE 面向多轮 agent 和知识密集任务，需要长期保留步骤、工具规则和领域边界。动态备忘录在 AIME、二十四点和 GPQA 等单轮问题上很自然，因为每道题相对独立，保存短启发式或代码片段就能帮助后续问题。ACE 关注的场景要求细节长期存在：多轮 agent 需要记住步骤和工具规则，领域任务需要保留专业概念、例外和边界条件。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "ACE vs. Dynamic Cheatsheet (DC)",
+    "page": 13,
+    "sourceText": "Update Mechanism DC updates its memory by rewriting the cheatsheet as a whole, either by regenerating the full cheatsheet each step (DC-CU) or by writing a new summary from retrieved examples (DC-RS). With repeated full rewrites, the model tends to shorten and compress what was written before. This can cause context collapse, which means that useful domain-specific details get dropped over time or disappear suddenly (:limitations). ACE avoids full rewrites by using incremental delta updates. The Curator only writes the new insight, and we merge it into a structured and itemized Playbook with simple deterministic logic. This keeps earlier rules stable over long runs and also makes it easier to track which items helped, remove duplicates, and refine entries. In our ablations (:results-ablation), removing delta updates leads to a large drop on AppWorld (-11.7% TGC and -27.8% SGC on test-normal), showing that delta updates are a core part of our method.",
+    "translation": "动态备忘录通常重写整份 cheatsheet 或从检索片段生成新摘要，因此也可能出现上下文坍缩。ACE 避免整段重写，采用增量更新，在 AppWorld 消融中证明这一点对性能至关重要。动态备忘录的整段重写会让模型倾向于缩短和压缩旧内容，久而久之丢掉领域细节。ACE 的 Curator 只合并新 delta，并用简单确定性逻辑维护 playbook。作者在 AppWorld 消融中显示，移除增量更新会带来显著下降，这直接支持了该设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AppWorld Leaderboard Snapshot (09/2025)",
+    "page": 14,
+    "sourceText": "AppWorld Leaderboard Snapshot (09/2025)",
+    "translation": "排行榜快照提供外部参照：ACE 加 ReAct 的系统已经接近当时 AppWorld 排行榜顶部系统的平均表现，并在更难的挑战分割上表现突出。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AppWorld Leaderboard Snapshot (09/2025)",
+    "page": 14,
+    "sourceText": "The AppWorld leaderboard as accessed on 09/2025.",
+    "translation": "这张图是作者在二零二五年九月访问的 AppWorld 排行榜快照，用来说明 ACE 加持的 ReAct agent 已经接近甚至在挑战分割上超过当时最强生产级系统的表现。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/figure_5_CR.png",
+    "kind": "figure"
+  },
+  {
+    "section": "The Use of Large Language Models (LLMs)",
+    "page": 14,
+    "sourceText": "The Use of Large Language Models (LLMs)",
+    "translation": "大语言模型使用说明强调，论文中的模型既是被评测对象，也用于 Generator、Reflector 和 Curator 等角色；这些使用都服务于上下文适应框架。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "The Use of Large Language Models (LLMs)",
+    "page": 14,
+    "sourceText": "This work focuses on developing algorithms and system frameworks for effective context adaptation in large language models (LLMs). Accordingly, our experiments employ LLMs for the empirical evaluation of the proposed methods. For paper preparation, we used LLMs only to polish writing (e.g. correcting grammatical errors), and not to generate new text from scratch.",
+    "translation": "这项工作关注大模型上下文适应的算法和系统框架。实验中的大模型用于任务执行、轨迹生成、反思和整理，所有结论都围绕如何更有效地维护输入上下文展开。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "Prompts",
+    "translation": "附录提示词部分公开了不同方法和不同角色的提示模板，说明实验中的上下文演化不是黑箱，而是由明确的生成、反思和整理指令驱动。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ICL-baseline Generator prompt on AppWorld",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/icl_prompt_2.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "Dynamic Cheatsheet Generator prompt on AppWorld",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/DC_prompt.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "GEPA prompt on AppWorld",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/gepa_prompt.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ACE Generator prompt on AppWorld",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/ACE_generator_appworld.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ACE Reflector prompt on AppWorld",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/ACE_reflector_appworld.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ACE Curator prompt on AppWorld",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/ACE_curator_appworld.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ACE Generator prompt on FINER",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/ACE_generator_finer.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ACE Reflector prompt on FINER",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/ACE_reflector_finer.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Prompts",
+    "page": 14,
+    "sourceText": "ACE Curator prompt on FINER",
+    "translation": "这张图展示实验中使用的提示模板。它说明 ACE 不只是一个抽象算法，还明确规定了生成器、反思器和整理器在 AppWorld 或 FiNER 中如何读取轨迹、抽取经验并更新上下文。",
+    "assetPath": "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/ACE_curator_finer.png",
+    "kind": "figure"
+  }
+]

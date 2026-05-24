@@ -1,0 +1,137 @@
+{
+  "slug": "agentic-context-engineering-evolving-contexts-self-improving-language-models",
+  "title": "Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models",
+  "authors": [
+    "Qizheng Zhang",
+    "Changran Hu",
+    "Shubhangi Upasani",
+    "Boyuan Ma",
+    "Fenglu Hong",
+    "Vamsidhar Kamanuru",
+    "Jay Rainton",
+    "Chen Wu",
+    "Mengmeng Ji",
+    "Hanchen Li",
+    "Urmish Thakker",
+    "James Zou",
+    "Kunle Olukotun"
+  ],
+  "institutions": [
+    "Stanford University",
+    "SambaNova Systems, Inc.",
+    "UC Berkeley"
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Stanford University",
+      "translation": "斯坦福大学"
+    },
+    {
+      "id": 2,
+      "name": "SambaNova Systems, Inc.",
+      "translation": "SambaNova Systems 公司"
+    },
+    {
+      "id": 3,
+      "name": "UC Berkeley",
+      "translation": "加州大学伯克利分校"
+    }
+  ],
+  "year": 2025,
+  "venue": "ICLR 2026 / arXiv",
+  "category": "evolution",
+  "categoryLabel": "演化与自我改进",
+  "tags": [
+    "Agentic Context Engineering",
+    "上下文演化",
+    "自我改进 Agent",
+    "执行反馈",
+    "长期记忆"
+  ],
+  "summary": "ACE 将大模型应用中的上下文视为可持续演化的 playbook，而不是一次性写好的静态提示。它通过 Generator 产生执行轨迹，Reflector 从成功和失败中提取可复用经验，Curator 再以增量 delta 更新方式把经验合并进结构化上下文，从而缓解简短偏置和上下文坍缩。实验显示，ACE 在 AppWorld 智能体任务、金融分析、医疗推理和文本到 SQL 等场景中持续提升表现，并在适应延迟、rollout 数和部分 token 成本上优于 GEPA 与动态备忘录等强基线。",
+  "arxivId": "2510.04618",
+  "arxivUrl": "https://arxiv.org/abs/2510.04618",
+  "codeUrl": "https://github.com/ace-agent/ace",
+  "sourcePath": "assets/papers/arXiv-2510.04618v3",
+  "authorAffiliations": [
+    {
+      "name": "Qizheng Zhang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Changran Hu",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Shubhangi Upasani",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Boyuan Ma",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Fenglu Hong",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Vamsidhar Kamanuru",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Jay Rainton",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Chen Wu",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Mengmeng Ji",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Hanchen Li",
+      "institutionIds": [
+        3
+      ]
+    },
+    {
+      "name": "Urmish Thakker",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "James Zou",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Kunle Olukotun",
+      "institutionIds": [
+        1
+      ]
+    }
+  ]
+}

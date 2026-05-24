@@ -1,0 +1,521 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "[t]l AgentFold: Long-Horizon Web Agents with Context Management",
+    "translation": "题目可以译为“AgentFold：具备主动上下文管理能力的长程网页智能体”。论文关注长程信息检索场景中一个很实际的问题：网页 agent 如果只不断追加原始历史，会被噪声撑爆上下文；如果每步都粗暴总结全部历史，又可能永久丢掉关键细节。AgentFold 的核心就是让 agent 学会主动折叠自己的历史轨迹。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "LLM-based web agents show immense promise for information seeking, yet their effectiveness on long-horizon tasks is hindered by a fundamental trade-off in context management. Prevailing ReAct-based agents suffer from context saturation as they accumulate noisy, raw histories, while methods that fixedly summarize the full history at each step risk the irreversible loss of critical details. Addressing these, we introduce AgentFold, a novel agent paradigm centered on proactive context management, inspired by the human cognitive process of retrospective consolidation. AgentFold treats its context as a dynamic cognitive workspace to be actively sculpted, rather than a passive log to be filled. At each step, it learns to execute a `folding' operation, which manages its historical trajectory at multiple scales: it can perform granular condensations to preserve vital, fine-grained details, or deep consolidations to abstract away entire multi-step sub-tasks. The results on prominent benchmarks are striking: with simple supervised fine-tuning (without continual pre-training or RL), our AgentFold-30B-A3B agent achieves 36.2% on BrowseComp and 47.3% on BrowseComp-ZH. Notably, this performance not only surpasses or matches open-source models of a dramatically larger scale, such as the DeepSeek-V3.1-671B-A37B, but also surpasses leading proprietary agents like OpenAI's o4-mini.",
+    "translation": "基于大语言模型的网页 agent 在信息检索上很有潜力，但长程任务暴露出上下文管理的根本矛盾。ReAct 式 agent 会不断积累嘈杂原始历史，导致上下文饱和；固定地每步总结完整历史又可能不可逆地丢掉关键细节。AgentFold 提出主动上下文管理，把上下文视为动态认知工作区，而不是被动日志。模型每步学习执行 folding 操作：既可以做细粒度压缩以保留关键细节，也可以做深度合并，把一整段已完成或失败的子任务抽象成粗粒度摘要。实验显示，仅用监督微调、不做持续预训练或强化学习，AgentFold-30B-A3B 在 BrowseComp 上达到 36.2%，在 BrowseComp-ZH 上达到 47.3%，并能超过或匹配大得多的开源模型和部分领先闭源 agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Our AgentFold-30B-A3B agent demonstrates remarkable performance on challenging long-horizon benchmarks, matching or surpassing agents with significantly larger model sizes. This is enabled by its proactive context folding, which maintains a highly concise and focused context that reaches only 7k tokens after 100 turns of interaction and is capable of scaling to 500 turns.",
+    "translation": "这张 teaser 图展示 AgentFold-30B-A3B 在长程基准上的表现和上下文效率。它强调一个小得多的模型也能靠主动 context folding 达到或超过更大模型，并且交互一百轮后上下文仍保持在约七千 token，具备扩展到五百轮的潜力。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/teaser_v3_logo.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "本节进入引言，论文从长程网页信息检索的困难讲起：agent 需要反复搜索、阅读、调用工具和整合证据，而上下文一旦被原始历史撑满，模型就会迷失在噪声里。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "The ability to effectively seek and synthesize web information~[cite: marchionini1995information,given2023looking] is foundational to modern progress. This critical process, however, is fundamentally constrained by inherent human limitations in cognitive capacity and endurance. The advent of LLM-based web agents marks a paradigm shift, offering systems that transcend these boundaries to tirelessly navigate the digital landscape and dramatically enhancing the efficiency and effectiveness of complex information-seeking tasks~[cite: dr,comanici2025gemini].",
+    "translation": "有效搜索和综合网页信息是现代 AI 应用的基础能力。随着网页数据规模和任务复杂度上升，用户越来越希望 agent 能跨多个来源查证事实、比较证据、追踪线索并形成可靠答案。长程网页任务因此成为检验 agent 是否真正具备信息获取能力的重要场景。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "However, a critical challenge for contemporary web agents lies in striking an effective balance between context comprehensiveness and conciseness, a trade-off that significantly impacts their performance, especially on long-horizon tasks~[cite: bc_en,wong2025widesearch]. (1) Prevailing ReAct-based agents~[cite: yao2023react,wu2025webdancer,li2025websailor], which accumulate the entire history of reasoning-action-observation triplets in their context, preserve informational integrity but severely suffer from the overwhelming noise of raw web data, leading to suboptimal actions. (2) Conversely, recent approaches~[cite: zhou2025mem1,yu2025memagent,wang2025uitars2] that mechanically summarize the full history at every step maintain a clean context but risk the premature and irreversible loss of crucial details during any single summarization phase. These fundamental limitations reveal a critical gap in current methodologies, signaling the necessity for a next-generation agent paradigm with advanced context management.",
+    "translation": "当代网页 agent 的关键挑战是上下文完整性和简洁性之间的折中。保留完整历史可以避免遗漏证据，但会让模型面对大量无关页面、失败尝试和重复信息；过度总结可以节省 token，却可能把未来推理所需的细节删掉。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "In this paper, we posit that an ideal agent should manage its internal context like a human's mental scratchpad: a workspace to be actively managed, not passively filled~[cite: miller1956magical]. Human problem-solving entails neither the exhaustive retention of all information nor its rigid, step-wise summarization. Instead, it is a process of disciplined, retrospective consolidation performed at critical points. This involves a dynamic `look-back' mechanism: after several actions, irrelevant steps are discarded, intermediate findings are distilled, and key insights are abstracted~[cite: newell1972human]. This self-correcting act of consolidation is what enables effective and sustained reasoning, a capability we believe is essential for effective long-horizon reasoning and exploration in an agent.",
+    "translation": "作者认为理想 agent 应像人类使用心理草稿纸一样管理内部上下文：不是把所有经历原样堆上去，而是在回看时丢弃无关步骤、提炼中间发现、抽象关键洞见。这个类比直接导向 AgentFold 的主动折叠机制。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "Following this spirit, we introduce AgentFold, an agent architected to proactively and intelligently `fold' segments of context during task execution. It operates not on a monolithic log, but on a dynamic trajectory composed of Multi-Scale State Summaries—several distilled records of past events—and the Latest Interaction, which is the complete record of the most recent action and observation. At each intermediate step of task-solving trajectory, AgentFold conducts deep reasoning that leads to two concurrent outputs: a folding directive and a tool call. This folding directive has a dual (two-scale) character: (1) as a granular condensation, it crystallizes the Latest Interaction into a new state summary, appending it to the sequence of State Summaries; (2) or as a deep consolidation, it fuses the Latest Interaction with a chain of prior summaries, retracting these specific entries and replacing them with a single abstraction at a coarser strategic scale. This is powerful for maintaining logical coherence and conciseness, for instance, by packaging a completed sub-investigation into its final conclusion. Simultaneously, the resulting observation from the executed tool call then, combined with the action, constitutes the new Latest Interaction for the subsequent cycle. By choosing what and how much to fold, AgentFold transcends the brutal trade-off between retaining noisy details and risking catastrophic information loss. This capability equips AgentFold with a focused and deeply informed reasoning process, essential for conquering long-horizon challenges.",
+    "translation": "AgentFold 在任务执行过程中主动折叠上下文片段。它不是对固定窗口做统一压缩，而是在每个中间步骤判断应该折叠什么、折叠多少、保留多细。折叠既可以是单步粒度的保真压缩，也可以是多步子任务的深度合并。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "Training AgentFold requires a dataset that does not yet exist: trajectories that demonstrate a sophisticated interplay of situational action and strategic context curation. To this end, we develop Fold-Generator, a specialized LLM-oriented data collection pipeline that can automatically generate trajectories for training. Recognizing that even the most advanced LLMs cannot reliably produce AgentFold's structured, multi-part responses through prompt engineering along, we leverage a series of rejection sampling mechanism and finally fine-tunes AgentFold based on open-source LLMs.",
+    "translation": "训练 AgentFold 需要一种原本不存在的数据：轨迹中不仅要展示如何行动，还要展示如何管理上下文。作者因此用生成和筛选机制构造高质量交互对，再用监督微调把这种折叠能力蒸馏进开源模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "To validate our folding paradigm, we implement AgentFold by conducting supervised fine-tuning on the Qwen3-30B-A3B model~[cite: yang2025qwen3]. The results on prominent information-seeking benchmarks are striking. Our resulting AgentFold-30B-A3B achieves state-of-the-art performance, scoring 36.2% on BrowseComp~[cite: bc_en], 47.3% on BrowseComp-ZH~[cite: bc_zh], 62.1% on WideSearch~[cite: wong2025widesearch], and 67.0% on general benchmark GAIA~[cite: mialon2023gaia]. Notably, this performance not only surpasses leading proprietary agents like OpenAI's o4-mini~[cite: o3] but also matches or surpasses open-source models of a dramatically larger scale, such as the GLM-4.5-355B-A32B~[cite: zeng2025glm] and the DeepSeek-V3.1-671B-A37B~[cite: deepseekv3.1].",
+    "translation": "作者用 Qwen3-30B-A3B 作为底座训练 AgentFold。结果显示，该模型在 BrowseComp、BrowseComp-ZH、WideSearch 和 GAIA 上都取得强表现，说明主动上下文折叠不是抽象概念，而能转化为长程网页任务的实际收益。更具体地说，论文报告 BrowseComp 为百分之三十六点二，BrowseComp-ZH 为百分之四十七点三，WideSearch 为百分之六十二点一，GAIA 为百分之六十七。这些数字说明，模型规模不是唯一因素；当长程历史被整理成可继续推理的工作区时，较小模型也能在复杂检索任务中维持竞争力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related Works",
+    "page": 3,
+    "sourceText": "Related Works",
+    "translation": "相关工作部分把 AgentFold 放在网页 agent 和上下文管理两条研究线中讨论。前者强调长程搜索和信息综合，后者关注如何让模型获得合适、有效且不会膨胀的上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related Works",
+    "page": 3,
+    "sourceText": "Web Agents. The advent of LLM-based web agents marks a paradigm shift how human seeks information, as these agents could tirelessly and broadly search and synthesize web information. Pioneering efforts such as OpenAI's deep research~[cite: dr] have demonstrated their promising potential, attracting massive interests from both academia and industry~[cite: zhang2025landscape]. The majority of contemporary web agents are architected upon the influential ReAct paradigm~[cite: yao2023react], where an agent iteratively interacts with an environment in a reasoning-action-observation loop. Examples include WebThinker~[cite: li2025webthinker], WebDancer~[cite: wu2025webdancer], WebSailor~[cite: li2025websailor], WebSailor-V2~[cite: li2025websailorv2], WebShaper~[cite: tao2025webshaper], WebExplorer~[cite: liu2025webexplorer] that focus on dataset construction; X-Master~[cite: chai2025scimaster] and BrowseMaster~[cite: pang2025browsemaster] that focus on test-time scaling~[cite: masgpt]. However, the append-only context inherent to the ReAct paradigm leads to context saturation on long-horizon tasks, impairing reasoning as critical signals become buried in noise. Our work addresses this vulnerability by empowering AgentFold to proactively sculpt its cognitive workspace, ensuring the context remains focused and efficient.",
+    "translation": "网页 agent 相关工作推动了从单次问答到长期信息检索的范式变化。WebThinker、WebDancer、WebSailor 等工作强调数据构造、搜索策略和测试时扩展，但 ReAct 式追加历史仍容易在长程任务中让关键信号被噪声淹没。这些工作证明网页 agent 可以持续搜索、浏览和综合信息，但大多数当代系统仍以 ReAct 为基础，把观察和行动不断追加到上下文。随着任务变长，原始历史会把关键信号埋没，导致模型越来越难判断哪些证据仍然有用。AgentFold 针对的正是这个脆弱点。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related Works",
+    "page": 4,
+    "sourceText": "Context Management. Context management, or context engineering, is an emerging research topic aiming to provide LLM agents with an appropriate and effective context~[cite: context_survey,qiao2025webresearcher]. A significant line of research focuses on External Context Augmentation, which injects relevant knowledge from sources outside the current task trajectory—such as user profiles or past conversations—to provide a richer, more personalized context~[cite: li2025memos,chhikara2025mem0,xu2025amem,memory3]. Our work, in contrast, pursues Intra-Task Context Curation, which focuses on managing the context generated within the task itself to maintain relevance and efficiency over long horizons. Along this line, MEM1~[cite: zhou2025mem1] and MemAgent~[cite: yu2025memagent] are two recent attempts that compress the full history at each step. However, these methods employ a rigid, step-wise summarization policy and have been primarily evaluated on simpler, retrieval-focused tasks like HotpotQA~[cite: yang2018hotpotqa]. Unlike these methods, AgentFold introduces a flexible look-back mechanism that avoids rigid, step-wise compression by retrospectively evaluating and selectively folding multi-step interactions at different scales, a capability crucial for complex, long-horizon tasks~[cite: bc_en,bc_zh].",
+    "translation": "上下文管理或上下文工程旨在为 LLM agent 提供合适有效的上下文。已有方法包括记忆、检索、窗口压缩和摘要，但许多策略是固定的，无法根据任务轨迹动态决定哪些步骤需要保真保存、哪些步骤可以抽象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold: Web Agent with Proactive Context Folding",
+    "page": 5,
+    "sourceText": "AgentFold: Web Agent with Proactive Context Folding",
+    "translation": "方法章节介绍 AgentFold：一个面向长程网页任务、具备主动上下文折叠能力的 agent。它的目标是在细节保留和上下文简洁之间动态折中。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 5,
+    "sourceText": "Overview",
+    "translation": "总览部分解释 AgentFold 的两个核心设计：一是把上下文划分为多尺度状态摘要和最近交互，二是让模型在每一步输出行动的同时输出折叠指令。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 5,
+    "sourceText": "AgentFold is a novel web agent designed to tackle complex, long-horizon tasks by emulating a key aspect of human cognition: proactive and structured context/memory management. At its core, AgentFold makes two primary designs: first, it defines the agent's context not as a monolithic log, but as a dynamic cognitive workspace. Second, it empowers the agent to proactively operate upon and sculpt this workspace as an intrinsic part of its reasoning process.",
+    "translation": "AgentFold 模仿人类的主动结构化记忆管理来解决复杂长程任务。它的两个设计是：把上下文划分成长期的多尺度状态摘要和短期的最近交互；让 agent 自主生成 folding 指令，主动维护自己的认知工作区。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 5,
+    "sourceText": "AgentFold's workspace (i.e., context) is explicitly partitioned into the invariant user question, the curated Multi-Scale State Summaries representing long-term memory, and the high-fidelity Latest Interaction serving as the immediate working memory. Based on this workspace, the agent's operational process unfolds iteratively. In a typical step, its reasoning yields a multi-part response comprising a folding directive to manage historical state summaries, an explanation of its thought process, and the next action. The folding directive is immediately applied to update the Multi-Scale State Summaries for future steps, while the explanation, the executed action and its resulting observation form the new Latest Interaction for the subsequent cycle. This process repeats until the agent determines it has gathered sufficient information to provide an accurate final answer, with the initial step being a special case that omits the folding directive due to the absence of prior history.",
+    "translation": "AgentFold 的工作区被显式分成不变的用户问题、可用工具、经过整理的多尺度状态摘要，以及高保真的最近交互。这个划分让 agent 同时拥有长期战略记忆和短期情境细节，避免只依赖一条不断增长的原始轨迹。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 6,
+    "sourceText": "This operational cycle establishes a powerful perceive -> reason -> fold -> act loop, where context curation is an explicit, learned step rather than a passive byproduct. By synergizing a well-defined cognitive workspace with the agent's autonomy to manipulate it, AgentFold directly resolves the critical trade-off between retaining granular details and preventing context inflation, enabling a more focused and efficient reasoning process for complex, long-horizon challenges.",
+    "translation": "AgentFold 的操作循环可以概括为感知、推理、折叠、行动。上下文整理不是事后副产品，而是每一步决策中的显式可学习动作；模型在决定下一次工具调用之前，也要决定如何处理刚刚产生的历史。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Overview",
+    "page": 6,
+    "sourceText": "Overview of AgentFold at an intermediate step. The two key parts in AgentFold' context are: Multi-Scale State Summaries (several folded blocks recording previous information) and Latest Interaction (a full record of the latest step). AgentFold responds with four blocks: thinking, folding, explanation, and tool call (which leads to an appended tool response). The folding directive has two operation modes: granular condensation that folds one single step with useful information reserved and deep consolidation that folds several steps with a coarse summary especially when these steps complete a sub-task and the intermediate details are not critical for further task-solving.",
+    "translation": "这张图是 AgentFold 的方法总览。上下文由多尺度状态摘要和最近一次交互组成；模型输出 thinking、folding、explanation 和 tool call 四个块。folding 指令可以做细粒度压缩，也可以把多个步骤深度合并成一个更粗粒度摘要。图中还强调，folding 指令不是简单摘要命令，而是上下文管理动作。细粒度压缩会保留某一步的有用发现，深度合并会把多个步骤压成一个子任务级结论。工具响应随后被追加为最近交互，并在下一轮再被模型判断是否需要折叠。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/agentfold.png",
+    "kind": "figure"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 6,
+    "sourceText": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "translation": "这一节详细定义 AgentFold 的上下文结构。它将用户问题和工具保持不变，把较早历史整理成多尺度状态摘要，同时保留最近一步的高保真交互作为工作记忆。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 6,
+    "sourceText": "The performance of a web agent is critically dependent on the quality and structure of the context it receives. To this end, we design AgentFold's context as a dynamic cognitive workspace partitioned into four distinct components (i.e., user question, available tools, multi-scale state summaries, and latest interaction) to enable both strategic long-range planning and precise situational action.",
+    "translation": "网页 agent 的表现高度依赖输入上下文的质量和结构。AgentFold 因此把上下文设计成动态认知工作区，包括用户问题、工具、多尺度摘要和最新交互，既支持长程规划，也支持当前步骤的精确行动。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 6,
+    "sourceText": "(1) The question serves as an anchor, constantly reminding the agent of its ultimate objective. (2) The list of available tools defines the agent's capacity for action within its environment. This component provides a detailed schema for each tool—including its name, description, and required parameters—outlining the agent's entire suite of executable operations. (3) The Multi-Scale State Summaries function as the agent's curated long-term memory. This component preserves the sequential, logical flow of the trajectory, with past steps recorded at different scales based on their perceived utility for future actions. This multi-scale structure allows critical findings to be retained as distinct, fine-grained summaries, while less critical intermediate steps can be consolidated into coarser, more abstract blocks. Consequently, it retains a coherent historical narrative while minimizing informational noise. (4) The Latest Interaction acts as a high-fidelity working memory. It provides the complete, complete record of the most recent transaction—including the agent's brief thinking (explanation), the executed tool call, and the resulting observation. This full transparency into the immediate past is crucial for providing the situational awareness needed to make a sound decision, which involves both how to selectively fold this new information and what action to generate next. The entire architecture mirrors how humans leverage a stable goal, consolidated knowledge, and a volatile working memory.",
+    "translation": "用户问题作为锚点，持续提醒 agent 最终目标；工具列表定义可执行动作；多尺度状态摘要提供压缩后的长期记忆；最近交互则保留最后一步的完整细节。这四部分一起构成可控的上下文结构。其中工具 schema 包括工具名称、描述和参数，决定 agent 能在环境中执行什么；多尺度摘要像长期记忆，帮助模型把早期发现带到后续推理；最近交互则像工作记忆，保存当前动作最需要的观察、解释和工具返回。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 7,
+    "sourceText": "Specifically, the context $C_t$ provided to the agent at step $t$ is a triplet:",
+    "translation": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction这一块说明 AgentFold 论文中的一个关键环节。它强调长程网页 agent 不能只追加完整历史，也不能每轮统一压缩全部上下文；更合理的做法是让模型学习主动折叠历史轨迹，在细粒度细节和粗粒度战略摘要之间动态选择。通过这种机制，agent 可以保留关键证据、压缩失败路径、避免上下文饱和，并在 BrowseComp、WideSearch 和 GAIA 等基准上展现更强的长程求解能力。这句话引出形式化定义：第 $t$ 步上下文不是完整历史，而是由固定问题、工具、多尺度摘要和最近交互共同组成。这个定义为后续公式铺垫，也说明 AgentFold 的上下文管理是结构化接口，不是随意把历史剪短。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 7,
+    "sourceText": "\\begin{equation}\n    C_t = (Q, T, S_{t-2}, I_{t-1})\n\\end{equation}",
+    "translation": "这个公式定义第 $t$ 步给 AgentFold 的上下文 $C_t$：它由用户问题 $Q$、工具列表 $T$、截至前一阶段的多尺度状态摘要 $S_{t-2}$，以及最近交互 $I_{t-1}$ 组成。公式表达了论文的核心设计：长期历史不是原样追加，而是以摘要块形式进入上下文。",
+    "kind": "equation"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 7,
+    "sourceText": "where $Q$ and $T$ are the invariant user question and tools, respectively. $S_t-2$ represents the Multi-Scale State Summaries, a dynamically updated sequence of condensed summaries from previous steps. Formally, we represent $S_t-2$ as an ordered sequence of summary blocks:",
+    "translation": "这里解释公式中的变量：$Q$ 和 $T$ 分别是不变的用户问题和工具，$S$ 是动态更新的多尺度摘要序列，$I$ 是最近交互。这个结构让 AgentFold 不必把全部历史原样放进上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 7,
+    "sourceText": "\\begin{equation}\n    S_t = (s_{x_1, y_1}, s_{x_2, y_2}, \\ldots, s_{x_m, y_m})\n\\end{equation}",
+    "translation": "这个公式把多尺度状态摘要 $S_t$ 写成若干连续步骤块的摘要序列。每个 $s_{x,y}$ 都对应从第 $x$ 步到第 $y$ 步的一段历史，说明 AgentFold 的记忆不是单一摘要，而是按时间区间组织的压缩块。",
+    "kind": "equation"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 7,
+    "sourceText": "where each $s_x,y$ is a textual summary of the contiguous block of steps from $x$ to $y$. The step ranges partition the entire history up to the previous step, such that $x_1=1$, $y_m=t-2$, and $x_i+1 = y_i + 1$ for all $i$. This notation explicitly captures the multi-scale property: a summary of a single, independent step is denoted as $s_x,x$ (where $y=x$), whereas a summary representing the consolidation of a multi-step process (e.g., verifying a condition over several steps) is denoted as $s_x,y$ (where $y>x$). The third component, $I_t-1$, is the Latest Interaction, a verbose, complete record of the previous step's full transaction. It is formed by concatenating the explanation, action, and observation from step $t-1$: $I_t-1 = (e_t-1, a_t-1, o_t-1)$. For the initial step ($t=1$), the context is initialized as $C_1 = (Q, T,, )$, containing only the user's question; while for step 2, the context is set as $C_2 = (Q, T,, I_1)$, containing the user question and latest interaction.",
+    "translation": "每个 $s_{x,y}$ 都是一段连续步骤的文本摘要，所有步骤区间共同覆盖此前历史。AgentFold 可以保留关键发现为细粒度块，也可以把不重要的中间探索合并成更粗摘要，从而形成多尺度记忆。如果 $x=y$，摘要只对应单个独立步骤，适合保存细粒度证据；如果 $x<y$，摘要代表多个连续步骤的合并，适合封装完整子任务或失败搜索路径。通过这种区间划分，AgentFold 可以保证过去历史被覆盖，同时避免每一步都以原始形态占用上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Context: Multi-Scale State Summaries, Latest Interaction",
+    "page": 8,
+    "sourceText": "This structured context design offers the best of both worlds. The Latest Interaction provides the raw, granular detail necessary for the agent to make informed, short-term decisions without any loss of information. Simultaneously, the Multi-Scale State Summaries offer a noise-free, abstracted overview of the mission so far, preventing the agent from getting lost in irrelevant details and enabling coherent long-term reasoning. This structure directly mitigates the trade-off between context comprehensiveness and conciseness that hinges contemporary web agents.",
+    "translation": "这种结构兼顾两种需求：最近交互保留原始细节，帮助 agent 做短期行动判断；多尺度摘要提供去噪后的任务全局视图，防止模型迷失在无关网页、失败调用和重复内容里。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "page": 8,
+    "sourceText": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "translation": "这一节定义 AgentFold 的响应结构。模型输出不再只是一个工具调用，而是同时包含思考、折叠、解释和动作，使上下文整理成为可学习的显式行为。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "page": 8,
+    "sourceText": "Complementing its structured cognitive workspace, AgentFold's response is not a monolithic command but a multi-faceted output that reflects its dual role as both a situational problem-solver and a strategic context manager. At each step, the agent generates a single, coherent block of text that is parsed into three components, each designed to operate on its context: a directive to fold its long-term memory, an explanation to articulate its motivation behind the following action, and an action to propel the task forward. This design integrates context management as a core, learnable component of the agent's reasoning process, rather than treating it as a passive byproduct.",
+    "translation": "AgentFold 的响应不是单一命令，而是一个多部分输出。它同时扮演情境问题求解者和战略上下文管理员：一边决定下一步工具调用，一边决定如何折叠历史。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "page": 8,
+    "sourceText": "Specifically, at each step $t$, AgentFold generates a response $R_t$ based on the context $C_t$ and model $$. This response is a single, coherent block of text designed to be parsed into a quadruplet:",
+    "translation": "在第 $t$ 步，AgentFold 根据上下文生成一个可解析为四元组的响应：思考、折叠、解释和动作。这个四元组让训练数据和推理过程都能显式监督上下文管理行为。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "page": 8,
+    "sourceText": "\\begin{equation}\n    R_t = \\text{AgentFold}(C_t; \\theta) \\rightarrow (th_t, f_t, e_t, a_t)\n\\end{equation}",
+    "translation": "这个公式定义第 $t$ 步给 AgentFold 的上下文 $C_t$：它由用户问题 $Q$、工具列表 $T$、截至前一阶段的多尺度状态摘要 $S_{t-2}$，以及最近交互 $I_{t-1}$ 组成。公式表达了论文的核心设计：长期历史不是原样追加，而是以摘要块形式进入上下文。",
+    "kind": "equation"
+  },
+  {
+    "section": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "page": 8,
+    "sourceText": "Here, $th_t$ is the thinking process, a detailed chain-of-thought monologue where the agent analyzes its context ($C_t$) and weighs options for both context folding and the subsequent action. From this internal deliberation, the other three structured components are derived. (1) The folding directive ($f_t$) is the agent's explicit command for sculpting its Multi-Scale State Summaries $S_t-2$. It takes the form of a JSON object: $f_t = \"range\":[$k$ $t-1$_t$, where $k$ is the starting ID for folding and $_t$ is the replacement summary text that can be proactively determined by AgentFold itself. This single format supports two modes of context management that operate at different scales: • [] Granular Condensation ($k=t-1$): This operation folds only the Latest Interaction into a new, fine-grained summary. It is used for incremental steps, preserving the highest resolution of the historical trajectory by converting a single verbose record into a compact summary block (e.g., `[Compressed Step 5] Found a new candidate XYZ that needs further exploration.'). • [] Deep Consolidation ($k < t-1$): This operation performs a change of scale by fusing the Latest Interaction with a chain of prior summaries into a single, coarse-grained summary. This is powerful for abstracting away noisy, intermediate steps once a sub-task is complete. For instance, an agent might spend multiple steps verifying a single fact, navigating through irrelevant websites or encountering failed tool calls. Deep consolidation allows the agent to retract this entire verbose sequence and replace it with a single, conclusive summary (e.g., `[Compressed Step 5 to 9] Confirmed that XYZ does not fit all criteria after checking several sources]'). This directive transforms Multi-Scale State Summaries $S_t-2$ into $S_t-1$ by retracting all summary blocks whose steps fall within the range $[k, t-1]$ and replacing them with a single new summary block, $s_k, t-1=_t$. (2) The explanation ($e_t$) is a concise summary of the key insights from the thinking process, articulating the motivation for the chosen action. (3) Finally, $a_t$ is the agent's chosen external action, which is either a tool call with specified tool name and tool arguments, or the final answer if the agent deems that no further interaction is required. When another tool call is invoked, the tool will be executed to obtain the observation $o_t$ from the environments. Finally, the question $Q$, tools $T$, the new Multi-Scale State Summaries $S_t-1$ and Latest Interaction $I_t=(e_t, a_t, o_t)$ constitute the AgentFold's context $C_t+1=(Q,T,S_t-1,I_t)$ for the next step $t+1$.",
+    "translation": "思考部分分析上下文并权衡行动与折叠选择；折叠指令指定要压缩的历史范围和替换摘要；解释部分说明行动理由；动作部分发起工具调用。细粒度压缩保留单步细节，深度合并则把多个步骤抽象成一个子任务结论。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Response: Thinking, Folding, Explanation, Action",
+    "page": 9,
+    "sourceText": "This structured response architecture engenders a powerful cognitive symbiosis between the agent's two core deliberations: planning the next action and curating its own context. (1) The explicit requirement to formulate a folding directive compels the agent to critically evaluate its trajectory and distill the most salient information from its historical context. This act of reflection inherently sharpens its understanding of the current state, leading to a more informed and effective subsequent action. (2) Conversely, the process of planning a new action necessitates a purposeful interrogation of its recent history to identify pivotal clues. This very process of determining what is immediately relevant provides a perfect, real-time signal for what is worth preserving in a folded summary. This tight coupling of acting and reflecting ensures that AgentFold's behavior is both purposeful and efficient, creating a self-regulating loop that simultaneously enhances the quality of its actions and the coherence of its context memory.",
+    "translation": "这种响应结构让行动规划和上下文管理形成协同。模型不是先做完任务再回头总结，而是在每一步把“下一步怎么做”和“历史怎么整理”一起考虑，从而形成自我调节循环。显式 folding 要求迫使模型审视自己的轨迹，从历史中提取最重要的信息；同时，整理上下文的过程也会反过来帮助模型理解当前任务状态。行动和折叠因此不是两个割裂模块，而是共同构成一种边执行边反思的认知循环。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Training: Data Trajectory Collection",
+    "page": 10,
+    "sourceText": "AgentFold's Training: Data Trajectory Collection",
+    "translation": "训练部分说明为什么需要构造专门轨迹数据。普通网页 agent 数据只教模型行动，而 AgentFold 还需要学会在行动时判断哪些历史应该被保留、压缩或合并。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Training: Data Trajectory Collection",
+    "page": 10,
+    "sourceText": "Training AgentFold requires a dataset that does not yet exist: trajectories that demonstrate a sophisticated interplay of situational action and strategic context curation. To this end, we develop Fold-Generator, a specialized data collection pipeline built upon powerful open-source Large Language Models (LLMs) to generate the necessary trajectory training data. To ensure a fair and direct comparison with prior work, we utilize the same question set as the recent WebSailor work~[cite: li2025websailorv2]. We find that even the most advanced LLMs cannot reliably produce AgentFold's accurate, structured, multi-part responses through prompt engineering alone. To relieve the effects of this, we leverage a rejection sampling mechanism, discarding any generated step that fails to strictly adhere required formats, or any trajectory that contains too many environmental errors. This ensures every data point in our collection is a clear example of the desired reasoning process.",
+    "translation": "训练 AgentFold 需要一种原本不存在的数据：轨迹中不仅要展示如何行动，还要展示如何管理上下文。作者因此用生成和筛选机制构造高质量交互对，再用监督微调把这种折叠能力蒸馏进开源模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Training: Data Trajectory Collection",
+    "page": 11,
+    "sourceText": "Specifically, the output of the Fold-Generator is a collection of high-quality interaction pairs, $ (C_t, R_t^*) _N$, where each $C_t$ is the structured context, $R_t^*$ is the validated, gold-standard response, and $N$ is the total number of interaction steps across all questions. This curated dataset is then used for conducting conventional Supervised Fine-Tuning (SFT) on open-source LLMs. The training objective is to distill the complex, multi-step, validated reasoning of our pipeline into a single, efficient forward pass, thereby teaching the model to produce the entire structured output intrinsically.",
+    "translation": "Fold-Generator 生成的训练样本是结构化上下文和理想响应对，其中响应包含折叠指令、解释和工具行动。这些数据把原本昂贵的生成筛选策略蒸馏到最终模型权重中，使模型推理时能直接执行折叠。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentFold's Training: Data Trajectory Collection",
+    "page": 11,
+    "sourceText": "This training methodology is not merely an implementation choice but a necessity that yields critical advantages. Primarily, it transforms the agent's ability to `fold` from a fragile, prompt-dependent instruction into a robust, internalized skill. Furthermore, the SFT process effectively distills the computationally intensive `generate-and-filter` strategy into the weights of the final AgentFold model. This results in a specialized agent that is not only highly capable but also significantly more efficient at inference time than the general-purpose models used for data collection. Finally, by building this entire pipeline on open-source models, we maintain full transparency and control over the data and training process, enabling detailed inspection and future iteration.",
+    "translation": "这种训练方法不仅是实现细节，也是必要条件。它把上下文折叠从提示诱导的脆弱行为变成模型学到的能力，使 AgentFold 能在长程任务中稳定输出结构化的折叠和行动。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussions",
+    "page": 11,
+    "sourceText": "Discussions",
+    "translation": "讨论部分解释 AgentFold 相比 ReAct 和固定总结策略的概念优势。它不是被动接受上下文政策，而是把自己变成一个能管理知识的 agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussions",
+    "page": 11,
+    "sourceText": "AgentFold's design offers a novel approach to context management, resolving the trade-off between the append-only history of ReAct, which leads to context saturation, and uniform full-history summarization, which risks irreversible information loss. The primary advantage lies in the agent's ability to adapt its folding strategy. It can employ Granular Condensation to preserve a potentially vital, fine-grained detail, protecting it from the indiscriminate compression of a full-history summarizer. Conversely, it can use Deep Consolidation to prune an entire concluded sub-investigation, combating the noise accumulation found in ReAct. Crucially, the ability to delay consolidation until a sub-task's outcome is clear allows for more informed and less short-sighted curation decisions.",
+    "translation": "AgentFold 解决的是 ReAct 追加历史和固定全局摘要之间的折中。追加历史保证细节但会饱和，统一摘要保持简洁但会丢失关键证据。AgentFold 用粒度可变的折叠操作在两者之间动态选择。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussions",
+    "page": 11,
+    "sourceText": "This flexibility is critical for maintaining long-term informational integrity. To illustrate, if we assume a modest 1% chance of a key detail being lost each time the full history is re-summarized, the probability of a finding from step 1 surviving until step 100 reduces to just $ 36.6% (0.99^100)$. This risk is exacerbated in extremely long-horizon tasks; after 500 steps, for instance, the survival probability for the same detail collapses to only 0.66% ($0.99^500$). AgentFold's Granular Condensation directly mitigates this compounding risk by preserving the detail in a distinct block, exempting it from unnecessary reprocessing. In parallel, ReAct's append-only policy faces the deterministic certainty of context saturation, where after 100 steps the context is burdened by the full verbosity of every past interaction. AgentFold's Deep Consolidation addresses this by surgically pruning such irrelevant traces, ensuring the context remains both focused and computationally manageable.",
+    "translation": "作者用一个简单概率例子说明固定摘要的风险：如果每次完整重写都有很小概率丢失关键细节，经过许多轮后保留全部关键细节的概率会迅速下降。细粒度压缩可以避免让已经保留的关键块反复经历这种损耗。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Discussions",
+    "page": 12,
+    "sourceText": "This represents a conceptual leap from agents with static, predefined context policies to those as self-aware knowledge managers. By integrating context curation as a learnable, core action, AgentFold learns sophisticated, task-specific strategies for what to remember, what to abstract, and what to discard. This ability to actively shape its own informational workspace is the key to its enhanced robustness and efficiency, enabling it to dynamically balance the need for granular detail with a coherent long-term plan on complex, long-horizon challenges.",
+    "translation": "AgentFold 把 agent 从静态上下文政策使用者推进为自我感知的知识管理者。它会学习什么该记住、什么该抽象、什么该丢弃，这种能力是长程任务鲁棒性和效率提升的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 12,
+    "sourceText": "Experiments",
+    "translation": "实验部分评估 AgentFold 在 BrowseComp、BrowseComp-ZH、WideSearch 和 GAIA 等信息检索与通用 agent 基准上的表现，并分析上下文长度、块数量和轮数扩展能力。实验不仅关心最终准确率，也关心上下文是否真的被控制住。因此论文除了主结果表，还分析 token 数增长、块数量增长、与 ReAct 的上下文长度差异、工具调用轮数扩展，以及具体案例中的失败路径折叠。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 12,
+    "sourceText": "Implementation. We train our AgentFold based on open-source LLM Qwen3-30B-A3B-Instruct-2507~[cite: yang2025qwen3] with 30B parameters in total and 3B activated during prediction. We set the max tool call number as 100, any trajectory beyond this number will be forcibly terminated.",
+    "translation": "作者用 Qwen3-30B-A3B 作为底座训练 AgentFold。结果显示，该模型在 BrowseComp、BrowseComp-ZH、WideSearch 和 GAIA 上都取得强表现，说明主动上下文折叠不是抽象概念，而能转化为长程网页任务的实际收益。实现细节还包括最大工具调用次数设为一百，超过该轮数的轨迹会被强制终止。这个设置让长程能力有统一评测边界，也使后续上下文动态分析可以围绕一百轮交互观察 token 和块数量变化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 12,
+    "sourceText": "Benchmarks. We consider 3 information-seeking benchmarks including BrowseComp~[cite: bc_en], BrowseComp-ZH~[cite: bc_zh], and WideSearch-en (the most detailed metric: Item-F1)~[cite: wong2025widesearch]; and 1 general benchmark: GAIA (text-only subset)~[cite: mialon2023gaia]. Note that BrowseComp and BrowseComp-ZH mainly evaluates the agent's capability in locating hard-to-find information; WideSearch emphasizes on capability of broad search; and GAIA is for evaluating general capabilities of AI agents. For benchmarks with less than 200 samples, we report the averaged results on 3 trials.",
+    "translation": "评测包含三个信息检索基准 BrowseComp、BrowseComp-ZH、WideSearch-en，以及一个通用基准 GAIA 文本子集。样本较少的基准会报告三次试验平均值，以减轻随机性影响。BrowseComp 和 BrowseComp-ZH 主要考察定位难找信息的能力；WideSearch 更强调复杂、多方面的信息搜索，并使用 Item-F1 等细粒度指标；GAIA 文本子集则提供更通用的 agent 推理评测。这些任务共同覆盖长程搜索、证据整合和多步工具使用。这里的英文名称主要是基准和模型名，不是未翻译原文。为了读者理解，可以把它们概括为四类比较对象：长程英文检索、长程中文检索、宽范围信息综合和通用工具型任务。论文希望说明，主动折叠上下文不仅在某个数据集上有效，也能在不同语言、不同任务形态和不同规模模型比较中保持优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 12,
+    "sourceText": "Baselines. We comprehensively compare our AgentFold-30B-A3B with representative open-source agents including WebThinker~[cite: li2025webthinker], WebDancer~[cite: wu2025webdancer], WebSailor~[cite: li2025websailor], ASearcher~[cite: gao2025beyond], MiroThinker~[cite: 2025mirothinker], WebExplorer~[cite: liu2025webexplorer], DeepDive~[cite: deepdiver], DeepDiver-V2~[cite: deepdiver2], Kimi-K2-Instruct~[cite: kimi-k2], GLM-4.5~[cite: zeng2025glm], and DeepSeek-V3.1~[cite: deepseekv3.1]. We also report performances of several proprietary agents for reference, including Claude-4-Sonnet/Opus~[cite: claude4], OpenAI-o4-mini/o3~[cite: o3] and OpenAI Deep Research~[cite: dr]. Some results are taken from corresponding papers or leaderboards.",
+    "translation": "基线覆盖代表性开源 agent 和专有系统，包括 WebThinker、WebDancer、WebSailor、WebExplorer、DeepDive、Kimi-K2、GLM-4.5、DeepSeek-V3.1，以及 OpenAI 和 Claude 等闭源 agent。这样的比较用于证明 AgentFold 不只是比弱基线好。基线列表横跨不同路线：有专门为网页搜索构造数据的 agent，有强调测试时扩展的大模型系统，也有参数规模远大于 AgentFold 的通用模型。和这些系统比较，是为了说明主动上下文折叠能在模型规模不占优的情况下带来实际竞争力。这里的英文名称主要是基准和模型名，不是未翻译原文。为了读者理解，可以把它们概括为四类比较对象：长程英文检索、长程中文检索、宽范围信息综合和通用工具型任务。论文希望说明，主动折叠上下文不仅在某个数据集上有效，也能在不同语言、不同任务形态和不同规模模型比较中保持优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "Results and Analysis",
+    "translation": "结果分析部分给出主表、上下文动态、轮数扩展和案例研究。它既证明 AgentFold 的任务效果，也证明其上下文管理机制确实让长程交互更可控。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "Main results, presented in Table~tab:main, demonstrate that AgentFold-30B-A3B establishes a new state of the art for open-source agents and is highly competitive with leading proprietary systems. Notably, it solidifies its dominance in the open-source landscape by outperforming models up to 20 times its size, scoring 36.2% on BrowseComp against the 671B DeepSeek-V3.1's 30.0%. Furthermore, AgentFold proves its capability at the highest level by achieving the best overall score of 62.1% on WideSearch, surpassing all proprietary agents including OpenAI-o3 and Claude-4-Sonnet. These results underscore the profound impact of our architectural innovations, showcasing how effective context management can bridge the performance gap with dramatically larger models.",
+    "translation": "主结果表明 AgentFold-30B-A3B 成为强开源 agent，并能与领先闭源系统竞争。它在 BrowseComp 上得到 36.2%，超过 671B 规模的 DeepSeek-V3.1；在 WideSearch 上达到 62.1%，超过包括 OpenAI-o3 和 Claude-4-Sonnet 在内的多个专有 agent。这里还强调 AgentFold 在开源生态中的优势：它以三十亿激活参数的 MoE 模型，超过参数规模二十倍左右的 DeepSeek-V3.1。WideSearch 上的最好整体成绩也说明，主动上下文管理不仅帮助中文或英文单一任务，而能支撑更复杂的信息综合。这里的英文名称主要是基准和模型名，不是未翻译原文。为了读者理解，可以把它们概括为四类比较对象：长程英文检索、长程中文检索、宽范围信息综合和通用工具型任务。论文希望说明，主动折叠上下文不仅在某个数据集上有效，也能在不同语言、不同任务形态和不同规模模型比较中保持优势。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "Main results. AgentFold-30B-A3B achieves remarkable performance, surpassing open-source agents with much larger model size such as DeepSeek-V3.1-671B-A37B and matching proprietary agents such as OpenAI-o4-mini, indicating the potential of this new paradigm.",
+    "translation": "这张主结果表比较 AgentFold-30B-A3B 与多个开源和闭源网页 agent 在 BrowseComp、BrowseComp-ZH、WideSearch 和 GAIA 上的表现。核心结论是，AgentFold 用三百亿总参数、预测时三十亿激活参数的模型，在多个长程信息检索基准上达到开源 SOTA，并能匹配或超过部分领先专有 agent。表格中的指标、基线和主结果共同支撑论文主张：主动上下文管理可以弥补模型规模差距。读这张表时应同时看任务类型和模型规模。BrowseComp 检验难找事实定位，BrowseComp-ZH 检验中文检索，WideSearch 强调宽范围信息综合，GAIA 则偏通用 agent 能力。AgentFold 在这些指标上的均衡表现，说明 folding 范式不是只针对某一个数据集调参。这里的英文名称主要是基准和模型名，不是未翻译原文。为了读者理解，可以把它们概括为四类比较对象：长程英文检索、长程中文检索、宽范围信息综合和通用工具型任务。论文希望说明，主动折叠上下文不仅在某个数据集上有效，也能在不同语言、不同任务形态和不同规模模型比较中保持优势。",
+    "kind": "table"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "Analysis of AgentFold's context on trajectories sampled from BrowseComp. (a) AgentFold's context length grows at a remarkably slow, sub-linear rate, less than doubling from approximately 3.5k to 7k over 100 turns. As our model's max context is 128k, this indicates a promising potential for AgentFold for tackling complex and long-horizon tasks. (b) Our Deep consolidation operation in AgentFold merges multiple past steps into a single summary, thereby maintaining a significantly more structural and concise context compared to the popular ReAct.",
+    "translation": "这张图分析 BrowseComp 轨迹中的上下文动态。AgentFold 的 token 数和块数量都呈缓慢的次线性增长，而 ReAct 式追加历史会接近线性膨胀；这说明折叠操作确实控制了长程任务的上下文规模。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/turn_num_block_agentfold.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "Dynamics of AgentFold's context: token count. To empirically validate AgentFold's context management, we analyze 200 trajectories from the BrowseComp benchmark (Figure~fig:context_growth). We plot the number of surviving trajectories at each turn ($|_t|$, grey bars) alongside the average context token count ($A_t$, blue curve) for those same trajectories. Specifically, $A_t$ is formally defined as: $A_t = |_t| _j _t (C_j,t)$ where $_t$ is the set of surviving trajectories that are consisted of more than $t$ turns, and $C_j,t$ is the context of trajectory $j$ at turn $t$.",
+    "translation": "token 数动态分析使用 BrowseComp 的二百条轨迹，统计每个 turn 存活任务的平均上下文长度。结果显示 AgentFold 的平均 token 数从约三千五增长到约七千，增长很慢，证明 fold 操作能有效防止上下文膨胀。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "The figure reveals that AgentFold maintains an. The average token count grows at a remarkably slow, sub-linear rate, less than doubling from approximately 3.5k to 7k over 100 turns, proving the efficacy of the `fold' operation in preventing context inflation.",
+    "translation": "token 数动态分析使用 BrowseComp 的二百条轨迹，统计每个 turn 存活任务的平均上下文长度。结果显示 AgentFold 的平均 token 数从约三千五增长到约七千，增长很慢，证明 fold 操作能有效防止上下文膨胀。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "When observing the survival curve, we notice that over 20% of tasks being forcibly terminated at our experimental limit of 100 turns, which are typically marked as failure. Crucially, at this termination point, the agent's context is only $$7k tokens—a minor fraction of the underlying model's 128k capacity. This vast remaining capacity points to two promising conclusions. (1) First, it suggests that simply scaling the number of allowed interactions could unlock higher success rates. (2) Second, and more broadly, it demonstrates AgentFold's significant and long-horizon problems. We provide a conceptual verification in the following Figure~fig:scaling_too_call but defer detailed explorations to future work due to time constraints.",
+    "translation": "存活曲线显示，仍有超过二成任务在一百轮限制处被强制终止，通常记为失败。这意味着一些任务可能需要更多交互轮数；AgentFold 的紧凑上下文为继续扩展轮数提供了条件。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 12,
+    "sourceText": "Dynamics of AgentFold's context: block count. To analyze the structural complexity of the context, we measure the number of discrete `blocks' in the agent's workspace at each turn. A block is defined as any single entry in the Multi-Scale State Summaries (e.g., `[Compressed Step 52 to 67]' is one block) plus the one Latest Interaction. For an append-only method like ReAct, this count necessarily increases linearly with each turn (reference line in Figure~fig:block_growth). The analysis of AgentFold's block count reveals two key conclusions. (1) Sub-linear growth and structural simplicity. In stark contrast to the linear explosion of ReAct, AgentFold's block count grows at a slow, sub-linear rate. This efficiency is driven by the operation, which merges multiple past steps into a single summary, thereby maintaining a structurally simple and cognitively manageable context. (2) Compounding efficiency over time. The growing divergence between the two curves highlights the compounding advantage of proactive curation. While ReAct's append-only policy leads to runaway structural complexity over long horizons, AgentFold's consolidation ensures the context remains controlled, so its efficiency.",
+    "translation": "块数量动态分析把多尺度状态摘要中的每个条目和最近交互都算作块。ReAct 追加策略的块数量必然线性增长，而 AgentFold 通过深度合并多个过去步骤，让块数量保持次线性增长。论文进一步指出两个结论：第一，AgentFold 的块数量增长远慢于 ReAct，结构保持简单；第二，任务越长，主动整理的复利越明显。ReAct 的历史复杂度会持续失控，而 AgentFold 可以通过合并无关子轨迹维持可管理的工作区。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "Context comparison between AgentFold and ReAct. To provide a more direct and intuitive comparison, we plot the average context length (in tokens) of AgentFold against a standard ReAct baseline across the same set of trajectories. As illustrated on the right of Figure~fig:teaser, the contrast is stark. The ReAct agent's context exhibits an uncontrolled, near-linear growth, accumulating a massive token count as the task progresses. In contrast, AgentFold's context size remains remarkably flat and controlled due to its proactive folding mechanism.",
+    "translation": "token 数动态分析使用 BrowseComp 的二百条轨迹，统计每个 turn 存活任务的平均上下文长度。结果显示 AgentFold 的平均 token 数从约三千五增长到约七千，增长很慢，证明 fold 操作能有效防止上下文膨胀。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "By the 100th turn, this architectural difference results in a dramatic quantitative advantage: AgentFold's context is, on average, over 84k tokens (92%) smaller than ReAct's. This token reduction also has profound implications for computational resource requirements, translating to an estimated memory saving of nearly 7GB per inference instance at this trajectory length. This analysis demonstrates not only the conceptual benefits of our approach but also its immense practical value in making long-horizon agents more efficient, scalable, and cost-effective.",
+    "translation": "到第一百轮时，AgentFold 的上下文平均比 ReAct 小八万四千多个 token，减少约百分之九十二。作者还估算这相当于每个推理实例节省近七 GB 显存，说明折叠机制不仅提升效果，也带来实际资源收益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "r0.5 Scaling Properties of Interaction Turns. Building on our finding of its compact context in Figure~fig:context_growth, we test AgentFold's performance when scaling the number of interaction turns, a primary bottleneck for conventional agents. As shown in Figure~fig:scaling_too_call, we evaluate on BrowseComp with a turn limit up to 256, comparing our 30B model against a much larger 355B GLM-4.5 baseline. The results show two clear advantages. (1) First, our smaller model consistently outperforms the 355B baseline at all comparable turn limits. (2) Second, the GLM-4.5 agent's performance saturates and fails beyond 64 turns as its append-only context fills, while AgentFold's accuracy continues to improve steadily up to 256 turns,.",
+    "translation": "交互轮数扩展实验把 BrowseComp 的 turn limit 提高到二百五十六，并与更大的 GLM-4.5 基线比较。结果显示 AgentFold 在相同轮数下持续更强，而且随着轮数增加仍能继续提升，而 GLM-4.5 更早饱和。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "To further probe these limits, we conduct an extended experiment, increasing the maximum number of turns to 500, with the context length dynamics reported in Figure~fig:teaser. The results reveal that the context mostly remains below 20k tokens and, notably, does not grow monotonically. This behavior is a direct result of AgentFold's ability to recognize and recover from dead ends. When a lengthy line of inquiry proves unsuccessful, the agent can perform a deep consolidation of the entire failed sub-trajectory. This act of abstracting away a long, irrelevant history while pivoting to a new strategy often resets the context to a more compact state, showcasing a sophisticated, self-correcting form of context management.",
+    "translation": "进一步扩展到五百轮的实验报告上下文长度动态，显示 AgentFold 即使在极长交互中也能维持可控上下文。这支持论文关于长程可扩展性的主张。更有意思的是，上下文长度并不单调增长。当 agent 发现长线索是死胡同时，它可以把整个失败路径深度合并成一句结论，从而让上下文重新变短。这说明 AgentFold 不只是延缓增长，而能主动从错误探索中恢复。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "This experiment confirms that AgentFold's proactive context management is the key to unlocking long-horizon task-solving. It demonstrates the profound potential for agents to engage in truly extended interactions—potentially lasting for hundreds of steps—to perform the kind of broad and deep web exploration required for complex research and analysis tasks that remain far beyond the reach of conventional agent architectures.",
+    "translation": "这一实验确认主动上下文管理是解锁长程任务求解的关键。AgentFold 能识别死胡同，将冗长失败探索合并成简短结论，并把上下文重新聚焦到新的搜索方向。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "Case study for illustration of AgentFold. See detailed content in Table~tab:case1_traj, Figure~fig:case1_context and fig:case1_response. After a series of failure attempts happened (steps 6 to 16), AgentFold notices that this direction might be a dead end, folds these intermediate steps into one conclusion, plans to switch to other search directions, and decides the new search queries.",
+    "translation": "这张案例图展示 AgentFold 如何识别一串失败尝试，把这些步骤深度合并成一个结论，然后切换搜索方向。它直观说明 AgentFold 不只是压缩文本，而是在管理自己的探索轨迹。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/case_study_main.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Results and Analysis",
+    "page": 13,
+    "sourceText": "Case study. To directly illustrate AgentFold's operational intelligence, we provide a case study in Figure~fig:case_study_main (with more in Appendix~app:case_study). The figure captures the agent at step 17 of a complex task, where its context already showcases its multi-scale structure, comprising both fine-grained, single-step summaries (e.g., [Compressed Step 5]) and previously consolidated blocks (e.g., [Compressed Step 6 to 8]). The figure showcases a critical moment of reflection and re-planning. Recognizing a long and unsuccessful series of attempts (from step 6 to 16) as a dead end, AgentFold executes a decisive, strategic move. First, it performs a Deep Consolidation, folding the entire 11-step failed sequence into a single, conclusive summary. This operation distills the valuable lesson from the failures—that this approach is unworkable—while pruning the noisy and now-irrelevant procedural details from its context. Informed by this newly consolidated insight, the agent then dynamically plans (in the motivation block, equals to explanation) to shift towards a new line of investigation, which is immediately reflected in its subsequent tool call. This example powerfully demonstrates AgentFold's ability to reason about its own trajectory, learn from extended failures, and strategically re-plan by actively curating its cognitive workspace.",
+    "translation": "案例研究展示一个具体失败序列：从第六步到第十六步的探索没有成功，AgentFold 判断该方向可能是死胡同，于是执行深度合并，把十一轮失败尝试折叠成一个结论，并规划新的搜索查询。图中第十七步的上下文已经包含细粒度单步摘要和此前合并块。AgentFold 识别第六到第十六步是一段失败方向后，将其折叠为单一结论，并据此提出新的搜索查询。这个过程展示了模型对自身轨迹的语义判断。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions",
+    "page": 14,
+    "sourceText": "Conclusions",
+    "translation": "结论部分总结 AgentFold 解决了两个极端之间的矛盾：ReAct 的追加历史会饱和，统一总结又会丢失细节。AgentFold 通过主动折叠让长程网页 agent 更稳、更省、更可扩展。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions",
+    "page": 14,
+    "sourceText": "This paper introduces AgentFold, a novel agent paradigm that resolves the fundamental trade-off between context saturation in append-only agents (e.g., ReAct) and irreversible information loss from uniform summarization. We move beyond these static policies by empowering the agent to act as a self-aware knowledge manager, equipped with a proactive `fold` operation to dynamically sculpt its context at multiple scales. This mechanism allows the agent to preserve fine-grained details via Granular Condensation while abstracting away irrelevant history with Deep Consolidation. Our experiments validate the power of this approach: the AgentFold-30B-A3B model establishes a new state of the art for open-source agents, outperforming models over 20 times its size like DeepSeek-V3.1-671B and proving highly competitive against leading proprietary agents such as OpenAI's o4-mini. Furthermore, its exceptional context efficiency enables truly long-horizon problem-solving by supporting hundreds of interaction steps within a manageable context.",
+    "translation": "结论重申 AgentFold 是一种新 agent 范式：它解决了追加式 agent 的上下文饱和，以及统一摘要的不可逆信息损失。通过细粒度压缩和深度合并，模型能在保持关键细节的同时抽象无关历史。实验表明，AgentFold-30B-A3B 在开源 agent 中建立强结果，并能和 OpenAI o4-mini 等领先系统竞争。更重要的是，它的上下文效率支持数百步交互，让长程问题求解不再只是依赖扩大上下文窗口。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions",
+    "page": 15,
+    "sourceText": "What's next. In this work, we prioritize demonstrating the potential of the AgentFold paradigm, thus employing a straightforward SFT approach without extensive optimization. The clear next step is to leverage reinforcement learning (RL) to enable the agent to autonomously discover optimal and potentially non-obvious folding policies by directly optimizing for task success.",
+    "translation": "下一步工作是用强化学习进一步优化折叠策略。本文只用直接的监督微调展示 AgentFold 的潜力，未来可以让 agent 直接以任务成功为目标，自动发现更优甚至非直觉的 folding 政策。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "附录",
+    "page": 15,
+    "sourceText": "Appendix",
+    "translation": "附录案例展示 AgentFold 在具体任务轨迹中的上下文和响应。它补充说明模型如何把失败搜索压缩成结论，并据此重新规划搜索方向。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 15,
+    "sourceText": "Case Study",
+    "translation": "附录案例展示 AgentFold 在具体任务轨迹中的上下文和响应。它补充说明模型如何把失败搜索压缩成结论，并据此重新规划搜索方向。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 15,
+    "sourceText": "We provide two cases here. See case 1 in Table~tab:case1_traj, Figure~fig:case1_context, and fig:case1_response. See case 2 in Table~tab:case2_traj, Figure~fig:case2_context, and fig:case2_response.",
+    "translation": "附录提供两个案例，并指向对应轨迹表、上下文图和响应图。它们用于补充说明 AgentFold 在不同长程任务中如何组织压缩块、保留最近交互并做出新的工具调用。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 15,
+    "sourceText": "r(Continued on next page) Turn 1 & Turn 2 & [Step 0] Turn 3 & [Compressed Step 0], [Step 1] Turn 4 & [Compressed Step 0], [Compressed Step 1], [Step 2] Turn 5 & [Compressed Step 0], [Compressed Step 1 to 2], [Step 3] Turn 6 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Step 4] Turn 7 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Step 5] Turn 8 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Step 6] Turn 9 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6], [Step 7] Turn 10 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6], [Compressed Step 7], [Step 8] Turn 11 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Step 9] Turn 12 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Step 10] Turn 13 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Compressed Step 10], [Step 11] Turn 14 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Compressed Step 10], [Compressed Step 11], [Step 12] Turn 15 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Step 13] Turn 16 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Step 14] Turn 17 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Step 15] Turn 18 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 8], [Compressed Step 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Step 16] Turn 19 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Step 17] Turn 20 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Step 18] Turn 21 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Step 19] Turn 22 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Step 20] Turn 23 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Step 21] Turn 24 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Step 22] Turn 25 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Compressed Step 22], [Step 23] Turn 26 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Compressed Step 22], [Compressed Step 23], [Step 24] Turn 27 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Compressed Step 22], [Compressed Step 23], [Compressed Step 24], [Step 25] Turn 28 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Compressed Step 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Step 26] Turn 29 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Compressed Step 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Step 27] Turn 30 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21 to 27], [Step 28] Turn 31 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21 to 27], [Compressed Step 28], [Step 29] Turn 32 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21 to 27], [Compressed Step 28], [Compressed Step 29], [Step 30] Turn 33 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21 to 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Step 31] Turn 34 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21 to 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Compressed Step 31], [Step 32] Turn 35 & [Compressed Step 0], [Compressed Step 1 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6 to 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21 to 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Compressed Step 31], [Compressed Step 32], [Step 33]",
+    "translation": "这个表格化轨迹展示多轮任务中上下文块如何随步骤变化。从原始 turn 到 compressed step 的变化，可以看到 AgentFold 持续把早期历史折叠成摘要块，同时保留当前最相关的交互细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 16,
+    "sourceText": "Context of case 1 at step 17.",
+    "translation": "这张图展示案例中某一步的上下文状态，可以看到历史被折叠成若干压缩块，最近交互仍保留细节。读者应关注哪些信息被保留、哪些失败路径被概括，以及当前上下文如何支持下一步行动。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/case1_context.png",
+    "kind": "figure"
+  },
+  {
+    "section": "案例研究",
+    "page": 16,
+    "sourceText": "Response of case 1 at step 17.",
+    "translation": "这张图展示案例中 AgentFold 的响应结构，包括思考、折叠指令、解释和工具调用。它说明模型在行动的同时也会明确决定如何整理自己的历史。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/case1_response.png",
+    "kind": "figure"
+  },
+  {
+    "section": "案例研究",
+    "page": 16,
+    "sourceText": "r(Continued on next page) Turn 1 & Turn 2 & [Step 0] Turn 3 & [Compressed Step 0], [Step 1] Turn 4 & [Compressed Step 0 to 1], [Step 2] Turn 5 & [Compressed Step 0 to 2], [Step 3] Turn 6 & [Compressed Step 0 to 2], [Compressed Step 3], [Step 4] Turn 7 & [Compressed Step 0 to 2], [Compressed Step 3], [Compressed Step 4], [Step 5] Turn 8 & [Compressed Step 0 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Step 6] Turn 9 & [Compressed Step 0 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6], [Step 7] Turn 10 & [Compressed Step 0 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6], [Compressed Step 7], [Step 8] Turn 11 & [Compressed Step 0 to 2], [Compressed Step 3], [Compressed Step 4], [Compressed Step 5], [Compressed Step 6], [Compressed Step 7], [Compressed Step 8], [Step 9] Turn 12 & [Compressed Step 0 to 9], [Step 10] Turn 13 & [Compressed Step 0 to 9], [Compressed Step 10], [Step 11] Turn 14 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Step 12] Turn 15 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Step 13] Turn 16 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Step 14] Turn 17 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Step 15] Turn 18 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Step 16] Turn 19 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Compressed Step 16], [Step 17] Turn 20 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Compressed Step 16], [Compressed Step 17], [Step 18] Turn 21 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Compressed Step 16], [Compressed Step 17], [Compressed Step 18], [Step 19] Turn 22 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Compressed Step 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Step 20] Turn 23 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Compressed Step 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Step 21] Turn 24 & [Compressed Step 0 to 9], [Compressed Step 10], [Compressed Step 11], [Compressed Step 12], [Compressed Step 13], [Compressed Step 14], [Compressed Step 15], [Compressed Step 16], [Compressed Step 17], [Compressed Step 18], [Compressed Step 19], [Compressed Step 20], [Compressed Step 21], [Step 22] Turn 25 & [Compressed Step 0 to 22], [Step 23] Turn 26 & [Compressed Step 0 to 22], [Compressed Step 23], [Step 24] Turn 27 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Step 25] Turn 28 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Step 26] Turn 29 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Step 27] Turn 30 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Step 28] Turn 31 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Compressed Step 28], [Step 29] Turn 32 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Compressed Step 28], [Compressed Step 29], [Step 30] Turn 33 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Step 31] Turn 34 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Compressed Step 31], [Step 32] Turn 35 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Compressed Step 31], [Compressed Step 32], [Step 33] Turn 36 & [Compressed Step 0 to 22], [Compressed Step 23], [Compressed Step 24], [Compressed Step 25], [Compressed Step 26], [Compressed Step 27], [Compressed Step 28], [Compressed Step 29], [Compressed Step 30], [Compressed Step 31], [Compressed Step 32], [Compressed Step 33], [Step 34] Turn 37 & [Compressed Step 0 to 34], [Step 35] Turn 38 & [Compressed Step 0 to 34], [Compressed Step 35], [Step 36] Turn 39 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Step 37] Turn 40 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Step 38] Turn 41 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Compressed Step 38], [Step 39] Turn 42 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Compressed Step 38], [Compressed Step 39], [Step 40] Turn 43 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Compressed Step 38], [Compressed Step 39], [Compressed Step 40], [Step 41] Turn 44 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Compressed Step 38], [Compressed Step 39], [Compressed Step 40], [Compressed Step 41], [Step 42] Turn 45 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Compressed Step 38], [Compressed Step 39], [Compressed Step 40], [Compressed Step 41], [Compressed Step 42], [Step 43] Turn 46 & [Compressed Step 0 to 34], [Compressed Step 35], [Compressed Step 36], [Compressed Step 37], [Compressed Step 38], [Compressed Step 39], [Compressed Step 40], [Compressed Step 41], [Compressed Step 42], [Compressed Step 43], [Step 44] Turn 47 & [Compressed Step 0 to 44], [Step 45] Turn 48 & [Compressed Step 0 to 44], [Compressed Step 45], [Step 46] Turn 49 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Step 47] Turn 50 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Step 48] Turn 51 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Step 49] Turn 52 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Step 50] Turn 53 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Step 51] Turn 54 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Step 52] Turn 55 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Compressed Step 52], [Step 53] Turn 56 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Compressed Step 52], [Compressed Step 53], [Step 54] Turn 57 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Compressed Step 52], [Compressed Step 53], [Compressed Step 54], [Step 55] Turn 58 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Compressed Step 52], [Compressed Step 53], [Compressed Step 54], [Compressed Step 55], [Step 56] Turn 59 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Compressed Step 52], [Compressed Step 53], [Compressed Step 54], [Compressed Step 55], [Compressed Step 56], [Step 57] Turn 60 & [Compressed Step 0 to 44], [Compressed Step 45], [Compressed Step 46], [Compressed Step 47], [Compressed Step 48], [Compressed Step 49], [Compressed Step 50], [Compressed Step 51], [Compressed Step 52], [Compressed Step 53], [Compressed Step 54], [Compressed Step 55], [Compressed Step 56], [Compressed Step 57], [Step 58]",
+    "translation": "这个表格化轨迹展示多轮任务中上下文块如何随步骤变化。从原始 turn 到 compressed step 的变化，可以看到 AgentFold 持续把早期历史折叠成摘要块，同时保留当前最相关的交互细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "案例研究",
+    "page": 17,
+    "sourceText": "Context of case 2 at step 45.",
+    "translation": "这张图展示案例中某一步的上下文状态，可以看到历史被折叠成若干压缩块，最近交互仍保留细节。读者应关注哪些信息被保留、哪些失败路径被概括，以及当前上下文如何支持下一步行动。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/case2_context.png",
+    "kind": "figure"
+  },
+  {
+    "section": "案例研究",
+    "page": 17,
+    "sourceText": "Response of case 2 at step 45.",
+    "translation": "这张图展示案例中 AgentFold 的响应结构，包括思考、折叠指令、解释和工具调用。它说明模型在行动的同时也会明确决定如何整理自己的历史。",
+    "assetPath": "/generated/agentfold-long-horizon-web-agents-proactive-context-management/case2_response.png",
+    "kind": "figure"
+  }
+]
