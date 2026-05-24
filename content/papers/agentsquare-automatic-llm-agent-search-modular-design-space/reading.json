@@ -1,0 +1,772 @@
+[
+  {
+    "section": "标题",
+    "page": 1,
+    "sourceText": "AgentSquare: Automatic LLM Agent Search in Modular Design Space",
+    "translation": "题目：AgentSquare：模块化设计空间中的自动 LLM Agent 搜索。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Recent advancements in Large Language Models (LLMs) have led to a rapid growth of agentic systems capable of handling a wide range of complex tasks. However, current research largely relies on manual, task-specific design, limiting their adaptability to novel tasks. In this paper, we introduce a new research problem: dularized LM gent earch (MoLAS). We propose a modular design space that abstracts existing LLM agent designs into four fundamental modules with uniform IO interface: Planning, Reasoning, Tool Use, and Memory. Building on this design space, we present a novel LLM agent search framework called AgentSquare, which introduces two core mechanisms, i.e., module evolution and recombination, to efficiently search for optimized LLM agents. To further accelerate the process, we design a performance predictor that uses in-context surrogate models to skip unpromising agent designs. Extensive experiments across six benchmarks, covering the diverse scenarios of web, embodied, tool use and game applications, show that AgentSquare substantially outperforms hand-crafted agents, achieving an average performance gain of 17.2% against best-known human designs. Moreover, AgentSquare can generate interpretable design insights, enabling a deeper understanding of agentic architecture and its impact on task performance. We believe that the modular design space and AgentSquare search framework offer a platform for fully exploiting the potential of prior successful designs and consolidate the collective efforts of research community. Code repo is available at https://github.com/tsinghua-fib-lab/AgentSquare.",
+    "translation": "近年大语言模型的进展推动了能够处理复杂任务的 Agent 系统快速增长，但当前研究仍大量依赖人工、面向特定任务的设计，导致这些系统难以适应新任务。论文提出 MoLAS，也就是模块化 LLM Agent 搜索：把已有 Agent 设计抽象为规划、推理、工具使用和记忆四类具有统一输入输出接口的模块。在这个设计空间上，作者提出 AgentSquare，用模块演化和模块重组搜索更优 Agent，并用上下文内性能预测器跳过低潜力候选。六个覆盖网页、具身、工具使用和游戏场景的基准显示，AgentSquare 相比已知最佳人工设计平均提升 17.2%，还能产生可解释的设计洞察。代码仓库为论文公开的 AgentSquare 项目。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "The past few years have witnessed remarkable progress in the development of Large Language Models (LLMs)~[cite: achiam2023gpt,touvron2023llama], giving rise to the proliferation of numerous agentic systems~[cite: weng2023agent,shen2024hugginggpt]. For example, \"chain-of-thought\" prompting has unlocked the general-purpose reasoning capabilities of LLMs~[cite: wei2022chain], and memory mechanisms have been proven effective in simulating human behavioiur~[cite: park2023generative]. These emerging LLM agents have demonstrated astonishing abilities to transform a wide range of tasks, including solving mathematical problems~[cite: romera2024mathematical], navigating the web~[cite: nakano2021webgpt], providing financial advice~[cite: ding2024large] and informing medical decisions~[cite: li2024agent]. Therefore, the design of agentic systems plays a crucial role in harnessing the power of LLMs for various downstream applications.",
+    "translation": "过去几年，大语言模型显著进步，带动了大量 Agent 系统的发展。思维链提示释放了模型的通用推理能力，记忆机制也被证明能够帮助模拟更连续的人类行为。由这些能力构成的 LLM Agent 已经进入数学求解、网页导航、金融建议和医疗决策等任务。因此，如何设计 Agent 系统，直接决定了模型能力能否在下游应用中被稳定发挥。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "However, current research predominantly relies on manually designed agentic systems tailored for specific tasks, which often depend heavily on expert insight and intensive human labor. Furthermore, these task-specific agent designs frequently struggle to adapt to novel tasks. A few recent studies have explored using LLMs to rewrite and optimize the prompts of existing agents~[cite: fernando2024promptbreeder,yang2024large]. A more recent work introduces the idea to leverage LLMs to search the entire agentic systems defined in code space~[cite: hu2024automated], enabling the discovery of agents with more flexible prompts, control flows, etc. However, these previous approaches are limited in their ability to explicitly recombine the strengths of agentic modules discovered by different researches and located in separate codebases. Another line of research focuses on optimizing the configuration of multi-agent systems~[cite: chen2023agentverse,yuan2024evoagent,li2023metaagents,zhugegptswarm,wang2023unleashing]. These efforts are orthogonal to the optimization of single-agent systems, as they focus more on the role-playing and interaction patterns among multiple agents, rather than the design of agentic modules.",
+    "translation": "现有 Agent 设计主要依赖人工，并且通常围绕单个任务定制。这类设计依赖专家经验和大量试错，换到新任务时适应性不足。已有工作尝试让 LLM 改写提示词，或在代码空间中搜索完整 Agent 系统，但它们很难显式重组来自不同研究、不同代码库的优秀模块。另一些工作优化多 Agent 的角色和交互配置，关注点与单 Agent 内部模块设计不同，因此不能直接解决本文的模块复用问题。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "AgentSquare is a modular framework for designing and optimizing LLM agents.",
+    "translation": "图示展示的是引言中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/f1.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "This paper addresses a novel research problem --- dularized LM gent earch (MoLAS). The goal is to automatically optimize LLM agent designs by leveraging the experience of published or evaluated modules. Therefore, the core of our work is a modular design space for LLM agents, comprising 4 categories of modules: Planning, Reasoning, Tool Use, and Memory. This design space is abstracted from a thorough literature review of existing agentic systems (details provided in Section 2).",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "It is important to note that our goal is not to propose the most comprehensive, one-size-fits-all LLM agent design space, but rather to demonstrate that our modular design space enables researchers and intelligent search algorithms to fully exploit the potential of prior successful designs. MoLAS is a guided and constrained searching problem in the modular design space, which is a subset of the entire code search proposed in ADAS~[cite: hu2024automated]. However, MoLAS has a nice feature of providing standardized IO interfaces for agent modules, facilitating easy recombination of modules from different agentic systems and hence enabling efficient search for novel agents. Our design space is also highly extensible, allowing new agentic systems to be integrated as plug-in modules. Therefore, it provides a platform to consolidate the collective efforts of the research community on LLM agents. The overview of this work is illustrated in Figure~figure1.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "Building on this modular design space, we propose a novel LLM agent search framework called AgentSquare. Specifically, AgentSquare optimizes LLM agents through the mechanisms of module evolution and recombination. The module evolution mechanism leverages an evolutionary meta-prompt to explore new modules through prompt-level optimization, which jointly models task descriptions, existing modules, and the performance of evaluated modules. Besides, the module recombination mechanism performs module-level optimization by leveraging the reasoning power of LLMs to strategically search for promising module combinations. To reduce the expensive evaluation costs of LLM agents, we further introduce a performance predictor that implements an in-context surrogate model for newly proposed LLM agents, enabling us to skip unpromising candidates and significantly accelerate the search process.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "We conduct comprehensive evaluations on six widely adopted benchmarks, covering diverse use cases in web, embodied, tool use and game scenarios. Our experiments show AgentSqaure can discover novel LLM agents that outperform hand-crafted agents across all six benchmarks, scoring an average performance gain of 17.2% compared to the best known human designs. Besides, AgentSqaure also surpasses other search algorithms in terms of having a steeper optimization trajectory. More importantly, case studies reveal that AgentSquare can provide human interpretable design insights for newly discovered, good-performing agents.",
+    "translation": "实验覆盖六个常用基准，涉及网页、具身、工具使用和游戏等场景。结果显示，AgentSquare 在全部六个基准上都能找到优于人工设计的 Agent，相比已知最佳人工方案平均提升 17.2%。它还比其他搜索方法具有更陡的优化轨迹，说明模块化空间配合演化、重组和性能预测，能更快接近有效架构。案例分析进一步展示了搜索得到的模块具有可解释的设计洞察。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "The key contributions of this work are as follows:",
+    "translation": "论文的贡献可以概括为三点：第一，提出便于复用和扩展的 LLM Agent 模块化设计空间；第二，设计 AgentSquare，通过模块演化、模块重组和性能预测器高效搜索优秀 Agent；第三，在六个任务上验证该方法能超过已知人工设计，并能输出可解释的新模块和架构洞察。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "• We propose a novel modular design space for LLM agents, enabling researchers to easily build on previous successful designs and accumulate new discoveries as a community. • We design the AgentSquare framework that efficiently searches for novel and good-performing LLM agents via the novel mechanism of module evolution, module recombination, and performance predictor. • Experiments across six diverse tasks show that our method discovers novel LLM agents that outperform all known human designs. Besides, AgentSqaure can generate human interpretable design insights for these novel agents.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LLM Agent 的模块化设计空间",
+    "page": 4,
+    "sourceText": "A Modular Design Space of LLM Agents",
+    "translation": "LLM Agent 的模块化设计空间",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LLM Agent 的模块化设计空间",
+    "page": 4,
+    "sourceText": "Illustration of the modular agent design space and agentic workflow (left) and the standardized IO interface of four types of modules (right).",
+    "translation": "图示展示的是LLM Agent 的模块化设计空间中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/f2.png",
+    "kind": "figure"
+  },
+  {
+    "section": "背景",
+    "page": 4,
+    "sourceText": "Background",
+    "translation": "背景",
+    "kind": "paragraph"
+  },
+  {
+    "section": "背景",
+    "page": 4,
+    "sourceText": "Using LLMs for automatic optimization has been a widely explored topic, such as applications in code generation~[cite: lehman2023evolution,romera2024mathematical] and neural architecture search~[cite: nasir2024llmatic,chen2024evoprompting]. There are several recent studies that explore the problem of prompting LLMs to design LLM agentic systems. OPRO~[cite: yang2024large] and Promptbreeder~[cite: fernando2024promptbreeder] can be viewed as leveraging the reasoning power of LLMs to improve the prompt of LLM agents. More importantly, ADAS introduces the idea of searching the entire agentic system defined in code space, and propose a Meta Agent Search algorithm that discovers LLM agents outperforming state-of-the-art human designs~[cite: hu2024automated]. Our main difference and contribution lie in introducing a modular design space for LLM agents, which can provide a standard framework to support the convenient reuse of existing successful agent components and fruitful innovative agent module discovery.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "背景",
+    "page": 5,
+    "sourceText": "A modular design space for LLM agents facilitates the reuse of prior successful designs and supports the exploration of new architectures. At the core of such modularization is the standardization of input-output interfaces, which ensures both extensibility and seamless integration with existing designs. Many experts in the field have proposed building LLM agentic systems with key modular components from engineering~[cite: weng2023agent] and cognitive perspectives~[cite: sumers2023cognitive]. However, these proposals remain largely conceptual, lacking implementable solutions to unify existing LLM agents. Besides, current LLM workflow program frameworks (e.g., LangChain and AutoGPT) only provide operation-level components, which cannot support module-level search that best exploits the potential of prior successful designs.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "背景",
+    "page": 5,
+    "sourceText": "To address these problems, we perform a comprehensive literature review of publications from NeurIPS, ICML, and ICLR over the past three years. The review focuses on papers with the keywords \"LLM\", \"Agent\", or \"Large Language Model\" in their titles while excluding works related to multi-agent systems or agents that require additional training. Note that our aim is not to propose the most comprehensive, one-for-all LLM agent design space, but to offer a standardized framework that enables the recombination of existing agents and facilitates the discovery of new ones. As a result, we sort out 16 popular LLM agents and abstract a modular design space with 1050 possible combinations, which can be easily extended when new modules are discovered. Below, we describe the agentic workflow and the function of four modules in our design space.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 5,
+    "sourceText": "Workflow overview",
+    "translation": "工作流总览",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 5,
+    "sourceText": "The proposed agent workflow operates through an iterative process with the interconnection of the above four modules, as shown in Figure~figure2. Upon receiving a task $d$, the agent starts with the planning module, decomposing it into $n$ sub-tasks$ s_1, s_2,, s_n $. Next, these sub-tasks are passed to the reasoning module sequentially. Taking the sub-task $s_i$ description as input, the reasoning module explores to prompt LLMs to give the result. When reasoning encounters limitations in internal knowledge of LLMs, the tool use module is activated to select an appropriate tool from the pre-defined tool pool $$, supporting problem-solving. Besides, the reasoning process also accesses the memory module which reads and writes necessary observations and experiences from a memory database $mem$ to help reasoning. The reasoning result of each sub-task will be transformed into actions, guiding the agent to interact with the external environment.",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "After all sub-tasks are finished or the reasoning process gets stacked, the agent will activate the planning module to adjust the plan with the received feedback. The agent conducts such a trial-and-error loop until the task $d$ is completed or the set maximum trial number is reached.",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "Planning. The planning module is responsible for decomposing the targeted task into smaller sub-tasks. Given a task description $d$ and optional feedback information $f$, the planning module $P$ strategically decomposes the targeted task into a sub-task sequence $ s_1, s_2,, s_n = P(d, f)$. Such decomposition is critical for handling very complex tasks with long-term characteristics, especially for agents in open-world environments such as MineCraft~[cite: wang2024voyager,wang2024describe].",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "Reasoning. LLMs have exhibited remarkable reasoning abilities under advanced prompting approaches such as CoT~[cite: wei2022chain], ToT~[cite: yao2024tree], and SoT~[cite: shang2024defint], shaping the foundation of the intelligence of LLM agents. The reasoning module $R$ is invoked to solve the sub-tasks sequentially after planning, which takes each sub-task $s_i$ and optional feedback information $f_i$ as input and outputs a solution $r_i=R(s_i,f_i)$.",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "Tool use. The ability of using external tools~[cite: shen2024hugginggpt,schick2024toolformer] overcomes the limitations of the LLM’s internal knowledge during the reasoning process.",
+    "translation": "工具使用模块用于弥补模型内部知识和能力的限制。当推理过程遇到需要外部能力的问题时，该模块会根据问题和预定义工具池选择最合适的工具。形式上，它把当前问题映射到一个工具选择结果，从而支持检索、计算、网页操作或 API 调用等外部交互。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "Formally, given certain problem $p_ij$ derived from the reasoning process of sub-task $s_i$ and a pre-defined tool pool $$, the tooluse module $T$ selects the best-matched tool $t_ij$ to address the problem, denoted as $t_ij = T(p_ij, )$, where $t_ij $.",
+    "translation": "在工作流总览中，作者围绕 AgentSquare 的模块化 Agent 搜索展开说明。该段强调，LLM Agent 的设计不应只依赖单个提示词或单个手工流程，而应被拆成具有统一接口的规划、推理、工具使用和记忆模块。这样既能复用已有研究中的成功组件，也能通过搜索算法比较不同组合的真实性能。结合上下文看，这里的重点是把经验性的 Agent 架构设计转化为可组合、可评估、可演化的工程对象，并为后续模块演化、模块重组和性能预测器提供依据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "Memory. Memory plays a critical role by storing past thoughts, actions, and observations of agents~[cite: park2023generative,shinn2024reflexion].",
+    "translation": "记忆模块负责保存和检索 Agent 的历史想法、动作和观察。写入过程把当前观察更新到记忆库中，检索过程根据当前观察取回相关经验。这样，Agent 在长程任务中不会只依赖当前上下文，而能利用过去轨迹改善后续推理。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "工作流总览",
+    "page": 6,
+    "sourceText": "During the reasoning process, these internal logs are dynamically written to and retrieved from the memory database $mem$, controlled by the memory module $M$. The writing process can be expressed as $mem = M_write(o, mem)$, where $o$ denotes the current observations. The retrieval process is $m = M_retrieve(o, mem)$, where $m$ denotes the retrieved knowledge relevant to the current situation.",
+    "translation": "记忆模块负责保存和检索 Agent 的历史想法、动作和观察。写入过程把当前观察更新到记忆库中，检索过程根据当前观察取回相关经验。这样，Agent 在长程任务中不会只依赖当前上下文，而能利用过去轨迹改善后续推理。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 框架",
+    "page": 6,
+    "sourceText": "AgentSquare Framework",
+    "translation": "AgentSquare 框架",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 框架",
+    "page": 6,
+    "sourceText": "Overview of AgentSquare search framework. AgentSquare optimizes LLM agents through the mechanisms of module evolution and recombination. We further introduce a performance predictor that implements an in- context surrogate model for efficient evaluation of novel agents.",
+    "translation": "图示展示的是AgentSquare 框架中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/f3.png",
+    "kind": "figure"
+  },
+  {
+    "section": "MoLAS 问题形式化",
+    "page": 6,
+    "sourceText": "Problem formulation of MoLAS",
+    "translation": "MoLAS 问题形式化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MoLAS 问题形式化",
+    "page": 6,
+    "sourceText": "In the proposed modular design space, an LLM agent $A$ can be instantiated with the combination of a planning module $P$, a reasoning module $R$, a tooluse module $T$ and a memory module $M$, denoted as $A = (P, R, T, M)$. Given the task description $d$ and the set of all possible modules with standardized IO interface $,,, $. We formulate an optimization problem for searching LLM agent architectures within the modular design space. The objective is to identify the optimal module combination in a solution space defined by a Cartesian product of four design dimensions to maximize agent performance. Let the performance evaluation function of the task be $Eval_d()$, where the specific metric varies in different tasks as discussed in Appendix~app:setup. The optimization problem of MoLAS is defined as follows:",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MoLAS 问题形式化",
+    "page": 6,
+    "sourceText": "\\begin{equation}\n    \\argmax\\limits_{ P \\in \\mathbb{P}, R \\in \\mathbb{R}, T \\in \\mathbb{T}, M \\in \\mathbb{M}} {Eval}_d(P,R,T,M).\n\\end{equation}",
+    "translation": "这个公式定义 MoLAS 的优化目标：在规划、推理、工具使用和记忆四类模块集合中选择一个组合，使给定任务的评估函数最大化。直觉上，它把 Agent 架构设计变成四个维度上的组合搜索问题。",
+    "kind": "equation"
+  },
+  {
+    "section": "AgentSquare 搜索算法",
+    "page": 6,
+    "sourceText": "AgentSquare search algorithm",
+    "translation": "AgentSquare 搜索算法",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 搜索算法",
+    "page": 6,
+    "sourceText": "Solving the optimization problem of MoLAS features three key challenges: (1) The search space, defined as the Cartesian product of four orthogonal modules, is vast and hard to explore; (2) the module sets encompass any code with standard IO interfaces, making the module selection an open-ended problem; (3) the high costs of agent evaluation during the search process constrain the overall search scale. To tackle these issues, we introduce AgentSquare, an automatic search framework to optimize LLM agents within the modular design space. Facing the vast search space of MoLAS, we propose module recombination operation utilizing LLMs to strategically reason to identify more promising module combinations. Such operation broadens the coverage of child samples, overcoming the limitations of prompt rewrite methods that explore only a restricted space. However, only searching in the existing module combinations also narrows the search space, thus we propose module evolution operation which employs an evolutionary meta-prompt to search new modules through code-level optimization. This operation, combined with module recombination, enables the search of any module combination in the open-ended solution space. Finally, to mitigate the high costs of frequent evaluations of searched agents, we design a performance predictor as an in-context surrogate model for evaluating searched agents, significantly accelerating the search process and reducing real-valued costs.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 搜索算法",
+    "page": 7,
+    "sourceText": "The overall framework of AgentSquare is illustrated in Figure~framework and the algorithm is presented in Algorithm~alg. Next, we detail the key components of the AgentSquare search process.",
+    "translation": "在AgentSquare 搜索算法中，作者围绕 AgentSquare 的模块化 Agent 搜索展开说明。该段强调，LLM Agent 的设计不应只依赖单个提示词或单个手工流程，而应被拆成具有统一接口的规划、推理、工具使用和记忆模块。这样既能复用已有研究中的成功组件，也能通过搜索算法比较不同组合的真实性能。结合上下文看，这里的重点是把经验性的 Agent 架构设计转化为可组合、可评估、可演化的工程对象，并为后续模块演化、模块重组和性能预测器提供依据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "初始化",
+    "page": 7,
+    "sourceText": "Initialization",
+    "translation": "初始化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "初始化",
+    "page": 7,
+    "sourceText": "Insights from existing AutoML studies indicate that a well-chosen initialization enhances warm-up and improves search efficiency by avoiding unpromising populations~[cite: so2019evolved,yuan2024evoagent]. AgentSquare starts by initializing a global experience pool $ = (P,R,T,M,v)|P_0, R_0, T_0, M_0 $ to seed agents that are well-designed (as mentioned in Section 2) along with their real-valued performance $v$. The module pools $,,, $ are set to the standardized modules extracted from these seed agents.",
+    "translation": "初始化阶段使用已有优秀模块和它们的真实性能作为经验池。经验池中的记录包含规划、推理、工具使用、记忆模块组合及其表现。模块池则由这些种子 Agent 中抽取出的标准化模块构成。这样的初始化能避免搜索从低质量随机群体开始，使后续演化与重组更快获得有效信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块重组",
+    "page": 7,
+    "sourceText": "Module Recombination",
+    "translation": "模块重组",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块重组",
+    "page": 7,
+    "sourceText": "Given the vast solution space of MoLAS, relying solely on prompt rewriting leads to a limited exploration confined to the neighbor of the initial state. To expand the exploration space, we propose leveraging LLMs as a self-adaptive proposer, which iteratively reason to identify promising module combinations with accumulated experience beyond the original agent configuration. Denote the initial agent of the recombination phase as $A_r^0 = (P_0,R_0,T_0,M_0)$, where $P_0, R_0, T_0, M_0 $. The module combination proposer LLM $_$ incorporates targeted task description $d$, existing module pools $,,, $ and the performance experience of searched module combinations $$ to propose promising new agents $A_r$:",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块重组",
+    "page": 7,
+    "sourceText": "\\begin{equation}\n    A_r = \\pi_{\\theta}((P_0,R_0,T_0,M_0), d, N, \\mathbb{P}, \\mathbb{R}, \\mathbb{T}, \\mathbb{M}, \\mathbb{E}).\n\\end{equation}",
+    "translation": "这个公式表示模块重组提议器的输入输出。重组器读取当前 Agent、任务描述、候选模块池和历史经验，生成新的 Agent 组合。它负责在已有模块之间做有方向的替换。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块重组",
+    "page": 7,
+    "sourceText": "Based on the initial agent configuration $A_r^0$, the LLM proposes $N$ offspring $ A_r^1,A_r^2,...,A_r^N $ by replacing certain modules of $A_r^0$ with alternatives from the module pool. For instance, a possible solution could be $(P_0,R^',T_0,M_0)$, where $R^' $ is a different reasoning module selected from the module pool.",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块重组",
+    "page": 7,
+    "sourceText": "Then, the created $N$ new agents are evaluated with a performance predictor $_p$ (detail in Seciton~section:pp) and the best one goes to the next episode as initialization.",
+    "translation": "性能预测器用于降低搜索成本。许多 Agent 任务包含多步交互和大量模型调用，真实评估每个候选都很昂贵。AgentSquare 因此让额外的 LLM 充当上下文内代理模型，结合任务描述、模块画像和历史评估样例预测候选表现。新演化模块仍需真实测试，但重组阶段的候选可以先由预测器筛掉低潜力设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块演化",
+    "page": 7,
+    "sourceText": "Module Evolution",
+    "translation": "模块演化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块演化",
+    "page": 7,
+    "sourceText": "As mentioned above, the solution space for each module type is open-ended, allowing any code with a standardized I/O interface. Consequently, searching only with module recombination narrows the solution space and limits the upper bound of agent performance. To address this problem, we design a module evolution operation with an evolutionary meta-prompt to search for new modules through program-level optimization. This design is inspired by the iterative pipeline of FunSearch~[cite: romera2024mathematical], which prompts LLMs to propose new solutions based on the target problem and performance feedback from existing solutions. Building on this concept, we introduce a module-programming LLM $_$ to conduct agent search in our modular design space by jointly modeling task descriptions, existing modules, and the performance of previously evaluated modules. Please note we reuse parts of the open-source code from ADAS~[cite: hu2024automated] to implement the optimization procedure. Leveraging LLMs to search in the modular agent design space has several appealing advantages. Compared with the unconstrained design space of LLM agents, searching functional modules can produce a more focused and fruitful search space. Additionally, integrating existing successful module designs with standard IO as in-context examples can better elicit the reflective reasoning abilities of LLMs to identify previous key designs to help propose innovative ones. Denote the initial agent in the module evolution stage as $A_e^0 = (P^'_0,R^'_0,T^'_0,M^'_0)$, the module programmer LLM produces a population of child agents by evolving current modules of $A_e^0$. Formally the module evolution operation is denoted as follows:",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "模块演化",
+    "page": 8,
+    "sourceText": "\\begin{equation}\n    A_e = \\pi_{\\xi}((P^{'}_0,R^{'}_0,T^{'}_0,M^{'}_0), d, N, \\mathbb{P}, \\mathbb{R}, \\mathbb{T}, \\mathbb{M}, \\mathbb{E}).\n\\end{equation}",
+    "translation": "这个公式表示模块演化过程。演化器读取当前 Agent、任务描述、模块池和经验池，产生新的模块或子代 Agent。它让搜索空间不局限于已有模块，而能继续发现任务定制的新模块。",
+    "kind": "equation"
+  },
+  {
+    "section": "模块演化",
+    "page": 8,
+    "sourceText": "The created new modules are appended to the standardized module pools $,,, $ and each module is used to individually mutate the initial agent, resulting in $N$ child agents $ A_e^1,A_e^2,...,A_e^N $. For example, $(P^*, R_0, T_0, M_0)$ represents a solution where the planning module is mutated into a new variant $P^*$. These child agents are then real-tested and updated to the historical experience pool $$. The best-performing one is selected as the initial agent for the subsequent recombination phase.",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "性能预测器",
+    "page": 8,
+    "sourceText": "Performance Predictor",
+    "translation": "性能预测器",
+    "kind": "paragraph"
+  },
+  {
+    "section": "性能预测器",
+    "page": 8,
+    "sourceText": "The last challenge in automatic agent search is the high API cost incurred during the evaluation of each candidate agent. Many agent tasks require multiple steps and involve substantial input and output tokens, leading to prohibitive evaluation costs. For instance, evaluating a simple CoT agent based on GPT-4o in ALFWorld~[cite: shridhar2021alfworld] requires around $60, making the agent search economically unsustainable at scale. To tackle this issue, we propose incorporating an additional LLM $_p$ as a performance predictor to serve as an in-context surrogate model for novel agent evaluation, enabling the exclusion of unpromising candidates and significantly accelerating the search process. Compared to real environment evaluation, such an in-context surrogate model requires significantly fewer tokens, making it more cost-efficient and supporting larger-scale searches. Similar approaches have been effectively applied in neural architecture search (NAS), where LLMs are leveraged to evaluate the performance of generated network architectures ~[cite: jawahar2023llm,chen2024evoprompting].",
+    "translation": "性能预测器用于降低搜索成本。许多 Agent 任务包含多步交互和大量模型调用，真实评估每个候选都很昂贵。AgentSquare 因此让额外的 LLM 充当上下文内代理模型，结合任务描述、模块画像和历史评估样例预测候选表现。新演化模块仍需真实测试，但重组阶段的候选可以先由预测器筛掉低潜力设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "性能预测器",
+    "page": 9,
+    "sourceText": "During the search process, newly created agents from module evolution are still tested in the real task environment because these new modules never appear in the experience pool, and it is unsuitable to use the performance predictor to provide predictions. During the module recombination operation, the newly proposed agents are evaluated by the performance predictor, which leverages in-context reasoning based on past agent combination performance to provide efficient performance prediction. Here, given a newly searched agent $A'$, the performance predictor $_p$ thoroughly considers task descriptions $d$, module profiles and in-context performance examples of previously tested agents $$ to score novel agents:",
+    "translation": "初始化阶段使用已有优秀模块和它们的真实性能作为经验池。经验池中的记录包含规划、推理、工具使用、记忆模块组合及其表现。模块池则由这些种子 Agent 中抽取出的标准化模块构成。这样的初始化能避免搜索从低质量随机群体开始，使后续演化与重组更快获得有效信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "性能预测器",
+    "page": 9,
+    "sourceText": "\\begin{equation}\n    v' = \\pi_p(A', d, \\mathbb{P}, \\mathbb{R}, \\mathbb{T}, \\mathbb{M}, \\mathbb{E}),\n\\end{equation}",
+    "translation": "这个公式定义性能预测器：给定候选 Agent、任务描述、模块池和历史经验，预测该候选的性能分数。该预测分数用于减少真实环境评估次数，从而降低搜索成本。",
+    "kind": "equation"
+  },
+  {
+    "section": "性能预测器",
+    "page": 9,
+    "sourceText": "where $v'$ is the predicted performance of the evaluated agent. Empirical results demonstrate that the predicted performance of agents closely matches their actual performance, verifying the effectiveness of the proposed performance predictor, which is detailed in Section~technical.",
+    "translation": "性能预测器用于降低搜索成本。许多 Agent 任务包含多步交互和大量模型调用，真实评估每个候选都很昂贵。AgentSquare 因此让额外的 LLM 充当上下文内代理模型，结合任务描述、模块画像和历史评估样例预测候选表现。新演化模块仍需真实测试，但重组阶段的候选可以先由预测器筛掉低潜力设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 9,
+    "sourceText": "Experiments",
+    "translation": "实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 9,
+    "sourceText": "Experimental Setup",
+    "translation": "实验设置",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 9,
+    "sourceText": "Task setup. We conduct experiments on six representative tasks covering four domains: embodied, game, web and tool applications, which are widely adopted by existing LLM agent benchmarks~[cite: ma2024agentboard,xi2024agentgym], more details are presented in Appendix~app:setup.",
+    "translation": "实验使用六个代表性任务，覆盖具身、游戏、网页和工具使用四类场景。具身任务考察文本式环境交互和科学常识实验，游戏任务考察规划表达和策略推进，网页任务考察在线购物中的检索、比较和选择，工具任务考察多工具、多轮交互中的调用决策。不同任务沿用各自原始评测指标，因此读表时应在同一任务内比较方法差异，而不要把不同任务的绝对数值直接横向比较。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 9,
+    "sourceText": "Baselines. We compare AgentSquare with four types of baselines including hand-crafted agents, module-level search, prompt-level search and agent-search methods.",
+    "translation": "基线分为四类：人工设计方案、模块级搜索、提示级搜索和完整系统搜索。人工基线代表研究者手工构造的典型 Agent 思路，模块搜索检验只在既有模块中组合是否足够，提示搜索检验只改写提示是否足够，完整系统搜索检验更大代码空间的自动设计能力。这样的设置能比较人工经验、局部搜索和 AgentSquare 的模块化搜索差异，也能说明论文的收益并不只是来自更强模型或更多样例。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 9,
+    "sourceText": "More details are presented in Appendix~app:setup.",
+    "translation": "实验设置。这一小段是论文结构标题或过渡句，用来标记后续内容进入“实验设置”相关讨论。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 9,
+    "sourceText": "AgentSquare setup. We implement AgentSquare and conduct experiments using both GPT-3.5-turbo-0125 and GPT-4o~[cite: achiam2023gpt]. To ensure a fair comparison, we use the same number of few-shot examples across all methods. The initial agent is set as a random module combination, and the search process terminates after 5 consecutive iterations without performance improvement.",
+    "translation": "AgentSquare 在 GPT-3.5-turbo-0125 和 GPT-4o 上都进行了实验。为了公平比较，所有方法使用相同数量的 few-shot 示例。初始 Agent 是随机模块组合，搜索在连续五轮没有性能提升后终止。这个设置强调搜索机制本身，而不是依赖更多示例或更长预算。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 9,
+    "sourceText": "Performance comparison of searched agents from AgentSquare and (1) existing human-designed agents (2) module search baselines (3) prompt search baselines (4) agent search baselines based on GPT-4o on six tasks across different domains.",
+    "translation": "这张表给出实验设置中的量化比较。表格通常列出任务、指标、基线方法、AgentSquare 结果、消融版本或搜索成本。读表时要先确认每个任务使用的指标含义，再比较人工设计、模块搜索、提示搜索、Agent 搜索和 AgentSquare 之间的差异。表格支持论文的核心结论：模块演化、模块重组和性能预测器共同提升了搜索效率与最终表现。",
+    "kind": "table"
+  },
+  {
+    "section": "实验结果",
+    "page": 9,
+    "sourceText": "Experimental Results",
+    "translation": "实验结果",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果",
+    "page": 9,
+    "sourceText": "Main results. We conduct extensive experiments to compare our method against three types of baselines on six tasks and present results based on GPT-4o in Table~tab:tab2 and results on GPT-3.5 in Table~tab:tab1. Additionally, we evaluate the agents' API costs and provide a performance-cost comparison in Figure~fig4:performance-cost to Figure~app:performance-cost5. From these results, we have the following observations: • AgentSquare can effectively discover better agents compared with human-designed agents. On the six representative agent tasks, the best agent searched by AgentSquare consistently outperforms human-designed agents in terms of performance. Specifically, as shown in Table~tab:tab2 and Table tab:tab1, compared with the best human-designed agent, AgentSquare achieves an average 14.1% performance improvement on Webshop, 26.1% improvement on ALFWorld, 20.5% improvement on SciWorld, 30.6% improvement on M3Tool, 6.0% improvement on Travelplanner, 6.0% improvement on PDDL. Simultaneously, the best agent from AgentSquare is commonly cost-efficient, which strikes the best performance-cost trade-off among all compared agents as seen in Figure~fig4:performance-cost -Figure~app:performance-cost5. Since the search cost is a one-time expense and the searched modules can be reused, it is not included in the above analysis, but separately listed in Table~tab:search cost. • AgentSquare provides a more efficient searching approach for LLM agent optimization. To further demonstrate the effectiveness of the search of AgentSquare, we compare three types of searching methods including module search, prompt search and agent search. Compared with the best agent crafted from these searching methods, AgentSquare achieves an average 8.4% performance improvement on Webshop, 8.1% improvement on ALFWorld, 11.0% improvement on SciWorld, 12.8% improvement on M3Tool, 2.5% improvement on Travelplanner, 1.4% improvement on PDDL. The comparison of search-based methods is conducted with a fixed LLM token budget to ensure fairness by maintaining the same number of search iterations. While in principle ADAS has the potential to discover more sophisticated agents by searching in the entire code space, it may require more iterations (and thus higher LLM token usage) to achieve this.",
+    "translation": "这一段把 AgentSquare 放在自动优化研究背景下。LLM 已被用于代码生成、神经架构搜索和提示词优化，OPRO 与 PromptBreeder 主要利用模型推理能力改进提示词，ADAS 则进一步在代码空间中搜索完整 Agent 系统。AgentSquare 的差异在于引入模块化设计空间，让已有成功组件可以被标准化复用，也让新模块发现更容易与旧模块组合。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果",
+    "page": 10,
+    "sourceText": "Search trajectory in AgentSquare. We present the search trajectory under 15 iterations using AgentSquare based on GPT-4o and other searching methods on ALFWorld and Webhop tasks in Figure~Fig7:trajectory. Results on other tasks are presented in Figure~app:trajectory1 and~app:trajectory2. AgentSquare demonstrates a steady convergence trajectory, where more advanced agents are continually emerging during search. In contrast, module-level searching methods including random and Bayesian search lack a clear and insightful search direction. Prompt-level search methods such as OPRO are constrained by a limited modification space, leading to minimal performance improvements. As a result, they all encounter performance bottlenecks during the search process, resulting in sub-optimal agent architectures. Besides, we find that simple module-level search methods such as random recombination greatly outperforms prompt-level search, indicating the importance of searching in the modular design space.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验结果",
+    "page": 11,
+    "sourceText": "AgentSquare search trajectory on Alfworld and Webshop.",
+    "translation": "图示展示的是实验结果中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig5_alfworld_webshop.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验结果",
+    "page": 11,
+    "sourceText": "Ablation study of AgentSquare on GPT-4o on six tasks across different domains.",
+    "translation": "这张表给出实验结果中的量化比较。表格通常列出任务、指标、基线方法、AgentSquare 结果、消融版本或搜索成本。读表时要先确认每个任务使用的指标含义，再比较人工设计、模块搜索、提示搜索、Agent 搜索和 AgentSquare 之间的差异。表格支持论文的核心结论：模块演化、模块重组和性能预测器共同提升了搜索效率与最终表现。",
+    "kind": "table"
+  },
+  {
+    "section": "AgentSquare 消融实验",
+    "page": 11,
+    "sourceText": "Ablation Study of AgentSquare",
+    "translation": "AgentSquare 消融实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 消融实验",
+    "page": 11,
+    "sourceText": "Effectiveness of module evolution and recombination. There are two key operations in the searching framework of AgentSquare: module evolution which creates new modules and module recombination which strategically recombines existing ones. To verify the effectiveness of each design, we tested three variants: the full model, a version without module evolution, and a version without module recombination. The results based on GPT-4o and GPT-3.5 are presented in Table~tab:ab2 and Table~tab:ab1, respectively. It can be seen that dropping each design results in a noticeable performance decline and the module recombination has a larger impact. Module recombination significantly expands the search space, reducing the risk of falling into a local optima. Meanwhile, module evolution facilitates the discovery of more advanced modules tailored to specific tasks. These two operations collaborate well ensuring the effectiveness of the search process in AgentSquare.",
+    "translation": "在模块化设计空间之上，论文提出 AgentSquare。它通过两个机制优化 Agent：模块演化负责用演化式元提示在代码或提示层面产生新模块；模块重组负责利用 LLM 的推理能力，从既有模块池中选择更有潜力的组合。为了降低评估成本，AgentSquare 还引入性能预测器，把 LLM 作为上下文内代理模型来预估候选 Agent 表现，从而跳过明显不值得真实评估的设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 消融实验",
+    "page": 12,
+    "sourceText": "Validation of the effectiveness of the performance predictor (correlation between the actual and predicted performance) on each task.",
+    "translation": "图示展示的是AgentSquare 消融实验中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig6v0.png",
+    "kind": "figure"
+  },
+  {
+    "section": "AgentSquare 消融实验",
+    "page": 12,
+    "sourceText": "Effectiveness of performance predictor.",
+    "translation": "性能预测器用于降低搜索成本。许多 Agent 任务包含多步交互和大量模型调用，真实评估每个候选都很昂贵。AgentSquare 因此让额外的 LLM 充当上下文内代理模型，结合任务描述、模块画像和历史评估样例预测候选表现。新演化模块仍需真实测试，但重组阶段的候选可以先由预测器筛掉低潜力设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 消融实验",
+    "page": 12,
+    "sourceText": "In this part, we verify the effectiveness of this design empirically. Figure~pp illustrates the predicted performance of given agents versus their actual tested performance based on both GPT-3.5 and GPT-4o on all six tasks. The tested agents were generated through random sampling by randomly combining existing modules. It can be found that the predicted performance closely aligns with the actual performance, demonstrating the effectiveness of the performance predictor. For instance, the evaluation cost of the predictor is only about 0.025% of the cost of a full evaluation based on GPT-4o in ALFWorld, demonstrating its remarkable cost-efficiency. We provide more experiment results of predicting the performance of the dynamically searched agents in Figure~pp-search of the Appendix.",
+    "translation": "性能预测器用于降低搜索成本。许多 Agent 任务包含多步交互和大量模型调用，真实评估每个候选都很昂贵。AgentSquare 因此让额外的 LLM 充当上下文内代理模型，结合任务描述、模块画像和历史评估样例预测候选表现。新演化模块仍需真实测试，但重组阶段的候选可以先由预测器筛掉低潜力设计。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 发现的最佳 Agent",
+    "page": 12,
+    "sourceText": "Discovered Best Agents from AgentSquare",
+    "translation": "AgentSquare 发现的最佳 Agent",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 发现的最佳 Agent",
+    "page": 12,
+    "sourceText": "In this section, we provide some illustrations of the searched best agents, especially some discovered promising modules. Table~tab:module summarizes the searched best agent from AgentSquare and the best hand-crafted agents on all tasks. We can observe that AgentSquare can adaptively identify promising agents with both previously existing and newly programmed modules tailored to the given task. For instance, the discovered best agent for ALFWorld combines an existing well-designed memory module from Generative Agents with newly created planning (named TD) and reasoning modules (named SF-ToT). By comparison, the best hand-crafted agent Self-refine focuses only on reasoning module design while overlooking other functional modules, leading to suboptimal performance. Moreover, we illustrate two new modules and the human interpretable design insights discovered on ALFWorld in Figure~main:New module. More illustrations are listed in the Figure~New module1 to Figure~New module6.",
+    "translation": "论文中的 Agent 工作流是一个由四类模块互相连接的迭代过程。接到任务后，规划模块先把任务分解为若干子任务；推理模块逐个处理子任务；当模型内部知识不足时，工具使用模块从工具池中选择合适工具；记忆模块则读写观察、经验和中间日志。Agent 根据外部环境反馈不断调整计划，直到任务完成或达到最大尝试次数。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "AgentSquare 发现的最佳 Agent",
+    "page": 13,
+    "sourceText": "New module discovered through AgentSquare search on ALFWorld.",
+    "translation": "图示展示的是AgentSquare 发现的最佳 Agent中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_alfworld.png",
+    "kind": "figure"
+  },
+  {
+    "section": "相关工作",
+    "page": 13,
+    "sourceText": "Related Work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的自主 Agent",
+    "page": 13,
+    "sourceText": "LLM-based Autonomous Agents",
+    "translation": "基于 LLM 的自主 Agent",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的自主 Agent",
+    "page": 13,
+    "sourceText": "LLM-based autonomous agents are an advanced AI system using a core LLM to manage external functional modules and interact with the world~[cite: ding2024understanding].",
+    "translation": "在基于 LLM 的自主 Agent中，作者围绕 AgentSquare 的模块化 Agent 搜索展开说明。该段强调，LLM Agent 的设计不应只依赖单个提示词或单个手工流程，而应被拆成具有统一接口的规划、推理、工具使用和记忆模块。这样既能复用已有研究中的成功组件，也能通过搜索算法比较不同组合的真实性能。结合上下文看，这里的重点是把经验性的 Agent 架构设计转化为可组合、可评估、可演化的工程对象，并为后续模块演化、模块重组和性能预测器提供依据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的自主 Agent",
+    "page": 13,
+    "sourceText": "Recent studies have equipped LLM agents with several LLM-centric functional modules including planning~[cite: hao2023reasoning,zeng2024perceive,shao2025division], reasoning~[cite: wei2022chain,yao2024tree,shang2024defint,xu2025towards], using tools~[cite: shen2024hugginggpt,schick2024toolformer], and monitoring memory~[cite: wang2024voyager,park2023generative], greatly enhancing the capabilities of LLM agents. Along with the improvement of the single agent, there's another line of work trying to build more advanced multi-agent systems by strategically organizing individual agents for both simulation~[cite: li2023metaagents,chen2023agentverse] and targeted task solving~[cite: qian2024chatdev,chen2024large,li2024limp]. The emergence of more and more sophisticated agent produces remarkable performance improvement, however, their architectures and codebases differ greatly with each other. The lack of a unified design space and consistent terminologies across individual works makes it hard to compare different agents, understand their evolution routes, and guide new agent design directions.",
+    "translation": "在基于 LLM 的自主 Agent中，作者围绕 AgentSquare 的模块化 Agent 搜索展开说明。该段强调，LLM Agent 的设计不应只依赖单个提示词或单个手工流程，而应被拆成具有统一接口的规划、推理、工具使用和记忆模块。这样既能复用已有研究中的成功组件，也能通过搜索算法比较不同组合的真实性能。结合上下文看，这里的重点是把经验性的 Agent 架构设计转化为可组合、可评估、可演化的工程对象，并为后续模块演化、模块重组和性能预测器提供依据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的 Agent 自动设计",
+    "page": 14,
+    "sourceText": "Automatic Design of LLM-based Agents",
+    "translation": "基于 LLM 的 Agent 自动设计",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的 Agent 自动设计",
+    "page": 14,
+    "sourceText": "LLM-based agent system, as the most advanced AI system, has not yet formed a unified design space and an automatic design approach.",
+    "translation": "在基于 LLM 的 Agent 自动设计中，作者围绕 AgentSquare 的模块化 Agent 搜索展开说明。该段强调，LLM Agent 的设计不应只依赖单个提示词或单个手工流程，而应被拆成具有统一接口的规划、推理、工具使用和记忆模块。这样既能复用已有研究中的成功组件，也能通过搜索算法比较不同组合的真实性能。结合上下文看，这里的重点是把经验性的 Agent 架构设计转化为可组合、可评估、可演化的工程对象，并为后续模块演化、模块重组和性能预测器提供依据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的 Agent 自动设计",
+    "page": 14,
+    "sourceText": "Engineering-oriented open resources like LangChain and BabyAGI have provided convenient ways to build an LLM-centric agentic system, however, they still need human participation to organize different modules and can't support the optimization of the designed agent. Besides, there have been some conceptual frameworks trying to provide a unified design principle of LLM agents, such as CoALA~[cite: sumers2023cognitive].",
+    "translation": "模块化设计空间的关键是统一输入输出接口。只有接口一致，来自不同 Agent 的规划、推理、工具使用和记忆模块才能被替换、组合和扩展。论文认为，已有工程框架更多提供操作级组件，难以支撑模块级搜索；已有概念性模块划分也缺少可实现的统一方案。因此 AgentSquare 试图把模块化从概念变成可搜索、可运行的结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "基于 LLM 的 Agent 自动设计",
+    "page": 14,
+    "sourceText": "However, it's still a vision of how LLM agents should be in the future, without providing a practical design framework. More importantly, there are several recent works that explore the problem of automating (at least part of) the design of LLM agent systems defined on different search spaces. OPRO~[cite: yang2024large] and Promptbreeder~[cite: fernando2024promptbreeder] can be considered as using LLMs to optimize LLM agent defined on prompt space. More relevantly, ADAS~[cite: hu2024automated] proposes to search the entire agentic system defined on code space, enabling the search for LLM agents with more flexible prompts, tool uses, control flows and more.",
+    "translation": "这一段把 AgentSquare 放在自动优化研究背景下。LLM 已被用于代码生成、神经架构搜索和提示词优化，OPRO 与 PromptBreeder 主要利用模型推理能力改进提示词，ADAS 则进一步在代码空间中搜索完整 Agent 系统。AgentSquare 的差异在于引入模块化设计空间，让已有成功组件可以被标准化复用，也让新模块发现更容易与旧模块组合。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 14,
+    "sourceText": "Conclusion",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 14,
+    "sourceText": "In this work, we introduce a novel modular design space for LLM agents, allowing researchers to build upon successful prior designs and collectively accumulate new insights. Based on this, we propose a novel research problem, Modularized LLM Agent Search (MoLAS), which aims to automatically optimize LLM agent designs by leveraging the knowledge gained from previously published or evaluated modules. To address the challenge of vast search spaces, we present AgentSquare, an automatic search framework to optimize LLM agents through module evolution and recombination. We further introduce a performance predictor as an in-context surrogate model for evaluating novel LLM agents to accelerate the search process.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 14,
+    "sourceText": "Overall, our work offers a transition from studying individual LLM agent designs to studying LLM agents within a modular design space, further consolidating the collective efforts of the research community.",
+    "translation": "论文提出新的研究问题 MoLAS：借助已发表或已评估模块的经验，自动优化 LLM Agent 设计。核心是构建一个模块化设计空间，包含规划、推理、工具使用和记忆四类模块。作者强调目标不是穷尽所有可能的 Agent 设计，而是证明这种标准化模块空间可以帮助研究者和搜索算法复用既有成功设计，并在受约束的空间中更高效地发现新 Agent。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "附录",
+    "page": 14,
+    "sourceText": "Appendix",
+    "translation": "附录",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 14,
+    "sourceText": "Experimental Setup",
+    "translation": "实验设置",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 14,
+    "sourceText": "Task setup. We evaluate AgentSquare and compared methods on six representative tasks covering four key domains which are widely adopted by existing LLM agent benchmarks~[cite: ma2024agentboard,xi2024agentgym]: • Embodied: ALFWorld~[cite: shridhar2021alfworld] with text-based household tasks where agents navigate and interact with objects using text commands, ScienceWorld~[cite: wang2022scienceworld] with interactive science tasks requiring agents to navigate rooms and perform experiments, testing scientific commonsense; • Game: PDDL~[cite: ma2024agentboard] including many strategic games where agents use PDDL expressions to complete tasks; • Web: WebShop~[cite: yao2022webshop] focusing on online shopping tasks where agents browse and purchase products based on user instructions; • Tool: TravelPlanner~[cite: xie2024travelplanner] with many travel planning tasks where agents use tools and data to create detailed plans, (6)M3ToolEval~[cite: wang2024executable] including complex tasks requiring multi-turn interactions with multiple tools. The specific performance evaluation metric varies in different tasks, following the evaluation settings in their original work. Specifically, the evaluation metric is \"success rate\" for ALFWorld and M3ToolEval, \"task score (defined as the average reward obtained across episodes)\" for Webshop, \"progress rate\" for SciWorld and PDDL, and \"micro pass rate\" for TravelPlanner.",
+    "translation": "实验使用六个代表性任务，覆盖具身、游戏、网页和工具使用四类场景。具身任务考察文本式环境交互和科学常识实验，游戏任务考察规划表达和策略推进，网页任务考察在线购物中的检索、比较和选择，工具任务考察多工具、多轮交互中的调用决策。不同任务沿用各自原始评测指标，因此读表时应在同一任务内比较方法差异，而不要把不同任务的绝对数值直接横向比较。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 15,
+    "sourceText": "Baselines. We compare AgentSquare with four types of baselines: • Hand-crafted agents. We compare with 12 hand-crafted agents including CoT~[cite: wei2022chain], CoT-SC~[cite: wang2023selfconsistency], Self-refine~[cite: madaan2024self], ToT~[cite: yao2024tree], Step back~[cite: zheng2024take], Thought propagation~[cite: yu2024thought], HuggingGPT~[cite: shen2024hugginggpt], Voyager~[cite: wang2024voyager], Generative Agents~[cite: park2023generative], DEPS~[cite: wang2024describe], OPENAGI~[cite: ge2024openagi]and Dilu~[cite: wen2024dilu]. • Module search methods. We compare with two module-level agent optimization methods including the random combination of existing modules and Bayesian~[cite: zhou2019bayesnas] module combination optimization inspired by Bayesian optimization in NAS~[cite: white2021bananas]. • Prompt search methods. We select OPRO~[cite: yang2024large] as a representative prompt-level optimization approach, which leverages LLMs as optimizers by generating and refining instructions through iterative prompts. • Agent search methods. We select ADAS~[cite: hu2024automated] which optimizes the entire agentic system in code space as the agent search baseline. We use the official code of ADAS and make slight modifications to adapt it to our tasks.",
+    "translation": "这一段把 AgentSquare 放在自动优化研究背景下。LLM 已被用于代码生成、神经架构搜索和提示词优化，OPRO 与 PromptBreeder 主要利用模型推理能力改进提示词，ADAS 则进一步在代码空间中搜索完整 Agent 系统。AgentSquare 的差异在于引入模块化设计空间，让已有成功组件可以被标准化复用，也让新模块发现更容易与旧模块组合。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "AgentSquare setup. We implement AgentSquare and conduct experiments using both GPT-3.5-turbo-0125 and GPT-4o~[cite: achiam2023gpt]. To ensure a fair comparison, we use the same number of few-shot examples across all methods. The initial agent is set as a random module combination, and the search process terminates after 5 consecutive iterations without performance improvement.",
+    "translation": "AgentSquare 在 GPT-3.5-turbo-0125 和 GPT-4o 上都进行了实验。为了公平比较，所有方法使用相同数量的 few-shot 示例。初始 Agent 是随机模块组合，搜索在连续五轮没有性能提升后终止。这个设置强调搜索机制本身，而不是依赖更多示例或更长预算。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Algorithm: Algorithm of AgentSquare\n\\beginalgorithm[t!]\n\\KwIn\nInitial agent $A_0$, targeted task descriptions $d$, maximum evolution episode $K$, population size $N$ per evolution phase, standardized module pools $\\\\mathbbP, R, \\mathbbT, \\mathbbM\\$, experience pool $\\mathbbE$\n\\KwOutThe evolved agent $A^*$\n$t arrow 1$ \\tcpCurrent search episode\n$A_e^0 arrow A_0$ \\tcpInitialization of the module evolution phase\n\\While$t \\leq K$\n$\\A_e^1,A_e^2,...,A_e^N\\ arrow \\pi_\\xi (A_e^0, d, N, \\mathbbP, R, \\mathbbT, \\mathbbM, \\mathbbE)$\n\\tcpModule evolution\n$A_r^0 arrow \\arg\\max\\Eval_d(A_e^0), Eval_d(A_e^1),...,Eval_d(A_e^N)\\$ \\tcpSelect the best-performing generated agent\n$\\A_r^1,A_r^2,...,A_r^N\\ arrow \\pi_\\theta (A_r^0, d, N, \\mathbbP, R, \\mathbbT, \\mathbbM, \\mathbbE)$ \\tcpModule recombination\n$A_e^0 arrow \\arg\\max\\Eval_d(A_r^0), Eval_d(A_r^1),...,Eval_d(A_r^N)\\$ \\tcpSelect the best-performing generated agent\n$ t arrow t+1$\n$A^* arrow A_e^0$\nreturn $A^*$\n\\endalgorithm",
+    "translation": "算法描述 AgentSquare 的完整搜索循环。输入包括初始 Agent、任务描述、最大演化轮数、每轮种群规模、四类标准化模块池和经验池；输出是演化后的最佳 Agent。每轮先进行模块演化，真实评估子代并选择最佳候选；再进行模块重组，用提议器生成新的组合并选择表现最好的候选；随后进入下一轮。循环结束后，当前最佳 Agent 即为搜索结果。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance comparison of searched agents from AgentSquare and (1) existing human-designed agents (2) module search baselines (3) prompt search baselines based on GPT-3.5 on six tasks across different domains.",
+    "translation": "这张表给出实验设置中的量化比较。表格通常列出任务、指标、基线方法、AgentSquare 结果、消融版本或搜索成本。读表时要先确认每个任务使用的指标含义，再比较人工设计、模块搜索、提示搜索、Agent 搜索和 AgentSquare 之间的差异。表格支持论文的核心结论：模块演化、模块重组和性能预测器共同提升了搜索效率与最终表现。",
+    "kind": "table"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Comparison between the searched best agent from AgentSquare and the best human-designed agent on all tasks.",
+    "translation": "这张表给出实验设置中的量化比较。表格通常列出任务、指标、基线方法、AgentSquare 结果、消融版本或搜索成本。读表时要先确认每个任务使用的指标含义，再比较人工设计、模块搜索、提示搜索、Agent 搜索和 AgentSquare 之间的差异。表格支持论文的核心结论：模块演化、模块重组和性能预测器共同提升了搜索效率与最终表现。",
+    "kind": "table"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Ablation study of AgentSquare on GPT-3.5 on six tasks across different domains.",
+    "translation": "这张表给出实验设置中的量化比较。表格通常列出任务、指标、基线方法、AgentSquare 结果、消融版本或搜索成本。读表时要先确认每个任务使用的指标含义，再比较人工设计、模块搜索、提示搜索、Agent 搜索和 AgentSquare 之间的差异。表格支持论文的核心结论：模块演化、模块重组和性能预测器共同提升了搜索效率与最终表现。",
+    "kind": "table"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Average API cost per search iteration and the total number of iterations until termination for AgentSquare using GPT-3.5 and GPT-4o across six tasks.",
+    "translation": "这张表给出实验设置中的量化比较。表格通常列出任务、指标、基线方法、AgentSquare 结果、消融版本或搜索成本。读表时要先确认每个任务使用的指标含义，再比较人工设计、模块搜索、提示搜索、Agent 搜索和 AgentSquare 之间的差异。表格支持论文的核心结论：模块演化、模块重组和性能预测器共同提升了搜索效率与最终表现。",
+    "kind": "table"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance versus API costs visualization on ALFWorld task.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig4_alfworld.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance versus API costs visualization on Webshop.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig4_webshop.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance versus API costs visualization on Sciworld.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig4_sciworld.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance versus API costs visualization on M3tool.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig4_m3tool.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance versus API costs visualization on Travelplanner.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig4_travelplanner.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Performance versus API costs visualization on PDDL.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig4_pddl.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "AgentSquare search trajectory on M3tool and PDDL (more hand-crafted agents, specific module combinations when surpassing best hand-crafted and the final evolved agent, other search baselines).",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig5_m3tool_pddl.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "AgentSquare search trajectory on Sciworld and Travelplanner (more hand-crafted agents, specific module combinations when surpassing best hand-crafted and the final evolved agent, other search baselines).",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig5_sciworld_travelplanner.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "Validation of the effectiveness of the performance predictor on dynamically searched agents for each task.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/fig5-more_data_points.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "New module discovered through AgentSquare search on Webshop.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_HTSS.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "New module discovered through AgentSquare search on Sciworld.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_Hier.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "New module discovered through AgentSquare search on M3tool.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_ToolBF.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "New module discovered through AgentSquare search on Travelplanner.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_TH.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "New module discovered through AgentSquare search on Pddl.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_CASRC.png",
+    "kind": "figure"
+  },
+  {
+    "section": "实验设置",
+    "page": 16,
+    "sourceText": "New module discovered through AgentSquare search on Pddl.",
+    "translation": "图示展示的是实验设置中的关键证据。它的核心作用是帮助读者理解论文如何组织模块化 Agent 设计、如何执行搜索循环、如何比较实验趋势，或如何呈现新模块带来的结构变化。阅读时应关注模块之间的连接关系、搜索过程中候选方案怎样更新、成本与性能如何权衡，以及图中信息如何支撑论文关于模块演化、模块重组和性能预测器的主张。",
+    "assetPath": "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/new_module_IR.png",
+    "kind": "figure"
+  }
+]

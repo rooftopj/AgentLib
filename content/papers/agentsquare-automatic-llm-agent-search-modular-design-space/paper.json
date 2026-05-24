@@ -1,0 +1,89 @@
+{
+  "slug": "agentsquare-automatic-llm-agent-search-modular-design-space",
+  "title": "AgentSquare: Automatic LLM Agent Search in Modular Design Space",
+  "authors": [
+    "Yu Shang",
+    "Yu Li",
+    "Keyu Zhao",
+    "Likai Ma",
+    "Jiahe Liu",
+    "Fengli Xu",
+    "Yong Li"
+  ],
+  "institutions": [
+    "Department of Electronic Engineering, Tsinghua University",
+    "Shenzhen International Graduate School, Tsinghua University"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Yu Shang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yu Li",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Keyu Zhao",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Likai Ma",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Jiahe Liu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Fengli Xu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yong Li",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Department of Electronic Engineering, Tsinghua University",
+      "translation": "清华大学电子工程系"
+    },
+    {
+      "id": 2,
+      "name": "Shenzhen International Graduate School, Tsinghua University",
+      "translation": "清华大学深圳国际研究生院"
+    }
+  ],
+  "year": 2024,
+  "venue": "ICLR 2025 / arXiv",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "AgentSquare",
+    "MoLAS",
+    "模块化 Agent",
+    "自动架构搜索",
+    "性能预测器"
+  ],
+  "summary": "AgentSquare 提出 MoLAS 研究问题：在规划、推理、工具使用和记忆四类标准化模块组成的设计空间中自动搜索 LLM Agent。它用模块演化发现新模块，用模块重组复用既有模块，并用上下文内性能预测器跳过低潜力候选。在 Web、具身、工具使用和游戏六个基准上，AgentSquare 相比已知最佳人工设计平均提升 17.2%，同时给出可解释的 Agent 设计洞察。",
+  "arxivId": "2410.06153",
+  "arxivUrl": "https://arxiv.org/abs/2410.06153",
+  "sourcePath": "assets/papers/arXiv-2410.06153v3",
+  "codeUrl": "https://github.com/tsinghua-fib-lab/AgentSquare"
+}
