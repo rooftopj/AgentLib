@@ -1,3 +1,0 @@
-display_name: 论文转站点
-short_description: 将论文 TeX 工程转为中文讲解与精读站点内容
-default_prompt: 将这个论文 TeX 工程转为可发布的中文论文学习页面内容。
