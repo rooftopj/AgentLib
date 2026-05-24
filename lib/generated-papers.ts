@@ -6,7 +6,7 @@ import paper2Meta from "@/content/papers/flow-modularized-agentic-workflow-autom
 import paper2Reading from "@/content/papers/flow-modularized-agentic-workflow-automation/reading.json";
 
 export const generatedPaperModules = [
-  { meta: paper0Meta, reading: paper0Reading },
-  { meta: paper1Meta, reading: paper1Reading },
-  { meta: paper2Meta, reading: paper2Reading }
+  { meta: paper0Meta, reading: paper0Reading, explainerCoverImagePath: "/generated/aflow-automating-agentic-workflow-generation/FORMULATION.png" },
+  { meta: paper1Meta, reading: paper1Reading, explainerCoverImagePath: "/generated/chatsop-sop-guided-mcts-dialogue-agents/exa_11.png" },
+  { meta: paper2Meta, reading: paper2Reading, explainerCoverImagePath: "/generated/flow-modularized-agentic-workflow-automation/Picture1.png" }
 ];

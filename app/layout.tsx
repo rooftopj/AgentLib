@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agent Lib",
-  description: "面向中文读者的 Agent 学习资料库，当前提供论文讲解与中英对照精读。"
+  description: "面向中文读者的 Agent 学习资料库，提供论文讲解、博客洞察与开源项目分析。"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Link>
           <nav className="site-nav" aria-label="主导航">
             <Link href="/papers/">论文库</Link>
+            <Link href="/blogs/">博客</Link>
             <SearchDialog />
           </nav>
         </header>

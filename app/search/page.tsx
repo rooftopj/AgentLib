@@ -6,7 +6,7 @@ export default function SearchPage() {
     <div className="page-shell compact">
       <div className="page-title">
         <p className="eyebrow">搜索</p>
-        <h1>Search</h1>
+        <h1>Search Agent Lib</h1>
       </div>
       <Suspense fallback={<div className="search-panel">正在加载搜索结果...</div>}>
         <SearchClient />

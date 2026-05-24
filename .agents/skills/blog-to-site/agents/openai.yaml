@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blog To Site"
+  short_description: "Turn agent-field blog URLs into Chinese insight pages."
+  default_prompt: "Generate a blog insight page from this URL:"

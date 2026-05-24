@@ -6,5 +6,11 @@ node_modules/
 public/search-index.json
 artifacts/
 .agents/
+!.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/blog-to-site/
+!.agents/skills/blog-to-site/**
 .tmp/
 assets/papers/

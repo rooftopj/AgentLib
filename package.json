@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run paper:registry && npm run paper:validate && npm run paper:index && next build",
+    "build": "npm run paper:registry && npm run blog:registry && npm run paper:validate && npm run blog:validate && npm run content:index && next build",
     "start": "next start",
     "paper:new": "node scripts/new-paper.mjs",
     "paper:registry": "node scripts/generate-paper-registry.mjs",
     "paper:validate": "node scripts/validate-papers.mjs",
-    "paper:index": "node scripts/generate-search-index.mjs"
+    "paper:index": "node scripts/generate-search-index.mjs",
+    "blog:registry": "node scripts/generate-blog-registry.mjs",
+    "blog:validate": "node scripts/validate-blogs.mjs",
+    "content:index": "node scripts/generate-search-index.mjs"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.0",

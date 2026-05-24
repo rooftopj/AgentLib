@@ -41,6 +41,7 @@ export type Paper = {
   sourcePath?: string;
   sections: Array<{ id: string; title: string }>;
   reading: ReadingBlock[];
+  coverImagePath?: string;
 };
 
 export const categories = categoriesData;
@@ -67,10 +68,15 @@ function sectionsFromReading(reading: ReadingBlock[]) {
     .map((title) => ({ id: slugifyHeading(title), title }));
 }
 
-export const papers: Paper[] = generatedPaperModules.map(({ meta, reading }) => ({
+function coverImageFromReading(reading: ReadingBlock[]) {
+  return reading.find((item) => item.assetPath && (item.kind === "figure" || item.sourceText.startsWith("Figure:")))?.assetPath;
+}
+
+export const papers: Paper[] = generatedPaperModules.map(({ meta, reading, explainerCoverImagePath }) => ({
   ...meta,
   reading: reading as ReadingBlock[],
-  sections: sectionsFromReading(reading as ReadingBlock[])
+  sections: sectionsFromReading(reading as ReadingBlock[]),
+  coverImagePath: explainerCoverImagePath || coverImageFromReading(reading as ReadingBlock[])
 }));
 
 export function getPaper(slug: string) {

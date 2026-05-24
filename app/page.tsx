@@ -1,46 +1,118 @@
 import Link from "next/link";
+import ContentTypeBadge from "@/components/ContentTypeBadge";
+import { blogs } from "@/lib/blogs";
 import { categories, papers } from "@/lib/papers";
+import { publicPath } from "@/lib/public-path";
 
 export default function HomePage() {
-  const featured = papers[0];
+  const recentPapers = papers.slice(0, 2);
+  const recentBlogs = blogs.slice(0, 2);
+  const projectTeasers = [
+    {
+      title: "下一步：读懂知名 agent 项目的设计取舍。",
+      summary: "这一类会聚焦仓库结构、关键模块、运行路径、工程边界和适合复用的实现片段。",
+      tags: ["项目结构", "核心模块", "实现路线"]
+    }
+  ].slice(0, 2);
+  const categorySummaries = categories.map((category) => {
+    const paperCount = papers.filter((paper) => paper.category === category.slug).length;
+    const blogCount = blogs.filter((blog) => blog.category === category.slug).length;
+
+    return { ...category, paperCount, blogCount, totalCount: paperCount + blogCount };
+  });
 
   return (
     <div className="page-shell library-shell">
       <section className="library-header">
         <div>
-          <p className="eyebrow">Agent Lib</p>
           <h1>Agent Lib</h1>
         </div>
-        <div className="library-stats" aria-label="论文统计">
+        <div className="library-stats" aria-label="资料统计">
           <span>{papers.length} 篇论文</span>
-          <span>{categories.length} 个分类</span>
+          <span>{blogs.length} 篇博客</span>
+          <span>{categories.length} 个主题</span>
         </div>
       </section>
 
-      <section className="focus-paper">
+      <section className="content-lanes" aria-label="内容方向">
+        <Link className="content-lane card-link" href="/papers/">
+          <p className="paper-meta">论文讲解与精读</p>
+          <h2>想判断一篇论文值不值得读，从这里先看懂主线。</h2>
+          <p>先抓问题、方法、实验和局限，再决定要不要进入中英对照精读。</p>
+        </Link>
+        <Link className="content-lane card-link" href="/blogs/">
+          <p className="paper-meta">博客洞察</p>
+          <h2>想借鉴一线团队的做法，先看可复用的工程 insight。</h2>
+          <p>把实践经验、架构取舍和迁移提醒提炼出来，保留原文入口方便回看。</p>
+        </Link>
+        <article className="content-lane">
+          <p className="paper-meta">开源项目分析</p>
+          <h2>想复用一个项目，先拆清结构、模块和实现路径。</h2>
+          <p>后续会从仓库入口、核心代码、运行方式和设计取舍里整理可借鉴部分。</p>
+          <span className="availability-note">即将上线</span>
+        </article>
+      </section>
+
+      <section className="focus-paper latest-section">
         <div className="section-heading">
           <p className="eyebrow">最近更新</p>
-          <h2>{featured.title}</h2>
         </div>
-        <article className="paper-feature featured-paper">
-          <div>
-            <p className="paper-meta">{featured.categoryLabel} · {featured.year}</p>
-            <p>{featured.summary}</p>
-            <div className="tag-row">
-              {featured.tags.map((tag) => (
-                <span className="tag" key={tag}>{tag}</span>
-              ))}
-            </div>
-          </div>
-          <div className="feature-actions">
-            <Link className="button primary" href={`/papers/${featured.slug}/`}>
-              讲解页
+        <div className="latest-grid">
+          {recentPapers.map((paper) => (
+            <Link className="latest-card latest-card-with-media card-link" href={`/papers/${paper.slug}/`} key={paper.slug}>
+              {paper.coverImagePath ? (
+                <img className="blog-row-cover" src={publicPath(paper.coverImagePath)} alt="" aria-hidden="true" />
+              ) : null}
+              <div>
+                <p className="paper-meta"><ContentTypeBadge type="paper" />{paper.categoryLabel} · {paper.year}</p>
+                <h3>{paper.title}</h3>
+                <p>{paper.summary}</p>
+                <div className="tag-row">
+                  {paper.tags.slice(0, 4).map((tag) => (
+                    <span className="tag" key={tag}>{tag}</span>
+                  ))}
+                </div>
+              </div>
             </Link>
-            <Link className="button" href={`/papers/${featured.slug}/reading/`}>
-              精读页
+          ))}
+
+          {recentBlogs.map((blog) => (
+            <Link className="latest-card latest-card-with-media card-link" href={`/blogs/${blog.slug}/`} key={blog.slug}>
+              <img
+                className="blog-row-cover"
+                src={blog.insightImageUrl || blog.coverImageUrl}
+                alt=""
+                aria-hidden="true"
+              />
+              <div>
+                <p className="paper-meta"><ContentTypeBadge type="blog" />{blog.publisher} · {blog.publishedDate}</p>
+                <h3>{blog.title}</h3>
+                <p>{blog.summary}</p>
+                <div className="tag-row">
+                  {blog.tags.slice(0, 4).map((tag) => (
+                    <span className="tag" key={tag}>{tag}</span>
+                  ))}
+                </div>
+              </div>
             </Link>
-          </div>
-        </article>
+          ))}
+
+          {projectTeasers.map((project) => (
+            <article className="latest-card" key={project.title}>
+              <div>
+                <p className="paper-meta"><ContentTypeBadge type="project" />即将上线</p>
+                <h3>{project.title}</h3>
+                <p>{project.summary}</p>
+                <div className="tag-row">
+                  {project.tags.map((tag) => (
+                    <span className="tag" key={tag}>{tag}</span>
+                  ))}
+                </div>
+              </div>
+              <span className="availability-note">即将上线</span>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="section-band">
@@ -48,10 +120,11 @@ export default function HomePage() {
           <h2>按主题浏览</h2>
         </div>
         <div className="category-grid">
-          {categories.map((category) => (
-            <Link className="category-tile" key={category.slug} href={`/categories/${category.slug}/`}>
+          {categorySummaries.map((category) => (
+            <Link className="category-tile card-link" key={category.slug} href={`/categories/${category.slug}/`}>
               <span>{category.label}</span>
               <small>{category.description}</small>
+              <em>{category.totalCount} 篇资料 · {category.paperCount} 论文 · {category.blogCount} 博客</em>
             </Link>
           ))}
         </div>

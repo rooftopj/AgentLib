@@ -21,8 +21,20 @@ const imports = slugs.flatMap((slug, index) => [
   `import paper${index}Reading from "@/content/papers/${slug}/reading.json";`
 ]).join("\n");
 
+function firstExplainerFigure(slug) {
+  const explainerPath = path.join(papersDir, slug, "explainer.mdx");
+  if (!fs.existsSync(explainerPath)) return "";
+
+  const explainer = fs.readFileSync(explainerPath, "utf8");
+  const figureMatch = explainer.match(/<FigureBlock[\s\S]*?\bsrc=["']([^"']+)["']/);
+  if (figureMatch) return figureMatch[1];
+
+  const markdownImageMatch = explainer.match(/!\[[^\]]*]\(([^)]+)\)/);
+  return markdownImageMatch?.[1] ?? "";
+}
+
 const modules = slugs
-  .map((_, index) => `  { meta: paper${index}Meta, reading: paper${index}Reading }`)
+  .map((slug, index) => `  { meta: paper${index}Meta, reading: paper${index}Reading, explainerCoverImagePath: ${JSON.stringify(firstExplainerFigure(slug))} }`)
   .join(",\n");
 
 const body = `${imports}

@@ -1,18 +1,22 @@
 import Link from "next/link";
+import ContentTypeBadge from "@/components/ContentTypeBadge";
 import { papers } from "@/lib/papers";
+import { publicPath } from "@/lib/public-path";
 
 export default function PapersPage() {
   return (
     <div className="page-shell compact papers-library-page">
       <div className="page-title">
-        <p className="eyebrow">Agent Lib</p>
-        <h1>论文库</h1>
+        <h1>论文</h1>
       </div>
       <div className="paper-list">
         {papers.map((paper) => (
-          <article className="paper-row" key={paper.slug}>
+          <Link className="paper-row blog-row card-link" href={`/papers/${paper.slug}/`} key={paper.slug}>
+            {paper.coverImagePath ? (
+              <img className="blog-row-cover" src={publicPath(paper.coverImagePath)} alt="" aria-hidden="true" />
+            ) : null}
             <div>
-              <p className="paper-meta">{paper.categoryLabel} · {paper.year}</p>
+              <p className="paper-meta"><ContentTypeBadge type="paper" />{paper.categoryLabel} · {paper.year}</p>
               <h2>{paper.title}</h2>
               <p>{paper.summary}</p>
               <div className="tag-row">
@@ -21,11 +25,7 @@ export default function PapersPage() {
                 ))}
               </div>
             </div>
-            <div className="row-actions">
-              <Link className="button primary" href={`/papers/${paper.slug}/`}>讲解</Link>
-              <Link className="button" href={`/papers/${paper.slug}/reading/`}>精读</Link>
-            </div>
-          </article>
+          </Link>
         ))}
       </div>
     </div>

@@ -1,0 +1,22 @@
+{
+  "slug": "harness-engineering",
+  "title": "工程技术：在智能体优先的世界中利用 Codex",
+  "sourceUrl": "https://openai.com/index/harness-engineering/",
+  "canonicalUrl": "https://openai.com/zh-Hans-CN/index/harness-engineering/",
+  "publisher": "OpenAI",
+  "author": "Ryan Lopopolo",
+  "publishedDate": "2026-02-11",
+  "category": "code-agents",
+  "categoryLabel": "代码与软件工程",
+  "tags": [
+    "Codex",
+    "agent-first engineering",
+    "可观测性",
+    "代码仓库知识库",
+    "架构约束"
+  ],
+  "summary": "OpenAI 这篇博客把 Codex 放进一个几乎完全由智能体生成代码的内部产品实验里，核心 insight 不是“让模型多写代码”，而是重新设计仓库、工具、反馈回路和架构边界，让智能体能读懂、验证并持续修复系统。",
+  "coverImageUrl": "https://images.ctfassets.net/kftzwdyauwt9/2TjayW57xam6dBbbV28sae/887861e21b8d205c2c392ec5315d3681/SEO.png?w=1600&h=900&fit=fill",
+  "coverImageAlt": "OpenAI Harness Engineering 文章的 SEO 封面图。",
+  "insightImageUrl": "https://images.ctfassets.net/kftzwdyauwt9/2CTNTcnsYAMhiNd1wGzV2g/c4201b91fbb0b92027cee3ce09fff9ed/OAI_Harness_engineering_Codex_drives_the_app_with_Chrome_DevTools_MCP_to_validate_its_work_desktop-dark.png?w=1920&q=80&fm=webp"
+}

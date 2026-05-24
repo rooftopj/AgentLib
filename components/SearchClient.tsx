@@ -4,7 +4,23 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import ContentTypeBadge from "@/components/ContentTypeBadge";
+import { blogs } from "@/lib/blogs";
 import { categories, papers } from "@/lib/papers";
+import { publicPath } from "@/lib/public-path";
+
+type SearchItem = {
+  type: "paper" | "blog";
+  slug: string;
+  href: string;
+  title: string;
+  meta: string;
+  summary: string;
+  category: string;
+  tags: string[];
+  sections: Array<{ title: string }>;
+  coverImageUrl?: string;
+};
 
 function Highlight({ text, query }: { text: string; query: string }) {
   const needle = query.trim();
@@ -34,20 +50,47 @@ export default function SearchClient() {
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory);
 
+  const items = useMemo<SearchItem[]>(() => [
+    ...papers.map((paper) => ({
+      type: "paper" as const,
+      slug: paper.slug,
+      href: `/papers/${paper.slug}/`,
+      title: paper.title,
+      meta: `论文 · ${paper.categoryLabel} · ${paper.year}`,
+      summary: paper.summary,
+      category: paper.category,
+      tags: paper.tags,
+      sections: paper.sections,
+      coverImageUrl: paper.coverImagePath ? publicPath(paper.coverImagePath) : undefined
+    })),
+    ...blogs.map((blog) => ({
+      type: "blog" as const,
+      slug: blog.slug,
+      href: `/blogs/${blog.slug}/`,
+      title: blog.title,
+      meta: `博客 · ${blog.publisher} · ${blog.categoryLabel}`,
+      summary: blog.summary,
+      category: blog.category,
+      tags: blog.tags,
+      sections: blog.sections,
+      coverImageUrl: blog.insightImageUrl || blog.coverImageUrl
+    }))
+  ], []);
+
   const results = useMemo(() => {
     const text = query.trim().toLowerCase();
-    return papers.filter((paper) => {
-      const inCategory = category === "all" || paper.category === category;
+    return items.filter((item) => {
+      const inCategory = category === "all" || item.category === category;
       const haystack = [
-        paper.title,
-        paper.summary,
-        paper.categoryLabel,
-        ...paper.tags,
-        ...paper.sections.map((section) => section.title)
+        item.title,
+        item.summary,
+        item.meta,
+        ...item.tags,
+        ...item.sections.map((section) => section.title)
       ].join(" ").toLowerCase();
       return inCategory && (!text || haystack.includes(text));
     });
-  }, [category, query]);
+  }, [category, items, query]);
 
   return (
     <section className="search-panel">
@@ -56,7 +99,7 @@ export default function SearchClient() {
           <span>关键词</span>
           <input
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="例如：workflow、评测、代码生成"
+            placeholder="例如：workflow、可观测性、代码生成"
             type="search"
             value={query}
           />
@@ -72,22 +115,24 @@ export default function SearchClient() {
         </label>
       </div>
       <div className="paper-list">
-        {results.map((paper) => (
-          <article className="paper-row" key={paper.slug}>
+        {results.map((item) => (
+          <Link className="paper-row blog-row card-link" href={item.href} key={`${item.type}-${item.slug}`}>
+            {item.coverImageUrl ? (
+              <img className="blog-row-cover" src={item.coverImageUrl} alt="" aria-hidden="true" />
+            ) : null}
             <div>
-              <p className="paper-meta">{paper.categoryLabel} · {paper.year}</p>
-              <h2><Highlight text={paper.title} query={query} /></h2>
-              <p><Highlight text={paper.summary} query={query} /></p>
+              <p className="paper-meta"><ContentTypeBadge type={item.type} />{item.meta.replace(/^(论文|博客)\s+·\s+/, "")}</p>
+              <h2><Highlight text={item.title} query={query} /></h2>
+              <p><Highlight text={item.summary} query={query} /></p>
               <div className="tag-row">
-                {paper.tags.map((tag) => (
+                {item.tags.map((tag) => (
                   <span className="tag" key={tag}><Highlight text={tag} query={query} /></span>
                 ))}
               </div>
             </div>
-            <Link className="button primary" href={`/papers/${paper.slug}/`}>打开</Link>
-          </article>
+          </Link>
         ))}
-        {results.length === 0 ? <p className="empty-state">没有找到匹配论文，可以换一个中文关键词。</p> : null}
+        {results.length === 0 ? <p className="empty-state">没有找到匹配资料，可以换一个中文关键词。</p> : null}
       </div>
     </section>
   );
