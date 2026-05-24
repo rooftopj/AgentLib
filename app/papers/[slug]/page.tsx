@@ -3,7 +3,9 @@ import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { spaceMixedText } from "@/components/InlineText";
+import LearningAnnotations from "@/components/LearningAnnotations";
 import { groupToc, renderMdxContent } from "@/components/RichMdxRenderer";
+import { annotationItems, readAnnotations } from "@/lib/annotations";
 import { getPaper, papers } from "@/lib/papers";
 
 export function generateStaticParams() {
@@ -62,11 +64,12 @@ export default async function PaperPage({ params }: { params: Promise<{ slug: st
   const paper = getPaper(slug);
   if (!paper) notFound();
   const explainer = readExplainer(paper.slug);
-  const renderedExplainer = renderMdxContent(explainer);
+  const annotations = annotationItems(readAnnotations("paper", paper.slug));
+  const renderedExplainer = renderMdxContent(explainer, annotations);
   const tocGroups = groupToc(renderedExplainer.toc);
 
   return (
-    <div className="reader-shell">
+    <div className={`reader-shell${annotations.length > 0 ? " annotated-reader-shell" : ""}`}>
       <aside className="reader-aside">
         <Link href="/papers/" className="back-link">返回论文索引</Link>
         <nav aria-label="论文目录">
@@ -102,6 +105,7 @@ export default async function PaperPage({ params }: { params: Promise<{ slug: st
           {renderedExplainer.elements}
         </div>
       </article>
+      <LearningAnnotations annotations={annotations} />
     </div>
   );
 }

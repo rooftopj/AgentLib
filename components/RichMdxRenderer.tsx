@@ -6,6 +6,7 @@ import CodeBlock from "@/components/CodeBlock";
 import ConceptTabs from "@/components/ConceptTabs";
 import { renderInlineText } from "@/components/InlineText";
 import MathBlock from "@/components/MathBlock";
+import type { AnnotationItem } from "@/lib/annotations";
 import { publicPath } from "@/lib/public-path";
 
 export type TocItem = { id: string; title: string; level: 2 | 3 };
@@ -32,6 +33,80 @@ function getAttributes(source: string) {
   return Object.fromEntries(
     [...source.matchAll(/([A-Za-z][A-Za-z0-9]*)="([\s\S]*?)"/g)].map((match) => [match[1], decodeMdxAttr(match[2])])
   );
+}
+
+type AnnotationState = {
+  item: AnnotationItem;
+  seen: number;
+  matched: boolean;
+};
+
+type SectionContext = {
+  primaryTitle: string;
+  headingTitle: string;
+};
+
+function sectionMatches(annotation: AnnotationItem, context: SectionContext) {
+  if (!annotation.sectionTitle) return true;
+  return annotation.sectionTitle === context.primaryTitle || annotation.sectionTitle === context.headingTitle;
+}
+
+function renderTextWithAnnotations(text: string, annotations: AnnotationState[], context: SectionContext, keyPrefix: string): ReactNode[] {
+  if (annotations.length === 0) return renderInlineText(text);
+
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let markIndex = 0;
+
+  while (cursor < text.length) {
+    let next: { state: AnnotationState; index: number } | null = null;
+
+    for (const state of annotations) {
+      if (state.matched || !state.item.quote || !sectionMatches(state.item, context)) continue;
+      const index = text.indexOf(state.item.quote, cursor);
+      if (index === -1) continue;
+      if (
+        !next
+        || index < next.index
+        || (index === next.index && state.item.quote.length > next.state.item.quote.length)
+      ) {
+        next = { state, index };
+      }
+    }
+
+    if (!next) {
+      parts.push(...renderInlineText(text.slice(cursor)));
+      break;
+    }
+
+    if (next.index > cursor) {
+      parts.push(...renderInlineText(text.slice(cursor, next.index)));
+    }
+
+    const quote = next.state.item.quote;
+      next.state.seen += 1;
+      if (next.state.seen === next.state.item.occurrence) {
+        next.state.matched = true;
+        parts.push(
+        <span
+          className="annotation-anchor"
+          data-annotation-id={next.state.item.id}
+          key={`${keyPrefix}-annotation-${markIndex}`}
+          role="button"
+          tabIndex={0}
+        >
+          {renderInlineText(quote)}
+        </span>
+      );
+      markIndex += 1;
+    } else {
+      parts.push(...renderInlineText(quote));
+    }
+
+    cursor = next.index + quote.length;
+  }
+
+  return parts;
 }
 
 function localPublicAssetExists(src: string) {
@@ -109,17 +184,23 @@ function StepFlow({ steps, descriptions }: { steps: string; descriptions?: strin
   );
 }
 
-export function renderMdxContent(markdown: string) {
+export function renderMdxContent(markdown: string, annotations: AnnotationItem[] = []) {
   const lines = markdown.split(/\r?\n/);
   const elements: ReactNode[] = [];
   const toc: TocItem[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
   let orderedList: string[] = [];
+  let sectionContext: SectionContext = { primaryTitle: "", headingTitle: "" };
+  const annotationStates: AnnotationState[] = annotations.map((item) => ({ item, seen: 0, matched: false }));
 
   function flushParagraph() {
     if (paragraph.length > 0) {
-      elements.push(<p key={`p-${elements.length}`}>{renderInlineText(paragraph.join(" "))}</p>);
+      elements.push(
+        <p key={`p-${elements.length}`}>
+          {renderTextWithAnnotations(paragraph.join(" "), annotationStates, sectionContext, `p-${elements.length}`)}
+        </p>
+      );
       paragraph = [];
     }
   }
@@ -128,7 +209,11 @@ export function renderMdxContent(markdown: string) {
     if (list.length > 0) {
       elements.push(
         <ul key={`ul-${elements.length}`}>
-          {list.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{renderInlineText(item)}</li>)}
+          {list.map((item, itemIndex) => (
+            <li key={`${itemIndex}-${item}`}>
+              {renderTextWithAnnotations(item, annotationStates, sectionContext, `li-${elements.length}-${itemIndex}`)}
+            </li>
+          ))}
         </ul>
       );
       list = [];
@@ -136,7 +221,11 @@ export function renderMdxContent(markdown: string) {
     if (orderedList.length > 0) {
       elements.push(
         <ol key={`ol-${elements.length}`}>
-          {orderedList.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{renderInlineText(item)}</li>)}
+          {orderedList.map((item, itemIndex) => (
+            <li key={`${itemIndex}-${item}`}>
+              {renderTextWithAnnotations(item, annotationStates, sectionContext, `oli-${elements.length}-${itemIndex}`)}
+            </li>
+          ))}
         </ol>
       );
       orderedList = [];
@@ -161,6 +250,7 @@ export function renderMdxContent(markdown: string) {
       const title = line.replace(/^##\s+/, "");
       const id = headingId(title);
       toc.push({ id, title, level: 2 });
+      sectionContext = { primaryTitle: title, headingTitle: title };
       elements.push(<h2 id={id} key={`h2-${title}`}>{title}</h2>);
       continue;
     }
@@ -183,6 +273,7 @@ export function renderMdxContent(markdown: string) {
       const title = line.replace(/^###\s+/, "");
       const id = headingId(title);
       toc.push({ id, title, level: 3 });
+      sectionContext = { ...sectionContext, headingTitle: title };
       elements.push(<h3 id={id} key={`h3-${title}`}>{title}</h3>);
       continue;
     }

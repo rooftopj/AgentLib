@@ -3,7 +3,9 @@ import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { spaceMixedText } from "@/components/InlineText";
+import LearningAnnotations from "@/components/LearningAnnotations";
 import { groupToc, renderMdxContent } from "@/components/RichMdxRenderer";
+import { annotationItems, readAnnotations } from "@/lib/annotations";
 import { blogs, getBlog } from "@/lib/blogs";
 
 export function generateStaticParams() {
@@ -20,11 +22,12 @@ export default async function BlogPage({ params }: { params: Promise<{ slug: str
   const blog = getBlog(slug);
   if (!blog) notFound();
   const insight = readInsight(blog.slug);
-  const renderedInsight = renderMdxContent(insight);
+  const annotations = annotationItems(readAnnotations("blog", blog.slug));
+  const renderedInsight = renderMdxContent(insight, annotations);
   const tocGroups = groupToc(renderedInsight.toc);
 
   return (
-    <div className="reader-shell">
+    <div className={`reader-shell${annotations.length > 0 ? " annotated-reader-shell" : ""}`}>
       <aside className="reader-aside">
         <Link href="/blogs/" className="back-link">返回博客</Link>
         <nav aria-label="博客目录">
@@ -65,6 +68,7 @@ export default async function BlogPage({ params }: { params: Promise<{ slug: str
           {renderedInsight.elements}
         </div>
       </article>
+      <LearningAnnotations annotations={annotations} />
     </div>
   );
 }

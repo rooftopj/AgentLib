@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "aflow-automating-agentic-workflow-generation",
+  "items": [
+    {
+      "id": "aflow-custom-operator-001",
+      "sectionTitle": "从形式化到可执行 workflow",
+      "quote": "算子是预定义的常见流程模块，例如 Generate、Format、Review、Revise、Ensemble、Test、Programmer 和 Custom。",
+      "occurrence": 1,
+      "title": "Custom 是什么算子？",
+      "body": "Custom 可以理解成 AFlow 里最基础、最通用的 **LLM 节点接口**：给它一段 `input` 和一段 `instruction`，它就调用 LLM 产出 `response`。\n\n和 Generate、Review、Revise 这类带固定语义的算子相比，Custom 没有预设角色，角色完全由 `instruction` 决定。它常被用来承接还没有专门封装的步骤，比如格式化答案、按测试错误修复代码、生成详细解题过程、比较多个方案。\n\n论文里说即使没有预定义 operators，AFlow 仍可以只靠 Custom 构造 workflow；代价是搜索效率会低一些，因为很多成功模式要靠搜索自己摸出来。"
+    },
+    {
+      "id": "aflow-code-workflow-output-001",
+      "sectionTitle": "从形式化到可执行 workflow",
+      "quote": "把工作流写成代码还有一个好处：它让“结构变化”和“提示词变化”可以同时被搜索。",
+      "occurrence": 1,
+      "title": "AFlow 最后产物是什么？",
+      "body": "AFlow 最后搜索出来的不是一段给人看的自然语言流程，而是一个**可执行的 workflow 程序**。重点不是语法本身，而是控制逻辑：如何调用 LLM、如何传递中间结果、如何组合推理步骤。\n\n```python\nasync def workflow(problem):\n    drafts = [await llm(\"解这道题\", problem) for _ in range(3)]\n    final = await llm(\"比较答案\", drafts)\n    return final\n```\n\n如果是代码生成任务，也可以先生成代码，再运行测试，把失败信息送回修复算子。AFlow 搜索的就是这类 **程序结构 + prompt 内容** 的组合。"
+    },
+    {
+      "id": "aflow-mcts-controller-001",
+      "sectionTitle": "AFlow 方法总览：把 LLM 放进 MCTS 搜索闭环",
+      "quote": "最上层是搜索控制器，也就是 MCTS 变体；它决定从哪个已有 workflow 出发，让 LLM 优化器生成怎样的修改。",
+      "occurrence": 1,
+      "title": "MCTS 是什么？",
+      "body": "MCTS 是 **Monte Carlo Tree Search**，中文常译作蒙特卡洛树搜索。可以把它理解成一种“边试边决定往哪里多投入搜索”的方法。\n\n1. 把每个已有 workflow 当成搜索树上的一个节点。\n2. 选择一个值得继续探索的节点。\n3. 让 LLM 基于它生成新版本。\n4. 运行评估器打分，并把分数回传到树上。\n\n关键不是一次性枚举所有 workflow，而是在**利用高分方向**和**探索新方向**之间做权衡。"
+    },
+    {
+      "id": "aflow-test-programmer-examples-001",
+      "sectionTitle": "核心机制：算子、树结构经验与执行反馈",
+      "quote": "Test 负责运行公开测试，Programmer 负责生成并执行 Python 代码。",
+      "occurrence": 1,
+      "title": "Test 和 Programmer 的例子",
+      "body": "论文里的 **Programmer** 例子来自 GSM8K 数学任务：workflow 先根据题目生成并执行 Python 代码，拿到计算结果后，再交给 Custom 算子整理成自然语言答案。它像是“让模型写一小段 Python 来算题”。\n\n**Test** 的例子来自 MBPP 代码生成任务：workflow 先生成多个候选函数，用 ensemble 选一个，再把函数放到公开测试里运行；如果失败，就把失败代码和报错信息交给修复 prompt。\n\n两者的区别：Programmer 更偏“用代码辅助求解”，Test 更偏“验证候选代码是否真的通过测试”。"
+    },
+    {
+      "id": "aflow-operator-differences-001",
+      "sectionTitle": "核心机制：算子、树结构经验与执行反馈",
+      "quote": "Generate、Review、Revise、Ensemble、Test、Programmer 这些算子都来自已有 agent 工作流里的常见成功模式。",
+      "occurrence": 1,
+      "title": "算子只是一次 LLM 调用吗？",
+      "body": "是的，Generate、Review、Revise 这类简单算子，在论文实现里基本可以理解成**带固定角色的一次 LLM 调用**。\n\n1. Generate：用生成提示词产出候选答案。\n2. Review：用审阅提示词产出评价或反馈。\n3. Revise：用修改提示词根据反馈改答案。\n\n它们和 Custom 的区别不在于技术上一定更复杂，而是语义被提前封装好了。复杂算子才更不像 single call，例如 Ensemble 会汇总多个候选，Test 会运行代码测试，Programmer 会生成并执行 Python。"
+    },
+    {
+      "id": "aflow-tree-vs-linear-history-001",
+      "sectionTitle": "核心机制：算子、树结构经验与执行反馈",
+      "quote": "在线性历史里，失败尝试经常只是变成长 prompt 里的噪声；在树结构里，失败会带着父节点和修改说明被记录。",
+      "occurrence": 1,
+      "title": "树结构比线性日志多什么？",
+      "body": "树结构的价值不在于让 LLM 直接阅读完整树，而在于系统侧能保存每条经验的**上下文**。\n\n每个 workflow 节点都能记录：\n\n- 父节点是谁\n- 这次修改改了什么\n- 分数是上升还是下降\n- 哪些分支成功、哪些分支失败\n\n线性候选池也能记录 top-k 分数，但更容易把经验混成全局日志。树结构能区分“某个修改在这个父 workflow 上有效”和“同样修改在另一个结构里无效”。"
+    },
+    {
+      "id": "aflow-optimizer-tree-input-001",
+      "sectionTitle": "算法与实现细节",
+      "quote": "优化器读取父 workflow 的代码、提示词、历史修改、成功和失败经验，再生成一个子 workflow。",
+      "occurrence": 1,
+      "title": "优化器会看整棵树吗？",
+      "body": "LLM 优化器通常不会直接接收完整搜索树。AFlow 的 MCTS 控制器先在系统侧维护搜索树，并从树中选出一个父 workflow。\n\n随后系统整理一份局部上下文给 LLM：\n\n1. 父 workflow 的代码。\n2. 当前提示词。\n3. 相对父节点的修改记录。\n4. 相关成功/失败经验。\n\n树结构主要用于选择父节点、记录分数和回传经验；LLM 实际看到的是经过筛选和摘要后的局部树经验。"
+    },
+    {
+      "id": "aflow-six-benchmarks-io-001",
+      "sectionTitle": "实验结果怎么读",
+      "quote": "主结果表里，GPT-4o-mini 执行下 AFlow 在六个数据集上的结果分别是 HotpotQA 73.5、DROP 80.6、HumanEval 94.7、MBPP 83.4、GSM8K 93.5、MATH 56.2，平均 80.3。",
+      "occurrence": 1,
+      "title": "六个 benchmark 的输入输出",
+      "body": "这六个 benchmark 覆盖三类任务。\n\n1. **问答**：HotpotQA 是多跳问答；DROP 是阅读理解问答，答案可能是实体、数字、日期，或需要加减计数得到。\n2. **代码生成**：HumanEval 和 MBPP 输入函数签名、自然语言需求和测试语境，输出可运行的 `Python` 函数；评分看 `pass@1`。\n3. **数学推理**：GSM8K 是小学到初中难度的应用题；MATH 是更难的竞赛数学题，论文选的是 level 5 部分题型。\n\n所以这张表不是只证明“模型更强”，而是说明 AFlow 搜到的流程结构能迁移到问答、代码和数学三类任务。"
+    },
+    {
+      "id": "aflow-case-study-tree-not-in-prompt-001",
+      "sectionTitle": "消融、成本与案例：哪些设计真的起作用",
+      "quote": "案例研究把树结构经验讲得更具体。GSM8K 上，AFlow 从只有单个节点且没有提示词的空模板出发，逐步添加 Programmer、ScEnsemble、逐步解题提示、答案格式化等结构。",
+      "occurrence": 1,
+      "title": "案例里的树结构怎么用？",
+      "body": "这段案例里的树结构主要是**系统侧搜索记录**，不是直接塞进 LLM prompt 的完整图。\n\n案例图展示的是每个 workflow 节点的分数，以及它相对父节点做了什么修改：第 1 轮加入 Programmer 后分数提升，第 2 轮再加入 ScEnsemble 后继续提升；另一些分支修改后反而下降。\n\nLLM 优化器通常只接收当前父 workflow 和相关经验摘要。树结构负责在后台保存“哪个修改从哪个父节点来、结果如何”，让成功和失败经验能够按分支归因。"
+    }
+  ]
+}

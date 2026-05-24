@@ -1,0 +1,4 @@
+interface:
+  display_name: "Annotation To Site"
+  short_description: "Convert learning notes into Agent Lib annotations."
+  default_prompt: "Convert ready learning annotation notes for a paper, blog, or project into annotations.json."
