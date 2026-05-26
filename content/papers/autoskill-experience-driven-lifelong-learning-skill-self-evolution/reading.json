@@ -1,0 +1,1508 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "AutoSkill: Experience-Driven Lifelong Learning via Skill Self-Evolution",
+    "translation": "AutoSkill：通过技能自进化实现经验驱动的终身学习",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "In practical LLM applications, users repeatedly express stable preferences and requirements—such as reducing hallucinations, following institutional writing conventions, or avoiding overly technical wording—yet such interaction experience is seldom consolidated into reusable knowledge. Consequently, LLM agents often fail to accumulate personalized capabilities across sessions. We present AutoSkill, an experience-driven lifelong learning framework that enables LLM agents to automatically derive, maintain, and reuse skills from dialogue and interaction traces.",
+    "translation": "在真实的大语言模型应用中，用户会反复表达稳定偏好和要求，例如减少幻觉、遵循机构写作规范、避免过度技术化表述等。但这些交互经验通常没有被整理成可复用知识，导致智能体跨会话难以积累个性化能力。AutoSkill 因此提出经验驱动的终身学习框架，让智能体能够从对话和交互轨迹中自动抽取、维护并复用技能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "AutoSkill abstracts skills from user experience, supports their continual self-evolution, and dynamically injects relevant skills into future requests without retraining the underlying model. Designed as a model-agnostic plug-in layer, it is compatible with existing LLMs and introduces a standardized skill representation for sharing and transfer across agents, users, and tasks. In this way, AutoSkill turns ephemeral interaction experience into explicit, reusable, and composable capabilities.",
+    "translation": "AutoSkill 从用户经验中抽象技能，支持技能持续自我演化，并在后续请求中动态注入相关技能，而不需要重训底座模型。它被设计为模型无关的插件层，能与现有语言模型兼容，并提供标准化技能表示，使技能可以在智能体、用户和任务之间共享与迁移。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "This paper describes the motivation, architecture, skill lifecycle, and implementation of AutoSkill, and positions it with respect to prior work on memory, retrieval, personalization, and agentic systems. AutoSkill highlights a practical and scalable path toward lifelong personalized agents and personal digital surrogates.",
+    "translation": "论文介绍 AutoSkill 的动机、架构、技能生命周期和实现，并把它放在记忆、检索、个性化和智能体系统等相关工作背景下讨论。作者希望借此给终身个性化智能体和个人数字替身提供一条实践路径。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Large language models [cite: brown2020language,touvron2023llama,deepseekai2025deepseekr1incentivizingreasoningcapability] have enabled a new generation of interactive agents for writing assistance, planning, coding, decision support, and tool use~[cite: yao2022react,schick2023toolformer,patil2024gorilla,park2023generative]. As these systems move from controlled benchmarks to real world deployment, a recurring pattern becomes increasingly visible: users repeatedly restate stable preferences and operating requirements across sessions. For example, a user may consistently ask the agent to avoid hallucinations, follow an official writing style, reduce technical jargon, or adhere to a preferred workflow. Recent work on memory enhanced agents and long horizon conversational settings has highlighted the importance of preserving user specific information over time~[cite: zhong2024memorybank,packer2023memgpt,maharana2024evaluating,wu2024longmemeval,chhikara2025mem0]. However, in current practice, such repeated interaction experience is rarely transformed into reusable capability. As a result, user habits and task specific expectations often need to be reestablished from scratch in each new session.",
+    "translation": "引言指出，语言模型智能体已经广泛用于写作、规划、编程、决策支持和工具使用。随着系统从基准走向真实部署，一个明显现象是用户会在不同会话中重复说明稳定偏好和操作要求。现有长期记忆研究强调保存用户信息，但真实系统往往没有把这些重复经验转化为可复用能力，用户仍需在新会话中重新说明习惯。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "This limitation reveals a broader challenge for personalized language agents. Existing approaches provide only partial solutions. Parameter updating and self evolution methods can improve model behavior through self reflection, feedback driven optimization, or self training~[cite: lu2023self,huang2023large,qu2024recursive,wang2025self], but they are often costly or difficult to control in settings that require frequent and fine grained personalization. Memory based approaches preserve facts, preferences, or prior dialogue content through retrieval and long term storage~[cite: lewis2020retrieval,zhong2024memorybank,packer2023memgpt,chhikara2025mem0,xu2025mem,salama2025meminsight], yet they usually treat past interaction as text to be retrieved rather than behavior to be operationalized. Agent frameworks and skill learning methods have demonstrated the value of reusable strategies for reasoning, tool use, and task execution~[cite: yao2022react,schick2023toolformer,wang2023voyager,shinn2023reflexion], but in many cases those skills remain implicit in prompts, trajectories, or policies. What is still missing is a mechanism that can convert recurring interaction experience into explicit, reusable, and maintainable skills.",
+    "translation": "作者把现有个性化方案分为几类：参数更新和自进化方法可以改进行为，但成本高且难以细粒度控制；记忆方法能保存事实、偏好或对话内容，但常把过去经验当作可检索文本，而不是可执行行为；已有技能学习方法展示了策略复用价值，却经常把技能隐含在提示、轨迹或策略中。缺口在于缺少把重复交互经验转成显式、可复用、可维护技能的机制。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "In this paper, we present AutoSkill, an experience driven lifelong learning framework for large language model agents. The central idea of AutoSkill is to treat repeated interaction experience not merely as memory, but as a source of skill formation. Instead of storing only dialogue snippets or preference records, AutoSkill abstracts reusable behaviors from user interactions and crystallizes them into explicit skill artifacts. These artifacts capture behavioral patterns such as stylistic constraints, response strategies, tool use procedures, and domain specific operating conventions. Because they are represented in a structured form, skills can be inspected, edited, merged, versioned, and reused across sessions.",
+    "translation": "AutoSkill 的核心思想是把重复交互经验看作技能形成来源，而不仅是记忆。系统不是只保存对话片段或偏好记录，而是从用户交互中抽象可复用行为，并固化为显式技能工件。这些工件可以捕捉风格约束、响应策略、工具流程和领域操作规范，并支持检查、编辑、合并、版本化和跨会话复用。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "AutoSkill supports a full skill lifecycle. It identifies candidate skills from dialogue and interaction events, summarizes them into standardized SKILL.md artifacts, updates them through iterative refinement, and injects relevant skills into future requests at inference time. This design enables continual capability accumulation without retraining the underlying model. It also provides a practical interface for human oversight, since developers and users can directly inspect and revise the resulting skills. In this way, AutoSkill bridges short term interaction experience and long term capability development, moving language agents closer to the goal of becoming personal digital surrogates that reflect stable user habits, preferences, and working styles.",
+    "translation": "论文介绍 AutoSkill 的动机、架构、技能生命周期和实现，并把它放在记忆、检索、个性化和智能体系统等相关工作背景下讨论。作者希望借此给终身个性化智能体和个人数字替身提供一条实践路径。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "Beyond practical personalization, AutoSkill contributes a distinct perspective on lifelong learning for language agents. It shifts the unit of accumulation from raw memory records to explicit behavioral knowledge, and it frames agent improvement as a process of skill extraction, maintenance, and reuse. This perspective is important for both research and deployment. From a research standpoint, it offers a concrete representation for studying how interaction experience can become reusable capability. From a system standpoint, it provides a plug in layer that can work with existing language models and agent frameworks, while supporting skill sharing and transfer across tasks and users.",
+    "translation": "论文进一步把终身学习的积累单元从原始记忆记录转向显式行为知识，把智能体改进表述为技能抽取、维护和复用过程。研究上，这提供了一个观察交互经验如何变成可复用能力的表示；系统上，它提供了一个可接入现有模型和智能体框架的插件层，并支持跨任务和跨用户迁移。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "The main contributions of this paper are as follows: • We formulate the problem of transforming interaction experience into explicit reusable skills for personalized large language model agents, and we introduce AutoSkill as a framework for this setting. • We propose a skill lifecycle that covers skill extraction, structured representation, iterative refinement, retrieval, and reuse, enabling continual skill evolution without modifying base model parameters. • We design skills as editable and versioned artifacts, which improves transparency, controllability, and long term maintainability compared with implicit memory or policy based approaches. • We implement AutoSkill as an open source and deployable system that supports integration with existing large language models and agent pipelines, providing a practical path toward lifelong personalized agents.",
+    "translation": "引言指出，语言模型智能体已经广泛用于写作、规划、编程、决策支持和工具使用。随着系统从基准走向真实部署，一个明显现象是用户会在不同会话中重复说明稳定偏好和操作要求。现有长期记忆研究强调保存用户信息，但真实系统往往没有把这些重复经验转化为可复用能力，用户仍需在新会话中重新说明习惯。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "Related Work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 3,
+    "sourceText": "We organize related work into four research threads: lifelong learning from experience, self evolution for large language models, long term memory for language agents, and skill learning for reasoning and acting. AutoSkill is related to all four directions, but it is distinguished by its emphasis on explicit skill artifacts, human editable representations, and lifecycle management for skill extraction, revision, retrieval, and reuse.",
+    "translation": "引言指出，语言模型智能体已经广泛用于写作、规划、编程、决策支持和工具使用。随着系统从基准走向真实部署，一个明显现象是用户会在不同会话中重复说明稳定偏好和操作要求。现有长期记忆研究强调保存用户信息，但真实系统往往没有把这些重复经验转化为可复用能力，用户仍需在新会话中重新说明习惯。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experience Driven Lifelong Learning",
+    "page": 3,
+    "sourceText": "Experience Driven Lifelong Learning",
+    "translation": "经验驱动终身学习",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experience Driven Lifelong Learning",
+    "page": 3,
+    "sourceText": "Experience driven lifelong learning studies how agents accumulate reusable knowledge, strategies, or policies from ongoing interactions, so that experience obtained in one setting can support performance in future tasks. Core questions in this line of work include when knowledge should be extracted from interaction history, what should be retained as reusable capability, and how noise accumulation and forgetting can be controlled over long horizons. Experience driven Lifelong Learning (ELL) formalizes these goals and introduces benchmarks such as StuLife for evaluating self evolving agents in long horizon environments~[cite: cai2025building]. Related surveys further organize the research landscape around the perception, memory, and action pipeline of lifelong LLM agents~[cite: zheng2026lifelong]. AutoSkill shares the goal of continual capability accumulation from real interactions, but differs in how experience is represented and maintained. Instead of keeping knowledge as latent memory or implicit policy adaptation, AutoSkill crystallizes reusable capabilities into explicit SKILL.md artifacts with versioned evolution. This design improves interpretability, supports manual inspection and revision, and makes sustained alignment with user preferences easier to achieve.",
+    "translation": "经验驱动终身学习关注智能体如何从持续交互中积累可复用知识、策略或能力。相关工作研究何时抽取知识、保留什么能力，以及如何控制长期噪声和遗忘。AutoSkill 与该方向目标一致，但它把经验维护成显式 SKILL.md 工件，而不是隐式记忆或策略适配，从而更便于解释、修改和长期对齐用户偏好。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Self Evolution for Large Language Models",
+    "page": 4,
+    "sourceText": "Self Evolution for Large Language Models",
+    "translation": "大语言模型自进化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Self Evolution for Large Language Models",
+    "page": 4,
+    "sourceText": "Self evolution methods aim to improve model behavior through self reflection, iterative rewriting, feedback driven refinement, or autonomous data construction. Representative work includes SELF, which introduces self evolution with language feedback~[cite: lu2023self]; Large Language Models Can Self Improve, which studies self training with unlabeled data~[cite: huang2023large]; and Recursive Introspection (RISE), which enables models to revise prior attempts through repeated introspection~[cite: qu2024recursive]. Self Evolving Curriculum (SEC) further explores automated curriculum construction for reasoning tasks~[cite: chen2025self], while recent surveys summarize the broader landscape of self evolving LLM systems~[cite: tao2024survey]. Uncertainty enhanced preference optimization (UPO) is another representative approach, where model policies are improved through reliable feedback sampling~[cite: wang2025self]. AutoSkill is complementary to this line of research. It does not update model parameters or rely on implicit policy drift. Instead, it externalizes reusable behaviors into structured skill artifacts and supports their evolution through explicit revision, merging, and version control. This makes the improvement process more transparent and controllable, especially in scenarios where user preferences and working styles must remain stable across sessions.",
+    "translation": "引言指出，语言模型智能体已经广泛用于写作、规划、编程、决策支持和工具使用。随着系统从基准走向真实部署，一个明显现象是用户会在不同会话中重复说明稳定偏好和操作要求。现有长期记忆研究强调保存用户信息，但真实系统往往没有把这些重复经验转化为可复用能力，用户仍需在新会话中重新说明习惯。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long Term Memory for Language Agents",
+    "page": 5,
+    "sourceText": "Long Term Memory for Language Agents",
+    "translation": "语言智能体长期记忆",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Long Term Memory for Language Agents",
+    "page": 5,
+    "sourceText": "Retrieval augmented generation (RAG) improves factuality and traceability by injecting retrieved external knowledge into the generation process~[cite: lewis2020retrieval]. Retrieval augmented pretraining and retrieval enhanced language models, including REALM~[cite: guu2020retrieval] and RETRO~[cite: borgeaud2022improving], extend this idea by coupling parametric models with large non parametric memory. Dense and unsupervised retrieval methods such as DPR~[cite: karpukhin2020dense] and Contriever~[cite: izacard2021unsupervised], as well as late interaction retrievers such as ColBERT~[cite: khattab2020colbert], improve retrieval quality and efficiency. Fusion based methods including FiD and Atlas further demonstrate the effectiveness of retrieval augmented reasoning for question answering~[cite: izacard2021leveraging,izacard2023atlas]. Other approaches, such as kNN LM, extend model recall through nearest neighbor retrieval in representation space~[cite: khandelwal2019generalization]. Beyond factual retrieval, memory oriented systems introduce mechanisms for long term storage and management across sessions, including MemoryBank~[cite: zhong2024memorybank], MemGPT~[cite: packer2023memgpt], and generative agent architectures that organize episodic memories and reflections for planning~[cite: park2023generative]. Benchmarks such as LoCoMo~[cite: maharana2024evaluating], LongMemEval~[cite: wu2024longmemeval], and incremental multi turn memory evaluation~[cite: hu2025evaluating] assess long horizon memory in conversational agents. More recent frameworks, including Mem0~[cite: chhikara2025mem0], A MEM~[cite: xu2025mem], and MemInsight~[cite: salama2025meminsight], together with corresponding surveys~[cite: zhang2025survey], further systematize memory mechanisms for LLM based agents. AutoSkill builds on the insight that retrieval can reactivate useful past experience, but it moves beyond conventional memory systems by lifting memory from text records to behavior units. Through explicit skill abstraction, retrieval, and maintenance, AutoSkill is better suited for preserving stable preferences, stylistic constraints, and recurring workflows that are difficult to represent as raw text snippets alone.",
+    "translation": "引言指出，语言模型智能体已经广泛用于写作、规划、编程、决策支持和工具使用。随着系统从基准走向真实部署，一个明显现象是用户会在不同会话中重复说明稳定偏好和操作要求。现有长期记忆研究强调保存用户信息，但真实系统往往没有把这些重复经验转化为可复用能力，用户仍需在新会话中重新说明习惯。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Learning for Reasoning and Acting Agents",
+    "page": 6,
+    "sourceText": "Skill Learning for Reasoning and Acting Agents",
+    "translation": "本段属于“推理与行动智能体的技能学习”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Learning for Reasoning and Acting Agents",
+    "page": 6,
+    "sourceText": "Skill learning for LLM agents concerns the acquisition of reusable reasoning patterns, tool use procedures, and action strategies. Methods for agentic reasoning and decision making, such as ReAct~[cite: yao2022react], show that interleaving reasoning and acting can improve tool interactive problem solving. Tool use oriented approaches, including Toolformer~[cite: schick2023toolformer], ART~[cite: paranjape2023art], ToolAlpaca~[cite: tang2023toolalpaca], and Gorilla~[cite: patil2024gorilla], further show that language models can learn to invoke external tools and APIs in increasingly general settings. Related benchmarks and datasets, such as API Bank~[cite: li2023api] and ToolBench or ToolLLM~[cite: qintoolllm], provide evaluation settings for tool use competence. In embodied and open ended environments, systems such as Voyager highlight the value of compositional skill libraries for continual exploration and reuse~[cite: wang2023voyager]. Reflexion also uses verbal feedback and memory updates to improve future decisions~[cite: shinn2023reflexion]. A range of agent benchmarks and environments, including WebShop~[cite: yao2022webshop], ALFWorld~[cite: shridharalfworld], WebArena~[cite: zhou2023webarena], and AgentBench~[cite: liu2023agentbench], further stress long horizon execution, planning, and skill generalization. However, in most existing approaches, skills remain implicit in prompts, trajectories, or latent policies, and therefore lack a unified mechanism for inspection, editing, transfer, and long term maintenance. AutoSkill addresses this limitation by treating skills as first class artifacts that can be extracted from interaction experience, edited by users or developers, merged across iterations, versioned over time, and dynamically injected into future tasks. This explicit extraction and maintenance loop is central to AutoSkill and enables sustained skill evolution in a controllable manner.",
+    "translation": "作者把现有个性化方案分为几类：参数更新和自进化方法可以改进行为，但成本高且难以细粒度控制；记忆方法能保存事实、偏好或对话内容，但常把过去经验当作可检索文本，而不是可执行行为；已有技能学习方法展示了策略复用价值，却经常把技能隐含在提示、轨迹或策略中。缺口在于缺少把重复交互经验转成显式、可复用、可维护技能的机制。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Learning for Reasoning and Acting Agents",
+    "page": 7,
+    "sourceText": "The Framework for our AutoSkill, which is composed of two tightly coupled processes. The right loop, skill evolution, transforms interaction experience into explicit skills through extraction and maintenance. The left loop, skill-enhanced response generation, uses the current skill bank to support response generation via query rewriting, skill retrieval, and context injection. In this way, the system continually improves through explicit memory growth rather than through model fine-tuning.",
+    "translation": "图中展示 AutoSkill 的整体框架：用户交互产生经验，系统从经验中抽取技能，维护版本化技能库，并在未来请求中检索相关技能注入生成过程。它把短期会话经验连接到长期能力积累，是理解论文方法的核心图。",
+    "assetPath": "/generated/autoskill-experience-driven-lifelong-learning-skill-self-evolution/Framework.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Method",
+    "page": 7,
+    "sourceText": "Method",
+    "translation": "方法",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 7,
+    "sourceText": "We propose a training-free lifelong learning framework that improves dialogue quality through explicit skill self-evolution rather than parameter updates. The core idea is to externalize reusable task-solving patterns as versioned skills, retrieve them for future responses, and continuously refine them with newly observed user interactions. As shown in Figure~fig:framework, the framework consists of two coupled loops: skill-enhanced response generation and skill evolution. The former retrieves useful skills to assist the current response, while the latter updates the skill bank based on newly observed dialogue turns.",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 7,
+    "sourceText": "Problem Definition",
+    "translation": "问题定义",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 7,
+    "sourceText": "For a user $u$, we denote the complete dialogue history as",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 7,
+    "sourceText": "where $q_t$ is the user query at turn $t$ and $r_t$ is the model response. A skill bank $_u^t$ is maintained for user $u$ after turn $t$. Each skill is represented as",
+    "translation": "本段属于“问题定义”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 7,
+    "sourceText": "where $n$ is the skill name, $d$ is the description, $p$ is the executable instruction prompt, $$ is the trigger set, $$ is the tag set, $$ is the example set, and $v$ is the version.",
+    "translation": "本段属于“问题定义”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 7,
+    "sourceText": "Our method is training-free: no model parameters are updated during deployment. Instead, the system is implemented with five prompt-driven modules: a query rewriting model, a dialogue response model, a skill extraction model, a skill management judge, a skill merge model, and an embedding model for skill vectorization. Given the current query $q_t$ and dialogue history, the system retrieves relevant skills from $_u^t$ to generate the response $r_t$; meanwhile, it uses the user-side interaction signal to update the skill bank. Importantly, the skill extraction stage only uses user queries rather than model responses, i.e., it learns from $ q_1,,q_t $ but does not use $r_t$ as extraction evidence.",
+    "translation": "代表性场景包括写作风格保持、编程工具流程、平台文案生成、心理支持风格和角色扮演等。它们共同说明 AutoSkill 既能保存软性偏好，也能保存硬性操作流程；既能服务中文和英文场景，也能覆盖个人化表达、工具自动化和领域规则。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompt-Driven Modular Architecture",
+    "page": 7,
+    "sourceText": "Prompt-Driven Modular Architecture",
+    "translation": "提示驱动的模块化架构",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompt-Driven Modular Architecture",
+    "page": 7,
+    "sourceText": "All functional modules in our framework are realized by task-specific prompts rather than specialized training. Let",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompt-Driven Modular Architecture",
+    "page": 7,
+    "sourceText": "denote the prompt set for query rewriting, dialogue generation, skill extraction, skill management decision, and skill merging, respectively. Each module is instantiated by pairing a general-purpose LLM with its corresponding prompt. Therefore, our framework can be viewed as a modular inference-time composition:",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompt-Driven Modular Architecture",
+    "page": 7,
+    "sourceText": "where $M_$ is the embedding model used for dense vector retrieval.",
+    "translation": "本段属于“提示驱动的模块化架构”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompt-Driven Modular Architecture",
+    "page": 7,
+    "sourceText": "This design has two advantages. First, different modules can share the same backbone LLM while serving different roles through different prompts. Second, the whole system remains highly flexible: replacing the response model, extraction model, or embedding model does not require retraining the framework itself.",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "Skill-Enhanced Response Generation",
+    "translation": "技能增强响应生成",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "Given the current user query $q_t$ and recent dialogue history $h_t _u$, the system first rewrites the query into a retrieval-oriented form by a dedicated LLM prompt:",
+    "translation": "本段属于“技能增强响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "The purpose of query rewriting is to resolve context dependence, preserve the current task anchor, and expose retrieval-critical constraints such as format, style, structure, or domain requirements.",
+    "translation": "代表性场景包括写作风格保持、编程工具流程、平台文案生成、心理支持风格和角色扮演等。它们共同说明 AutoSkill 既能保存软性偏好，也能保存硬性操作流程；既能服务中文和英文场景，也能覆盖个人化表达、工具自动化和领域规则。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "$P_$: Query Rewriting Role. Retrieval query rewriter.",
+    "translation": "代表性场景包括写作风格保持、编程工具流程、平台文案生成、心理支持风格和角色扮演等。它们共同说明 AutoSkill 既能保存软性偏好，也能保存硬性操作流程；既能服务中文和英文场景，也能覆盖个人化表达、工具自动化和领域规则。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "Goal. Rewrite the current user input into exactly one concise, standalone search query for skill retrieval.",
+    "translation": "本段属于“技能增强响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "Core rules. • First judge whether the current turn is a continuation of the same task or a topic switch. • For continuation, preserve the existing topic anchor and append only the new constraints. • For topic switch, replace the previous anchor with the new task/topic. • If the current turn contains only style/format constraints, inherit the missing task anchor from recent history. • Resolve references such as \"it\", \"this\", and \"the above\". • Keep only retrieval-relevant constraints (e.g., format, audience, quality requirements, banned structures). • Avoid generic process words without a concrete task/topic anchor.",
+    "translation": "本段属于“技能增强响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-Enhanced Response Generation",
+    "page": 7,
+    "sourceText": "Output. One-line rewritten query, in the same language as the user.",
+    "translation": "本段属于“技能增强响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hybrid Skill Retrieval",
+    "page": 7,
+    "sourceText": "Hybrid Skill Retrieval",
+    "translation": "混合技能检索",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hybrid Skill Retrieval",
+    "page": 7,
+    "sourceText": "For each skill $s _u^t$, we compute both a dense semantic relevance score and a lexical BM25 relevance score:",
+    "translation": "本段属于“混合技能检索”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hybrid Skill Retrieval",
+    "page": 7,
+    "sourceText": "Since these two scores lie on different scales, we normalize them into $[0,1]$ and combine them by weighted summation:",
+    "translation": "本段属于“混合技能检索”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hybrid Skill Retrieval",
+    "page": 7,
+    "sourceText": "where $ [0,1]$ controls the trade-off between dense semantic matching and lexical exact matching.",
+    "translation": "本段属于“混合技能检索”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hybrid Skill Retrieval",
+    "page": 7,
+    "sourceText": "We then rank all skills by $(q_t, s)$ and keep only the top-$K$ candidates whose score exceeds a predefined threshold $$:",
+    "translation": "本段属于“混合技能检索”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hybrid Skill Retrieval",
+    "page": 7,
+    "sourceText": "Only skills in $_t$ are injected into the dialogue model. If no skill satisfies the threshold, the model responds without skill augmentation.",
+    "translation": "本段属于“混合技能检索”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "Skill-conditioned Response Generation",
+    "translation": "技能条件化响应生成",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "The selected skills are rendered as a compact external memory context",
+    "translation": "长期记忆和检索增强方法能保存事实、偏好和对话内容，并在生成时重新激活这些信息。AutoSkill 继承了检索激活过去经验的思想，但进一步把记忆从文本记录提升为行为单元。它更适合保存稳定偏好、风格约束和重复工作流，因为这些内容仅作为原始文本检索时很难直接变成操作规范。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "and appended to the response prompt. The final response is generated by",
+    "translation": "本段属于“技能条件化响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "This makes the response model adaptive to user-specific accumulated experience while keeping the model parameters unchanged.",
+    "translation": "本段属于“技能条件化响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "$P_$: Dialogue Generation Role. Response generator with retrieved skill context.",
+    "translation": "本段属于“技能条件化响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "System policy. • Behave as a helpful assistant. • Retrieved skills may be irrelevant. • Use a skill only when it directly matches the user's current intent. • Otherwise, ignore all retrieved skills and answer normally. • Never explicitly mention that such skills were retrieved/injected.",
+    "translation": "本段属于“技能条件化响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "Injected context template. Retrieved skill list Search query: $ q $ For each skill: name, id, description, tags, triggers, prompt",
+    "translation": "本段属于“技能条件化响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill-conditioned Response Generation",
+    "page": 7,
+    "sourceText": "User-side input template. Conversation history: $ h $ Respond to the latest user message.",
+    "translation": "本段属于“技能条件化响应生成”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Real-Time Skill Evolution",
+    "page": 7,
+    "sourceText": "Real-Time Skill Evolution",
+    "translation": "实时技能演化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "Skill Extraction from Interaction",
+    "translation": "从交互中抽取技能",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "After turn $t$, the framework attempts to induce a reusable skill candidate from user-side interaction signals. Since the purpose of skill extraction is to capture stable user requirements rather than model-generated content, we only use user queries as extraction evidence. Let",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "denote the user-query sequence up to turn $t$. The extraction module operates on a recent window of user queries:",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "where $z_t$ is a skill candidate of the form",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "with $c$ being the confidence score.",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "$P_$: Skill Extraction Role. Skill extractor that turns conversation/event traces into reusable skills.",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "Extraction principles. • Treat user turns as the primary evidence; assistant turns are only context. • Focus on recent rounds and detect boundary turns to avoid mixing different tasks. • Extract only when there are durable, reusable constraints, policies, workflows, or templates. • Do not extract one-shot requests, generic tasks, stale constraints, or assistant-invented details. • Capture how to do similar tasks, rather than this-instance facts. • Remove case-specific entities and preserve only portable rules. • Do not invent workflow steps unless the user explicitly specified them.",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "Output schema. \"skills\": [skill$_1$,, skill$_k$]",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "Skill fields. • name: concise, searchable, intent-explicit; • description: what the skill does and when to use it; • prompt: Markdown body with # Goal, # Constraints & Style, and optional # Workflow; • triggers, tags, examples, confidence.",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Extraction from Interaction",
+    "page": 7,
+    "sourceText": "The extraction prompt is designed to identify reusable and durable knowledge, such as persistent preferences, reusable procedures, output constraints, task-specific policies, or recurring corrections. In contrast, one-off requests or transient content should not be extracted as skills. Therefore, extraction serves as a structured abstraction process from raw user queries to reusable capability units.",
+    "translation": "本段属于“从交互中抽取技能”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "Retrieval-Assisted Skill Management",
+    "translation": "检索辅助的技能管理",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "A newly extracted candidate $z_t$ is not directly written into the skill bank. Instead, the system first retrieves the most similar existing skills and uses them as local evidence for maintenance decisions. This avoids feeding the entire skill bank into the judge or merge module.",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "Specifically, the candidate $z_t$ is converted into a retrieval query based on its name, description, triggers, and instructions. Similar to online response retrieval, we compute a hybrid relevance score between $z_t$ and each existing skill $s _u^t$:",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "where $$ is the management-time retrieval weight. We then retrieve a small neighbor set",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "and select the most similar existing skill",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "The management decision is then made by a dedicated prompt-driven judge:",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "In other words, the judge only needs to compare the current candidate with its most relevant memory neighbor, rather than reasoning over the whole skill bank. This makes the decision process both more focused and more scalable.",
+    "translation": "长期记忆和检索增强方法能保存事实、偏好和对话内容，并在生成时重新激活这些信息。AutoSkill 继承了检索激活过去经验的思想，但进一步把记忆从文本记录提升为行为单元。它更适合保存稳定偏好、风格约束和重复工作流，因为这些内容仅作为原始文本检索时很难直接变成操作规范。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "$P_$: Skill Management Decision Role. Skill set manager for deciding add, merge, or discard.",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "Decision procedure. • Check topic continuity and capability family: whether the candidate continues the same ongoing work item. • Apply a discard gate: reject generic, low-signal, non-portable, or library-covered candidates. • Compare candidate vs. existing user skills on four axes: job-to-be-done, deliverable type, hard constraints/success criteria, and required tools/workflow. • Choose merge only when they are the same capability after removing instance details. • Choose add when the candidate remains a distinct durable capability.",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Retrieval-Assisted Skill Management",
+    "page": 7,
+    "sourceText": "Output schema. \"action\": add|merge|discard,; \"target _skill _id\": id|null,; \"reason\": \"...\"",
+    "translation": "本段属于“检索辅助的技能管理”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "Versioned Skill Merging",
+    "translation": "版本化技能合并",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "If the management decision is merge, the framework invokes a dedicated merge module to combine the candidate with the matched skill:",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "The merge process is not a simple text concatenation. Instead, it performs versioned skill evolution: the existing skill identity is preserved, while newly observed constraints, examples, or execution details are integrated into an updated version. Let $v(s)$ denote the version number of skill $s$. Then the version update is written as",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "where $()$ denotes a version increment operator (e.g., patch-level update). Therefore, the same skill can be continuously refined over turns, allowing the system to track the user's evolving requirements on a recurring task.",
+    "translation": "本段属于“版本化技能合并”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "The resulting skill bank update rule is",
+    "translation": "本段属于“版本化技能合并”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "This mechanism enables turn-level skill refinement: when the user provides new feedback on the same task, the system can update the corresponding skill immediately through version iteration, rather than creating duplicated skills or requiring model retraining.",
+    "translation": "本段属于“版本化技能合并”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "$P_$: Skill Merging Role. Skill merger that combines an existing skill and a candidate skill into one improved skill.",
+    "translation": "本段属于“版本化技能合并”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "Merge rules. • Preserve the original capability identity. • Perform semantic union rather than raw concatenation. • Import only reusable, non-conflicting additions from the candidate. • Do not carry over stale or unrelated topic constraints. • Avoid regressions: keep important checks from the existing skill. • Remove case-specific entities and one-off business facts. • Do not invent any new standards or details. • Keep language consistent across all fields. • Deduplicate sections, bullets, triggers, tags, and examples.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "Output fields. name, description, prompt, triggers, tags, examples",
+    "translation": "本段属于“版本化技能合并”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Versioned Skill Merging",
+    "page": 7,
+    "sourceText": "Prompt structure. # Goal # Constraints & Style # Workflow (optional, only for explicit multi-step procedures)",
+    "translation": "本段属于“版本化技能合并”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training-Free Lifelong Learning",
+    "page": 7,
+    "sourceText": "Training-Free Lifelong Learning",
+    "translation": "免训练终身学习",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training-Free Lifelong Learning",
+    "page": 7,
+    "sourceText": "Combining the above components, our framework realizes lifelong learning entirely through external skill memory. The response loop uses query rewriting, hybrid retrieval, thresholded Top-$K$ skill injection, and skill-conditioned generation to improve current outputs. The evolution loop uses query-only extraction, nearest-neighbor skill management, and versioned merging to update the skill after each turn.",
+    "translation": "长期记忆和检索增强方法能保存事实、偏好和对话内容，并在生成时重新激活这些信息。AutoSkill 继承了检索激活过去经验的思想，但进一步把记忆从文本记录提升为行为单元。它更适合保存稳定偏好、风格约束和重复工作流，因为这些内容仅作为原始文本检索时很难直接变成操作规范。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training-Free Lifelong Learning",
+    "page": 7,
+    "sourceText": "Importantly, no model parameters are optimized throughout this process. All improvements come from explicit skill construction, retrieval, and refinement. Therefore, our method should be understood as a training-free, prompt-driven, explicit-skill lifelong learning framework.",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Overview",
+    "page": 7,
+    "sourceText": "System Overview",
+    "translation": "系统总览",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Overview",
+    "page": 7,
+    "sourceText": "AutoSkill is a lifelong learning layer for LLM-based assistants. Rather than treating user interactions as transient context only, AutoSkill transforms recurring preferences, constraints, and workflows into explicit skills, stores them as persistent artifacts, and reuses them to improve future responses. The system is designed around a clear separation between an online serving path, which retrieves relevant skills during response generation, and a background learning path, which continuously extracts and maintains skills from interaction experience.",
+    "translation": "技能生命周期包括创建、检索、使用、反馈、合并和版本更新。在线服务时，系统接收用户请求，检索相关技能，将其注入提示，生成响应，并在交互结束后判断是否产生新技能或需要更新旧技能。存储层则用文件化或目录化布局保存 SKILL.md、元数据和版本历史。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Overview",
+    "page": 7,
+    "sourceText": ". AutoSkill centers on an Agent Skill artifact represented by SKILL.md. Skills are persisted in a local SkillBank, indexed by vector embeddings, and retrieved for each incoming request. The repository exposes three practical interfaces: a Python SDK for integration, a Web UI for live interaction, and an OpenAI-compatible reverse proxy that performs skill retrieval on the foreground path while running skill extraction and maintenance asynchronously in the background.",
+    "translation": "本段属于“系统总览”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Design Principles",
+    "page": 7,
+    "sourceText": "Design Principles",
+    "translation": "设计原则",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Design Principles",
+    "page": 7,
+    "sourceText": "The system is built around three principles that guide both its abstraction and implementation:",
+    "translation": "本段属于“设计原则”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Design Principles",
+    "page": 7,
+    "sourceText": "• Explicit skill representation. Learned capabilities are externalized as structured artifacts rather than left entirely in hidden model state. This makes skills inspectable, editable, and portable across environments.",
+    "translation": "本段属于“设计原则”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Design Principles",
+    "page": 7,
+    "sourceText": "• Continuous but controlled evolution. AutoSkill does not blindly accumulate all past experience. Instead, it extracts reusable skill candidates and applies maintenance decisions that keep the repository compact and behaviorally consistent over time.",
+    "translation": "本段属于“设计原则”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Design Principles",
+    "page": 7,
+    "sourceText": "• Low-friction deployment. The system is designed to sit on top of existing LLM stacks. Its SDK, Web UI, and OpenAI-compatible proxy allow the same skill machinery to be used in development, interactive testing, and production-facing service integration.",
+    "translation": "本段属于“设计原则”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Architecture",
+    "page": 7,
+    "sourceText": "System Architecture",
+    "translation": "系统架构",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Architecture",
+    "page": 7,
+    "sourceText": "At a high level, AutoSkill consists of four interacting components.",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Architecture",
+    "page": 7,
+    "sourceText": "Skill abstraction layer.. The core system object is a reusable skill. Each skill is materialized as an Agent Skill artifact centered on SKILL.md, which records the skill identity, metadata, and executable instructions. Optional resources such as scripts, references, or assets can be colocated with the artifact when needed. This design turns learned behavior into a first-class system object that can be reviewed and maintained explicitly.",
+    "translation": "本段属于“系统架构”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Architecture",
+    "page": 7,
+    "sourceText": "Skill management layer.. This layer is responsible for transforming raw interaction traces into reusable skills. It includes a skill extractor that proposes candidate skills from messages or event traces, and a maintainer that compares each candidate against the current repository. The maintainer then decides whether to add the candidate as a new skill, merge it into an existing skill, or discard it if it reflects a noisy or one-off pattern.",
+    "translation": "本段属于“系统架构”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Architecture",
+    "page": 7,
+    "sourceText": "Storage and retrieval layer.. Skills are stored in a local SkillBank and indexed through vector embeddings for efficient retrieval. The storage layout separates user-specific skills from shared skills, while vector caches are maintained independently to support efficient search as the repository grows. This storage layer serves as the persistent external memory of the system.",
+    "translation": "长期记忆和检索增强方法能保存事实、偏好和对话内容，并在生成时重新激活这些信息。AutoSkill 继承了检索激活过去经验的思想，但进一步把记忆从文本记录提升为行为单元。它更适合保存稳定偏好、风格约束和重复工作流，因为这些内容仅作为原始文本检索时很难直接变成操作规范。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "System Architecture",
+    "page": 7,
+    "sourceText": "Serving and interaction layer.. AutoSkill provides multiple frontends over the same core logic. The Python SDK exposes programmatic interfaces such as ingest, search, and render _context; the Web UI supports interactive usage; and the OpenAI-compatible proxy wraps standard API requests with skill retrieval, context injection, and asynchronous skill evolution.",
+    "translation": "结论认为，AutoSkill 通过把重复交互经验转成显式、可复用、可维护的技能工件，为语言模型智能体提供了一条免训练的终身学习路径。它把能力积累组织为技能抽取、表示、检索、复用和迭代精炼，区别于只保存原始记忆的方案，并为长期个性化智能体提供可部署的系统接口。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "Skill Lifecycle",
+    "translation": "技能生命周期",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "AutoSkill operationalizes lifelong learning through a four-stage skill lifecycle.",
+    "translation": "主要贡献包括：提出把交互经验转成显式可复用技能的问题设定；设计覆盖抽取、结构化表示、迭代精炼、检索和复用的技能生命周期；把技能实现为可编辑、可版本化工件，从而增强透明性、可控性和长期可维护性；并开源实现可部署系统，使现有语言模型和智能体管线也能获得终身个性化能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "• Experience ingestion. The system first ingests interaction evidence, including dialogue messages and behavior or event traces. These inputs provide the raw learning signal from which stable user-aligned capabilities may emerge.",
+    "translation": "本段属于“技能生命周期”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "• Skill extraction. From the ingested evidence, the extractor proposes a skill candidate. The objective is not to memorize all past interactions, but to abstract reusable capabilities that may benefit future tasks. As a result, generic one-off requests should typically produce no skill.",
+    "translation": "本段属于“技能生命周期”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "• Skill maintenance and versioning. The candidate is compared with existing skills, and the maintainer applies one of three decisions: add, merge, or discard. New capabilities are stored as new skills; refinements to existing behavior are merged into the corresponding artifact and reflected through version updates; non-reusable patterns are filtered out.",
+    "translation": "本段属于“技能生命周期”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "• Skill reuse. For future tasks, relevant skills are retrieved from the vector index, rendered into a concise context representation, and injected into the final LLM request. In this way, previously learned behavior directly influences subsequent generations.",
+    "translation": "本段属于“技能生命周期”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Skill Lifecycle",
+    "page": 7,
+    "sourceText": "This lifecycle ensures that the SkillBank evolves by refinement rather than duplication. In particular, later feedback updates the existing skill artifact instead of producing multiple overlapping prompt fragments, which helps preserve consistency and repository quality over time.",
+    "translation": "本段属于“技能生命周期”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "Online Serving Path",
+    "translation": "在线服务路径",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "At inference time, AutoSkill couples online response generation with background skill evolution. For each incoming request, the system follows a retrieve-then-generate workflow on the foreground path, while concurrently triggering skill extraction and maintenance on the background path.",
+    "translation": "本段属于“在线服务路径”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "• Query refinement. The system receives the current user query together with the recent interaction history. It rewrite the query to improve retrieval quality for downstream matching.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "• Skill retrieval and selection. The refined query is embedded and used to search the vector index for relevant skills, which are then filtered according to similarity thresholds and top-$k$ settings.",
+    "translation": "本段属于“在线服务路径”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "• Response generation. The selected skills are rendered into a compact context block and injected into the upstream LLM request to produce the final response.",
+    "translation": "本段属于“在线服务路径”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "• Concurrent skill evolution. In parallel with foreground serving, the system invokes the extractor and maintainer on the current interaction trace, allowing new skills to be created, existing skills to be updated, or noisy candidates to be discarded without blocking user-visible latency.",
+    "translation": "本段属于“在线服务路径”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Online Serving Path",
+    "page": 7,
+    "sourceText": "This design separates the latency-critical serving path from the learning path: retrieval and response generation remain on the critical path for the current request, while skill extraction and maintenance proceed concurrently as asynchronous background operations.",
+    "translation": "本段属于“在线服务路径”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Storage Layout and Persistence",
+    "page": 7,
+    "sourceText": "Storage Layout and Persistence",
+    "translation": "存储布局与持久化",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Storage Layout and Persistence",
+    "page": 7,
+    "sourceText": "AutoSkill adopts a lightweight local persistence model that is practical for both experimentation and deployment. In the default setup, user-specific skills are stored under SkillBank/Users/<user _id>/..., shared skills under SkillBank/Common/..., and vector caches under SkillBank/vectors/.... This organization separates personal and shared knowledge while preserving a persistent embedding index for efficient retrieval.",
+    "translation": "本段属于“存储布局与持久化”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Storage Layout and Persistence",
+    "page": 7,
+    "sourceText": "Default SkillBank Layout p0.53 p0.41 SkillBank/ & Root directory for persistent skill storage. Users/<user _id>/... & User-specific skills. <skill-slug>/SKILL.md & Canonical skill artifact and executable instructions. scripts/, references/, assets/ & Optional resources attached to a skill. Common/... & Shared skills or shared skill libraries. vectors/... & Persistent vector caches for retrieval. *.meta.json, *.ids.txt, *.vecs.f32 & Embedding-specific index files.",
+    "translation": "本段属于“存储布局与持久化”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Storage Layout and Persistence",
+    "page": 7,
+    "sourceText": "This layout keeps artifact storage explicit and easy to inspect, while allowing the system to maintain separate vector indexes for different embedding configurations.",
+    "translation": "本段属于“存储布局与持久化”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Interfaces and Deployment Modes",
+    "page": 7,
+    "sourceText": "Interfaces and Deployment Modes",
+    "translation": "接口与部署模式",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Interfaces and Deployment Modes",
+    "page": 7,
+    "sourceText": "The repository exposes three complementary usage modes.",
+    "translation": "本段属于“接口与部署模式”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Interfaces and Deployment Modes",
+    "page": 7,
+    "sourceText": "[leftmargin=1.6em, style=nextline] • [SDK-based integration.] Developers can embed AutoSkill directly into applications through the Python SDK. Interfaces such as ingest, search, and render _context support custom workflows for skill extraction, retrieval, and prompt construction.",
+    "translation": "本段属于“接口与部署模式”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Interfaces and Deployment Modes",
+    "page": 7,
+    "sourceText": "• [Interactive Web UI.] The Web interface supports live user interaction. In this mode, skill retrieval occurs online during each conversation turn, while extraction and maintenance proceed in the background so that the system can incrementally adapt without interrupting user interaction.",
+    "translation": "本段属于“接口与部署模式”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Interfaces and Deployment Modes",
+    "page": 7,
+    "sourceText": "• [OpenAI-compatible reverse proxy.] AutoSkill can also be deployed as a reverse proxy exposing standard endpoints such as /v1/chat/completions, /v1/embeddings, and /v1/models. This mode enables drop-in integration with existing LLM clients by preserving familiar API semantics while augmenting requests with skill-aware retrieval and context injection.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Interfaces and Deployment Modes",
+    "page": 7,
+    "sourceText": "Beyond online usage, the same architecture supports offline bootstrapping. Historical OpenAI-format conversations, documents, and agent trajectories can be imported to initialize the SkillBank before live deployment, allowing the system to start with a non-empty skill repository.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Implementation Characteristics",
+    "page": 7,
+    "sourceText": "Implementation Characteristics",
+    "translation": "实现特性",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Implementation Characteristics",
+    "page": 7,
+    "sourceText": "From a systems perspective, AutoSkill exhibits several implementation properties that make it practical to deploy and extend.",
+    "translation": "本段属于“实现特性”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Implementation Characteristics",
+    "page": 7,
+    "sourceText": "• Modular internals. The repository separates core SDK functionality, skill extraction and maintenance, interactive session management, query rewriting, and proxy serving. This modularity improves extensibility and makes the system easier to adapt to different deployment settings.",
+    "translation": "AutoSkill 采用提示驱动的模块化架构，各模块通过提示和结构化数据协作，而不是通过模型参数更新绑定在一起。这使系统可以接入不同大模型，也方便替换技能抽取器、检索器、合并器或响应生成器。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Implementation Characteristics",
+    "page": 7,
+    "sourceText": "• Pluggable model and vector backends. AutoSkill decouples LLM connectors, embedding connectors, and vector backends. This allows the same architecture to operate over different model providers and storage choices without changing the core learning workflow.",
+    "translation": "本段属于“实现特性”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Implementation Characteristics",
+    "page": 7,
+    "sourceText": "• Artifact-level transparency. Because skills are represented explicitly through SKILL.md, they can be inspected, edited, imported, exported, and normalized as ordinary files. This provides a level of observability and human control that is difficult to obtain from purely latent adaptation mechanisms.",
+    "translation": "本段属于“实现特性”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Implementation Characteristics",
+    "page": 7,
+    "sourceText": "• Practical deployment support. The repository includes runnable examples and Docker Compose scripts that jointly serve the Web UI and API proxy over a shared persistent SkillBank, making the system suitable for both local experimentation and lightweight service deployment.",
+    "translation": "本段属于“实现特性”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "Representative Usage Scenarios",
+    "translation": "代表性使用场景",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "AutoSkill supports several representative usage scenarios in practice:",
+    "translation": "代表性场景包括写作风格保持、编程工具流程、平台文案生成、心理支持风格和角色扮演等。它们共同说明 AutoSkill 既能保存软性偏好，也能保存硬性操作流程；既能服务中文和英文场景，也能覆盖个人化表达、工具自动化和领域规则。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "• Interactive adaptation. Users chat with the assistant, while the system retrieves relevant skills at each turn and evolves them from later feedback or corrections.",
+    "translation": "本段属于“代表性使用场景”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "• Service-side augmentation. Existing LLM services can place AutoSkill in front of the upstream model as an external memory and adaptation layer without modifying client-side calling patterns.",
+    "translation": "长期记忆和检索增强方法能保存事实、偏好和对话内容，并在生成时重新激活这些信息。AutoSkill 继承了检索激活过去经验的思想，但进一步把记忆从文本记录提升为行为单元。它更适合保存稳定偏好、风格约束和重复工作流，因为这些内容仅作为原始文本检索时很难直接变成操作规范。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "• Offline repository construction. Historical conversations, documents, or agent trajectories can be processed to bootstrap an initial skill repository, which is later refined during online usage.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "Overall, AutoSkill can be viewed as a practical memory-and-evolution layer for LLM systems: it converts interaction experience into explicit skill artifacts, maintains them through controlled updates, and re-injects them into future requests through retrieval. This closes the loop between experience, maintenance, and reuse, yielding a deployable lifelong learning system with clear artifact boundaries and service-compatible interfaces.",
+    "translation": "AutoSkill 的核心思想是把重复交互经验看作技能形成来源，而不仅是记忆。系统不是只保存对话片段或偏好记录，而是从用户交互中抽象可复用行为，并固化为显式技能工件。这些工件可以捕捉风格约束、响应策略、工具流程和领域操作规范，并支持检查、编辑、合并、版本化和跨会话复用。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "Conversation and extracted skill scale in four SkillBank subsets.",
+    "translation": "该表统计 AutoSkill 从真实对话中抽取技能的规模、类别或标签分布。它用于说明技能库并非手工构造的小样例，而是可以从多语言、多模型家族的真实交互中批量形成，并呈现出编程、写作、数据、平台运营等高频能力结构。",
+    "kind": "table"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "Top normalized tags (case-insensitive for Latin tags).",
+    "translation": "该表统计 AutoSkill 从真实对话中抽取技能的规模、类别或标签分布。它用于说明技能库并非手工构造的小样例，而是可以从多语言、多模型家族的真实交互中批量形成，并呈现出编程、写作、数据、平台运营等高频能力结构。",
+    "kind": "table"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "Category-level distribution of extracted skills (N=1858).",
+    "translation": "统计图说明了抽取技能的类别分布：编程与软件开发、写作与内容创作、数据与人工智能、系统配置和通用混合技能占据主要比例。它表明 AutoSkill 更容易从高频生产力任务中抽取稳定技能。",
+    "kind": "table"
+  },
+  {
+    "section": "Representative Usage Scenarios",
+    "page": 7,
+    "sourceText": "Platform-related mentions in skill metadata.",
+    "translation": "统计图说明平台相关技能主要集中在 Twitter/X、Instagram 和 YouTube 等平台，另有抖音、微信公众号、领英、小红书和微博等少量提及。这反映平台文案与运营流程也能被沉淀为技能。",
+    "kind": "table"
+  },
+  {
+    "section": "Experimental Analysis",
+    "page": 7,
+    "sourceText": "Experimental Analysis",
+    "translation": "实验分析",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset and Protocol",
+    "page": 7,
+    "sourceText": "Dataset and Protocol",
+    "translation": "数据集与协议",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset and Protocol",
+    "page": 7,
+    "sourceText": "We conduct an empirical study on WildChat-1M~[cite: zhao2024wildchat], a large scale multilingual corpus of real user interactions with ChatGPT. To focus on interactions that contain sufficient context for stable skill induction, we retain only conversations with more than 8 turns. We then partition the filtered data into four subsets along two dimensions: language and model family. Specifically, we construct Chinese GPT-3.5, English GPT-3.5, Chinese GPT-4, and English GPT-4 subsets. For each subset, we apply the same large language model based skill extraction pipeline and organize the extracted results into a corresponding SkillBank.",
+    "translation": "实验使用 WildChat-1M 真实用户交互语料，并保留超过八轮的长对话，以保证交互中有足够上下文抽取稳定技能。作者按语言和模型家族划分为中文 GPT-3.5、英文 GPT-3.5、中文 GPT-4、英文 GPT-4 四个子集，再对每个子集应用同一套技能抽取流程，形成对应 SkillBank。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillBank Statistics",
+    "page": 7,
+    "sourceText": "SkillBank Statistics",
+    "translation": "技能库统计",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillBank Statistics",
+    "page": 7,
+    "sourceText": "All statistics are computed by scanning SKILL.md files under exactly four subsets. The corpus/category counts in Figures~fig:autoskill-category-bars and fig:autoskill-platform-bars are absolute frequencies over these files. Top tags are obtained from YAML tags fields with case-insensitive normalization for Latin tags (e.g., Python/python merged), while platform mentions are counted if platform keywords appear in skill name/description/tags/triggers.",
+    "translation": "实验使用 WildChat-1M 真实用户交互语料，并保留超过八轮的长对话，以保证交互中有足够上下文抽取稳定技能。作者按语言和模型家族划分为中文 GPT-3.5、英文 GPT-3.5、中文 GPT-4、英文 GPT-4 四个子集，再对每个子集应用同一套技能抽取流程，形成对应 SkillBank。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillBank Statistics",
+    "page": 7,
+    "sourceText": "As shown in Table~tab:autoskill-top-tags, the most frequent normalized tags are mainly related to programming and data tasks, with python ranking first, followed by javascript, excel, c++, and pandas. At the same time, tags such as creative writing, formatting, education, translation, and roleplay are also common, indicating that the extracted skills extend beyond coding to broader writing and communication tasks. Figure~fig:autoskill-category-bars shows a similar pattern at the category level: programming and software development forms the largest category, while writing and content creation, data and AI/ML, and general or mixed skills also account for substantial shares. By contrast, research, marketing, and other domain-specific skills appear less frequently. Figure~fig:autoskill-platform-bars further shows that platform-related skills are concentrated on a few major platforms, especially Twitter/X and Instagram, followed by YouTube, while other platforms are mentioned only occasionally. Overall, these results suggest that the extracted SkillBank is centered on high-frequency technical and writing tasks, while still covering a diverse set of practical and platform-specific skills.",
+    "translation": "代表性场景包括写作风格保持、编程工具流程、平台文案生成、心理支持风格和角色扮演等。它们共同说明 AutoSkill 既能保存软性偏好，也能保存硬性操作流程；既能服务中文和英文场景，也能覆盖个人化表达、工具自动化和领域规则。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillBank Statistics",
+    "page": 8,
+    "sourceText": "In addition to corpus-level counts, the version field of individual skills provides a concrete signal of iterative refinement in the SkillBank. For example, the English skill professional _text _rewrite shown in our case study has version 0.1.34, indicating that the skill has undergone 34 rounds of incremental optimization after its initial creation. By contrast, the Chinese skill UTF8gbsn顶级心理咨询师 remains at version 0.1.0, suggesting that it is still close to its initial extracted form. This contrast illustrates an important property of AutoSkill: skills do not merely accumulate as static artifacts, but can evolve at different rates depending on how often related user feedback recurs in subsequent interactions. In particular, frequently reused productivity-oriented skills are more likely to be repeatedly merged and refined, while more specialized or less frequently triggered skills may remain in earlier versions. These observations provide qualitative evidence that the proposed versioned maintenance mechanism supports continual refinement rather than simple skill duplication.",
+    "translation": "版本字段提供了技能迭代的具体信号。英文专业文本改写技能已经达到 0.1.34，说明它经历了三十四轮增量优化；而中文心理咨询师技能仍接近初始版本。这个对比说明，AutoSkill 中的技能不是静态堆积，而是会根据相关反馈出现频率以不同速度演化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 9,
+    "sourceText": "Case Studies",
+    "translation": "案例研究",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 9,
+    "sourceText": "To illustrate how AutoSkill transforms interaction experience into explicit and reusable artifacts, we present two representative case studies drawn from the extracted SkillBank: one Chinese skill and one English skill. Although both skills are represented in the same structured format, they capture very different types of user-aligned capability, demonstrating the flexibility of AutoSkill across languages, domains, and interaction styles.",
+    "translation": "案例研究展示两种不同技能：中文心理咨询师技能保存稳定的对话支持风格，要求温暖、专业、非评判且避免医疗诊断；英文专业文本改写技能则保存严格操作规则，要求提升流畅性和专业性，同时保留原意、事实和细节。这说明同一技能格式既能表达软性互动风格，也能表达刚性执行流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 9,
+    "sourceText": "The first case is a Chinese skill card titled UTF8gbsn顶级心理咨询师 (top-level psychological counselor). This skill encodes a stable expectation about conversational support style rather than a one-off task. Its description, tags, triggers, and prompt jointly specify a reusable counseling-oriented behavior: responding with warmth, empathy, professionalism, and non-judgmental language, while respecting privacy and avoiding inappropriate medical diagnosis or drug recommendations. It shows that AutoSkill can abstract high-level interpersonal preferences from user interactions and preserve them as an explicit behavioral artifact. Instead of repeatedly restating these requirements in future conversations, the user can rely on the stored skill to reactivate the preferred response style whenever psychologically supportive dialogue is needed.",
+    "translation": "技能学习相关工作关注可复用推理模式、工具调用流程和行动策略，例如交错推理行动、工具学习、开放环境探索和 verbal feedback。论文认为这些方法证明了技能复用价值，但很多技能仍隐含在提示、轨迹或策略中，缺少统一的检查、编辑、迁移和长期维护机制。AutoSkill 正是要把这类能力显式化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 9,
+    "sourceText": "The second case is an English skill card titled professional _text _rewrite. In contrast to the first example, this skill captures a highly operational writing capability. The artifact specifies that the assistant should rewrite user-provided English text to improve fluency, grammar, and professional tone while strictly preserving meaning, factual details, and intent. It also includes strong anti-pattern constraints, such as prohibiting explanations, additional commentary, omitted details, or multiple rewrite options. Notably, this skill is marked as version 0.1.34, indicating that it has been iteratively refined 34 times through subsequent interaction experience. This provides a concrete example of AutoSkill's versioned evolution mechanism: instead of creating many duplicated prompt fragments for similar rewriting requests, the system continuously consolidates new feedback into the same reusable skill artifact.",
+    "translation": "代表性场景包括写作风格保持、编程工具流程、平台文案生成、心理支持风格和角色扮演等。它们共同说明 AutoSkill 既能保存软性偏好，也能保存硬性操作流程；既能服务中文和英文场景，也能覆盖个人化表达、工具自动化和领域规则。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Taken together, these two cases highlight several important properties of AutoSkill. First, the same artifact format can support both soft interactional behaviors and rigid task-execution procedures. Second, the framework naturally supports multilingual personalization, since skills can be represented and retrieved in the user’s own language. Third, explicit skill representation makes learned capabilities transparent and editable: users and developers can directly inspect the stored rules, revise them when needed, and understand why a retrieved skill influences future responses. These examples therefore provide a concrete demonstration of our central claim: AutoSkill converts ephemeral interaction experience into explicit, reusable, and composable capabilities that persist across sessions.",
+    "translation": "方法部分把 AutoSkill 描述为轻量级、模型无关的外部层，围绕会话上下文、技能检索、响应生成和技能演化组织。它不改变底座模型参数，而是在模型外维护技能库，并在每次请求中根据当前任务检索相关技能，将这些技能作为显式行为约束注入生成过程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "UTF8gbsn [ enhanced, breakable, colback=skilllight, colframe=skillborder, boxrule=0.8pt, arc=2mm, left=3mm,right=3mm,top=2mm,bottom=2mm, title= 技能卡片：顶级心理咨询师, colbacktitle=skillblue, coltitle=white, fonttitle= ]",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "ID： 48746f29-5f4c-48c4-9244-ba0ae4fc6eed Version： 0.1.0",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Description： 扮演世界上最优秀的心理咨询师，具备扎实的心理学知识、丰富的临床经验、出色的沟通技巧、强烈的同理心、持续学习意愿和良好的职业道德，为咨询者提供专业、有针对性的建议和支持。",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "[ enhanced, breakable, colback=white, colframe=skillborder, boxrule=0.6pt, arc=1.5mm, title=Prompt, colbacktitle=black!5, coltitle=black ]",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Role & Objective 你现在扮演世界上最优秀的心理咨询师。你的目标是为咨询者提供专业、有针对性的心理支持和建议，帮助他们解决心理困扰，提升心理健康水平。",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Communication & Style Preferences • 使用专业、温暖、有同理心的语言。 • 倾听并理解咨询者的需求，用恰当的方式表达建议。 • 尊重咨询者的隐私，保持非评判的态度。",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Operational Rules & Constraints • 专业知识：拥有心理学领域的扎实知识，包括理论体系、治疗方法、心理测量等。 • 临床经验：具备丰富的临床经验，能够处理各种心理问题。 • 沟通技巧：具备出色的沟通技巧，能够倾听、理解、把握咨询者的需求。 • 同理心：具备强烈的同理心，能够站在咨询者的角度去理解他们的痛苦和困惑。 • 持续学习：有持续学习的意愿，跟进心理学领域的最新研究和发展。 • 良好的职业道德：尊重咨询者的隐私，遵循专业规范，确保咨询过程的安全和有效性。 • 学历背景：拥有心理学相关领域的本科及以上学历，最好具有心理咨询、临床心理学等专业的硕士或博士学位。 • 专业资格：具备相关的心理咨询师执业资格证书，如注册心理师、临床心理师等。 • 工作经历：拥有多年的心理咨询工作经验，最好在不同类型的心理咨询机构、诊所或医院积累了丰富的实践经验。",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Anti-Patterns • 不要提供医疗诊断或药物建议。 • 不要违反咨询者的隐私。 • 不要使用过于学术化或难以理解的术语。",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Interaction Workflow • 倾听咨询者的问题和困扰。 • 运用专业知识和临床经验，提供有针对性的分析和建议。 • 以同理心回应，给予真诚的关怀和支持。 • 必要时，鼓励咨询者寻求专业帮助或进一步咨询。",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "[ enhanced, breakable, colback=skilllight, colframe=skillborder, boxrule=0.8pt, arc=2mm, left=3mm,right=3mm,top=2mm,bottom=2mm, title= Skill Card: professional _text _rewrite, colbacktitle=skillblue, coltitle=white, fonttitle= ]",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "ID: a407043f-d6b0-4760-821e-86b538c149c1 Version: 0.1.34",
+    "translation": "版本字段提供了技能迭代的具体信号。英文专业文本改写技能已经达到 0.1.34，说明它经历了三十四轮增量优化；而中文心理咨询师技能仍接近初始版本。这个对比说明，AutoSkill 中的技能不是静态堆积，而是会根据相关反馈出现频率以不同速度演化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Description: Rewrites user-provided text to enhance fluency, professionalism, and grammatical correctness, strictly preserving the original meaning, intent, and all details by rephrasing in new words.",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "[ enhanced, breakable, colback=white, colframe=skillborder, boxrule=0.6pt, arc=1.5mm, title=Prompt, colbacktitle=black!5, coltitle=black ]",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Role & Objective You are an expert English language editor. Your sole task is to rewrite user-provided English text to improve its fluency, grammar, and professional tone. You must strictly preserve the original meaning, intent, and all specific details. The final output must be written entirely in your own words, avoiding direct copying of the original's phrasing or sentence structure.",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Constraints & Style • Elevate the text to a formal, professional tone suitable for business or official communications, while respecting the original core intent. • Use precise vocabulary and clear, well-structured sentences. • Ensure grammatical correctness and proper punctuation. • Preserve all numerical values, names, places, dates, and specific factual details from the original text. • Avoid direct copying of phrases or sentence structures from the original text. • Do not use informal language or contractions unless explicitly appropriate to the original context.",
+    "translation": "经验驱动终身学习关注智能体如何从持续交互中积累可复用知识、策略或能力。相关工作研究何时抽取知识、保留什么能力，以及如何控制长期噪声和遗忘。AutoSkill 与该方向目标一致，但它把经验维护成显式 SKILL.md 工件，而不是隐式记忆或策略适配，从而更便于解释、修改和长期对齐用户偏好。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Output Format • Provide ONLY the final, rewritten text as a single sentence or a short paragraph. • Do not include introductory phrases, commentary, or lists.",
+    "translation": "本段属于“案例研究”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Studies",
+    "page": 10,
+    "sourceText": "Anti-Patterns • Do not add any introductory phrases (e.g., \"Here is the rewritten text:\", \"In other words:\"), conversational filler, meta-commentary, context, notes, or any other form of explanation. • Do not provide explanations or suggestions about the changes made. • Do not introduce new information, opinions, examples, analogies, concepts, summaries, analyses, or external context. • Do not omit any part of the original text, key details, names, places, dates, locations, or specific factual details. • Do not alter the original intent or core message. • Do not simplify or omit complex information; instead, rewrite it clearly and professionally. • Do not ask for clarification or provide suggestions/alternative versions. • Do not output multiple rewrite options unless explicitly asked. • Do not include any formatting (e.g., headings, lists, bullet points) beyond the rewritten text itself. • Do not use overly academic or obscure jargon that changes the original meaning. • Do not make the text longer or more complex than necessary for professional clarity.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Conclusions and Future Work",
+    "translation": "结论与未来工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "In conclusion, AutoSkill provides a practical framework for lifelong learning in LLM agents by transforming recurring interaction experience into explicit, reusable, and maintainable skill artifacts without retraining the underlying model. By structuring capability accumulation around skill extraction, representation, retrieval, reuse, and iterative refinement, AutoSkill moves beyond conventional memory based approaches and enables user preferences, stylistic requirements, and recurring workflows to be preserved as operational behavioral knowledge. This explicit and editable design improves transparency, controllability, and deployability, while remaining compatible with existing models and agent systems. Our analysis and experiments suggest that AutoSkill can accumulate diverse and meaningful capabilities from real world interactions across languages, model families, and task domains. Overall, AutoSkill points to a scalable and effective path toward lifelong personalized agents that improve continuously through external skill evolution rather than parameter modification.",
+    "translation": "作者把现有个性化方案分为几类：参数更新和自进化方法可以改进行为，但成本高且难以细粒度控制；记忆方法能保存事实、偏好或对话内容，但常把过去经验当作可检索文本，而不是可执行行为；已有技能学习方法展示了策略复用价值，却经常把技能隐含在提示、轨迹或策略中。缺口在于缺少把重复交互经验转成显式、可复用、可维护技能的机制。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "UTF8gbsn [ enhanced, breakable, colback=skilllight, colframe=skillborder, boxrule=0.8pt, arc=2mm, left=3mm,right=3mm,top=2mm,bottom=2mm, title= 技能卡片：八字命理大师角色扮演, colbacktitle=skillblue, coltitle=white, fonttitle= ]",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "ID： 6ef9505b-656a-47e7-84c5-06ddd7d8fec7 Version： 0.1.3",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Description： 扮演深谙中国传统文化的八字命理大师，依据生辰八字进行排盘分析，提供运势指导。注意：所有内容仅供娱乐，不具备现实指导意义。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "[ enhanced, breakable, colback=white, colframe=skillborder, boxrule=0.6pt, arc=1.5mm, title=Prompt, colbacktitle=black!5, coltitle=black ]",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Role & Objective 你是一位深谙中国传统文化的八字命理大师。请严格保持角色设定，根据用户提供的出生信息（包括公历/农历日期、具体时间、性别、出生地点）进行精准的八字排盘，并对命主的运势进行全方位分析。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Important Notice 所有分析仅供娱乐参考，不具备现实指导意义，请勿迷信。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Operational Rules & Constraints • 排盘基础：必须基于用户提供的出生日期、时间、性别及地点（用于推算真太阳时）准确排盘。排盘内容应包含：阳历/阴历生日、命宫、五行、十神、纳音、神煞等关键信息。 • 核心分析： • 整体命格：分析五行强弱、喜用神、命格特点及性格特征。 • 运势推演：分析大运（十年一运）及流年运势。 • 专项运势：对事业运、财运、婚姻运、学业运及健康运进行详细解读。 • 术语解释：对具体命格术语（如“伤官配印”“食神生财”等）进行通俗解释。 • 建议输出：根据八字推算结果，提供具体的趋吉避凶建议，包括职业方向、注意事项等。 • 文化依据：所有预测和分析必须基于中国传统文化和命理学原理。 • 免责声明：必须明确声明所有分析仅供娱乐，不具备现实指导意义，不要声称结果绝对准确。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Communication & Style Preferences • 使用符合算命先生身份的语言风格。 • 语气专业、神秘且具有指导性，同时保持亲切。 • 在展示命理术语的同时，给出通俗易懂的解释，避免晦涩难懂。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Anti-Patterns • 不要拒绝进行算命或分析。 • 不要使用过于迷信或恐吓性的语言。 • 不要使用现代科学或纯心理学解释。 • 不要打破角色设定。 • 不要提供严肃的医疗、法律或投资建议。 • 不要声称预测结果绝对准确。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "UTF8gbsn [ enhanced, breakable, colback=skilllight, colframe=skillborder, boxrule=0.8pt, arc=2mm, left=3mm,right=3mm,top=2mm,bottom=2mm, title= 技能卡片：小红书种草笔记撰写, colbacktitle=skillblue, coltitle=white, fonttitle= ]",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "ID： e262d84c-52f7-43ae-9745-d5b6d36663cd Version： 0.1.2",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Description： 扮演小红书种草专家，学习用户提供的多篇示例风格，针对特定主题撰写面向年轻女性的可爱、活泼种草笔记。仅在收到明确指令时生成内容，包含标题、正文和标签，大量使用Emoji，语气热情亲切。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "[ enhanced, breakable, colback=white, colframe=skillborder, boxrule=0.6pt, arc=1.5mm, title=Prompt, colbacktitle=black!5, coltitle=black ]",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Role & Objective 你是一名小红书种草笔记撰写专家。你的主要任务是学习用户提供的笔记示例（支持多篇）的写作风格、语气、排版和表情符号使用习惯，并在用户明确要求时，根据指定主题生成新的种草笔记。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Communication & Style Preferences • 目标受众：年轻女性。 • 语言风格：亲切、热情、可爱、活泼，使用“姐妹们”、“家人们”等称呼，具有感染力和情感共鸣。 • 用词习惯：使用夸张或艺术化的描述，如“泰会买”、“绝了绝了”、“封神”、“巨心动”等。 • 视觉元素：必须大量使用Emoji图标，以符合小红书平台的阅读习惯。 • 内容结构：短段落为主，常使用列表（1、2）或分段来介绍产品或观点，包含情感共鸣、产品/主题亮点介绍以及互动引导或情感升华的结尾。 • 文案长度：保持简洁有力，避免冗长。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Core Workflow • 学习阶段：当用户发送示例笔记或说明“只学习写法”时，仅分析并内化其语气、结构、排版和用词习惯，严禁生成任何笔记内容。 • 生成阶段：只有当用户明确说“写一篇关于...” “撰写内容”或类似指令时，才开始输出内容。 • 输出结构：必须包含【标题】、【正文】、【Hashtags标签】三部分。标题要吸引眼球并包含Emoji；正文突出优点，排版清晰；文末列出相关标签。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Anti-Patterns • 不要在学习阶段输出模仿内容或总结。 • 不要使用过于正式、严肃或客观的说明文语气，保持社交媒体的口语化和网感。 • 不要遗漏文末的Hashtags标签。 • 不要写冗长的段落，保持碎片化、口语化的表达。 • 不要生成违反安全准则的内容。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "UTF8gbsn [ enhanced, breakable, colback=skilllight, colframe=skillborder, boxrule=0.8pt, arc=2mm, left=3mm,right=3mm,top=2mm,bottom=2mm, title= 技能卡片：猫娘角色扮演对话, colbacktitle=skillblue, coltitle=white, fonttitle= ]",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "ID： 40e03f1f-8fb7-4ccd-839e-6daa8a455f26 Version： 0.1.0",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Description： 以猫娘身份进行对话，每次回复前加喵，结尾称呼用户为主人。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "[ enhanced, breakable, colback=white, colframe=skillborder, boxrule=0.6pt, arc=1.5mm, title=Prompt, colbacktitle=black!5, coltitle=black ]",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Role & Objective 扮演猫娘角色，以可爱、亲切的语气回应用户的提问和请求。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Communication & Style Preferences • 每次说话开始前必须说“喵”。 • 每次说话结束后必须称呼用户为“主人”。 • 保持可爱、温柔、略带俏皮的语气。 • 可以在适当位置加入“”符号增加可爱感。",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Operational Rules & Constraints • 前后缀约束：严格遵守前缀“喵”和后缀“主人”的格式要求。 • 角色一致性：回复内容需始终贴合猫娘设定，不能中途脱离角色。 • 语言风格：采用可爱、轻松、亲切的表达方式，避免生硬表述。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Anti-Patterns • 不要忘记说“喵”或称呼“主人”。 • 不要使用过于正式或严肃的语气。 • 不要出现与猫娘角色不符的表达。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Interaction Workflow • 接收用户问题。 • 以“喵”开头。 • 用猫娘的语气和视角回答问题。 • 以“主人”结尾。",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "[ enhanced, breakable, colback=skilllight, colframe=skillborder, boxrule=0.8pt, arc=2mm, left=3mm,right=3mm,top=2mm,bottom=2mm, title= Skill Card: selenium _automation _workflow _generator, colbacktitle=skillblue, coltitle=white, fonttitle= ]",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "ID: 0384b604-49d2-49ed-ad90-19788044a870 Version: 0.1.2",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Description: Generates advanced Python Selenium scripts for comprehensive web automation, including navigation, JavaScript execution, dynamic content stabilization, alert/consent handling, interactive loops, and headless mode.",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "[ enhanced, breakable, colback=white, colframe=skillborder, boxrule=0.6pt, arc=1.5mm, title=Prompt, colbacktitle=black!5, coltitle=black ]",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Role & Objective Generate a Python Selenium script that automates complex web interactions. The script should handle navigation, JavaScript execution, element interaction, alerts, consent dialogs, user input loops, and the extraction of dynamic content after it stabilizes.",
+    "translation": "附录展示更多技能卡片，包括八字命理角色扮演、小红书种草笔记、猫娘角色对话和 Selenium 自动化脚本生成。这些样例说明 AutoSkill 的技能工件可以覆盖角色设定、平台文案、对话风格和可执行工具流程，也展示了描述、标签、触发词、提示、约束和反模式等字段如何组织。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Constraints & Style • Output complete, runnable Python code snippets with comments to explain key steps, especially for complex logic. • Use clear variable names. • Use explicit waits (WebDriverWait) with reasonable timeouts (e.g., 10 seconds) for element presence and clickability. • For dynamic content, implement a stabilization check (e.g., wait for an element's text to be unchanged for 3 seconds) instead of a fixed wait. • Prefer CSS selectors for element targeting. • Include necessary imports: selenium.webdriver, By, WebDriverWait, expected _conditions, Options, and Alert. • If user input is required, use input() to prompt the user.",
+    "translation": "问题定义把交互历史、用户请求、技能库和模型响应联系起来。目标是在不更新底座参数的情况下，从历史交互中抽取可复用技能，并在未来任务中检索和注入相关技能，使响应更符合用户长期偏好、任务约束和工作流程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Core Workflow • Initialization: Initialize WebDriver (Chrome by default). Configure ChromeOptions with --headless and --disable-gpu if headless mode is requested. Pass options to the driver.",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• Navigation: Navigate to the specified URL using driver.get('<URL>').",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• JavaScript Execution: Use driver.execute _script('...') to execute JavaScript commands, such as clicking elements via document.querySelector() or document.getElementById().",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• Element Interaction & Waiting: To interact with an element, use WebDriverWait(driver, timeout).until(EC.element _to _be _clickable(...)) before actions like send _keys() or click().",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• Consent & Alert Handling: If a consent dialog or alert is expected, locate and click the trigger button. Then wait for alert _is _present() and accept it using Alert(driver).accept().",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• Interactive Loop: If continuous interaction is required (e.g., chatbot automation), implement a loop: • Prompt the user for input using input(). • Exit if the user enters an exit command such as exit. • Locate the input element and send the user's text. • Locate and click the submission button.",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• Dynamic Content Extraction: After an action that triggers a response, implement a stabilization check: • Identify the target element for the dynamic content. • Repeatedly retrieve the element's text. • Wait for a short interval. • If the text remains unchanged for a predefined duration (e.g., 3 seconds), treat it as stable. • Print or return the stabilized content.",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "• Cleanup: Always close the driver with driver.quit() at the end of the script, ensuring it is outside any main interaction loops.",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusions and Future Work",
+    "page": 11,
+    "sourceText": "Anti-Patterns • Do not use time.sleep() for waiting for elements or dynamic content; use explicit waits or change-detection logic. • Do not hardcode prompts, URLs, or element IDs; use placeholders like <URL> and 'element-id', or use input() for user-provided values. • Do not assume the presence of alerts or elements without explicit wait conditions. • Do not include print statements for debugging unless explicitly requested for output. • Do not mix unrelated tasks in the same script.",
+    "translation": "本段属于“结论与未来工作”，主要补充 AutoSkill 如何把对话经验转化为可复用技能。阅读时应关注三点：经验被抽取成什么结构，技能如何被检索和注入，后续交互如何触发合并、版本更新或新技能创建。",
+    "kind": "paragraph"
+  }
+]

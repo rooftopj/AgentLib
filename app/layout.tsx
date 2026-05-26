@@ -7,7 +7,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agent Lib",
-  description: "面向中文读者的 Agent 学习资料库，提供论文讲解、博客洞察与开源项目分析。"
+  description: "面向中文读者的 Agent 学习资料库，提供论文讲解、博客洞察与开源项目分析。",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/agent-paper-logo.png"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

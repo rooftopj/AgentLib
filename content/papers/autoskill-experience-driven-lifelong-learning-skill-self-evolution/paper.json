@@ -1,0 +1,127 @@
+{
+  "slug": "autoskill-experience-driven-lifelong-learning-skill-self-evolution",
+  "title": "AutoSkill: Experience-Driven Lifelong Learning via Skill Self-Evolution",
+  "authors": [
+    "Yutao Yang",
+    "Junsong Li",
+    "Qianjun Pan",
+    "Bihao Zhan",
+    "Yuxuan Cai",
+    "Lin Du",
+    "Jie Zhou",
+    "Kai Chen",
+    "Qin Chen",
+    "Xin Li",
+    "Bo Zhang",
+    "Liang He"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Yutao Yang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Junsong Li",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Qianjun Pan",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Bihao Zhan",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yuxuan Cai",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Lin Du",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Jie Zhou",
+      "institutionIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Kai Chen",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Qin Chen",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Xin Li",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Bo Zhang",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Liang He",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "School of Computer Science and Technology, East China Normal University",
+      "translation": "华东师范大学计算机科学与技术学院"
+    },
+    {
+      "id": 2,
+      "name": "Shanghai AI Laboratory",
+      "translation": "上海人工智能实验室"
+    }
+  ],
+  "institutions": [
+    "School of Computer Science and Technology, East China Normal University",
+    "Shanghai AI Laboratory"
+  ],
+  "year": 2026,
+  "venue": "arXiv",
+  "category": "skills",
+  "categoryLabel": "Skill 自进化",
+  "tags": [
+    "AutoSkill",
+    "Skill 自进化",
+    "终身学习",
+    "个性化 Agent",
+    "SKILL.md",
+    "经验沉淀",
+    "技能检索"
+  ],
+  "summary": "AutoSkill 提出一种面向 LLM Agent 的经验驱动终身学习框架：系统不再只把跨会话偏好保存为原始记忆，而是从对话与交互轨迹中抽取可复用行为，沉淀为标准化、可编辑、可版本化的 SKILL.md 工件。AutoSkill 覆盖技能抽取、结构化表示、混合检索、推理时注入、实时演化、版本合并和存储部署等完整生命周期，使 Agent 能在不重训底座模型的情况下持续积累用户偏好、写作风格、工具流程和领域操作规范。论文还基于 WildChat-1M 构建四个 SkillBank 子集，展示从真实中英文对话中抽取 1858 个技能的规模、类别分布、标签分布和版本演化案例。",
+  "arxivId": "2603.01145",
+  "arxivUrl": "https://arxiv.org/abs/2603.01145",
+  "codeUrl": "https://github.com/ECNU-ICALK/AutoSkill",
+  "sourcePath": "assets/papers/arXiv-2603.01145v2"
+}
