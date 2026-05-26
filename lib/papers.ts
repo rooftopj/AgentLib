@@ -73,12 +73,14 @@ function coverImageFromReading(reading: ReadingBlock[]) {
   return reading.find((item) => item.assetPath && (item.kind === "figure" || item.sourceText.startsWith("Figure:")))?.assetPath;
 }
 
-export const papers: Paper[] = generatedPaperModules.map(({ meta, reading, explainerCoverImagePath }) => ({
-  ...meta,
-  reading: reading as ReadingBlock[],
-  sections: sectionsFromReading(reading as ReadingBlock[]),
-  coverImagePath: explainerCoverImagePath || coverImageFromReading(reading as ReadingBlock[])
-}));
+export const papers: Paper[] = generatedPaperModules
+  .map(({ meta, reading, explainerCoverImagePath }) => ({
+    ...meta,
+    reading: reading as ReadingBlock[],
+    sections: sectionsFromReading(reading as ReadingBlock[]),
+    coverImagePath: explainerCoverImagePath || coverImageFromReading(reading as ReadingBlock[])
+  }))
+  .sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
 
 export function getPaper(slug: string) {
   return papers.find((paper) => paper.slug === slug);

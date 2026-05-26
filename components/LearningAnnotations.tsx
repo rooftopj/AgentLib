@@ -199,7 +199,7 @@ export default function LearningAnnotations({ annotations }: { annotations: Anno
                 role="button"
                 tabIndex={0}
               >
-                <span>{index + 1}</span>
+                <span className="annotation-index">{index + 1}</span>
                 <strong>{annotation.title}</strong>
                 <AnnotationBody body={annotation.body} />
               </article>

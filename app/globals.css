@@ -642,7 +642,7 @@ mark {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.annotation-card span {
+.annotation-card > .annotation-index {
   display: grid;
   width: 24px;
   height: 24px;
@@ -654,7 +654,7 @@ mark {
   font-weight: 820;
 }
 
-.annotation-card strong {
+.annotation-card > strong {
   color: var(--ink);
   font-size: 14px;
   line-height: 1.4;
