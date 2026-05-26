@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "flow-modularized-agentic-workflow-automation",
+  "items": [
+    {
+      "id": "flow-agent-multiple-task-contexts-001",
+      "sectionTitle": "方法总览：把 workflow 变成可更新的 AOV 图",
+      "quote": "每个智能体 $a_j$ 有一个角色，并负责某个子任务子集 $\\mathcal{T}_j$。",
+      "occurrence": 1,
+      "title": "论文未说明多任务上下文机制",
+      "body": "论文明确说每个智能体 $a_j$ 负责某个子任务子集 $\\mathcal{T}_j$，因此一个 agent 可以覆盖多个子任务。\n\n但论文没有进一步说明：当同一个 agent 负责多个子任务时，运行时是否会为每个子任务维护独立处理上下文，也没有定义类似 `context`、`memory`、`task instance state` 的机制。\n\n所以基于论文文本，只能确认：\n\n1. agent 有 role。\n2. agent 被分配到一个子任务子集 $\\mathcal{T}_j$。\n3. 子任务之间的执行顺序由 DAG 依赖边 $E$ 决定。\n\n至于同一个 agent 多次执行不同子任务时，是否共享上下文、隔离上下文，或如何传递上游结果，论文这段没有展开。"
+    },
+    {
+      "id": "flow-agent-role-vs-task-001",
+      "sectionTitle": "方法总览：把 workflow 变成可更新的 AOV 图",
+      "quote": "这个定义让多智能体 workflow 变成一个 DAG，而不是一段散乱提示词。",
+      "occurrence": 1,
+      "title": "论文只把 agent 定义到 role 层",
+      "body": "论文在这里对 `agent` 的定义比较抽象：`A` 是智能体集合，每个智能体 $a_j$ 关联一个 **role**，并负责一个子任务子集 $\\mathcal{T}_j$。\n\n也就是说，论文明确说明了三件事：\n\n1. `V` 是子任务集合。\n2. `E` 是子任务之间的依赖边。\n3. `A` 是负责执行子任务的 agent 集合，每个 agent 有 role，并被分配到一组子任务。\n\n论文没有进一步说明这个 agent 在实现上是否就是一段 prompt，也没有展开它是否包含工具权限、记忆、上下文模板或运行时状态。因此，“agent 可以由 prompt 实现”是可能的工程实现，但不是这段论文文本里的明确定义。\n\n从论文表述看，更稳妥的理解是：`agent` 是 workflow 图里承担某类执行角色的抽象执行者；它通过 $\\mathcal{T}_j$ 和子任务绑定，而不是和单个任务节点一一绑定。"
+    },
+    {
+      "id": "flow-dynamic-update-trigger-process-001",
+      "sectionTitle": "动态更新怎么工作",
+      "quote": "动态更新发生在执行过程中。Flow 会把当前任务需求、当前 AOV 图、所有子任务的状态与输出数据交给更新提示词，让 LLM 生成新候选图。更新可以包括删除无用任务、添加补救任务、修改子任务要求、重跑失败任务、重新分配智能体，或者重连依赖边。由于初始图已经被鼓励模块化，这些调整通常可以局部发生，而不必推翻全部 workflow。",
+      "occurrence": 1,
+      "title": "动态更新在子任务状态可检查后触发",
+      "body": "论文里的动态更新不是每个 token、每一步推理都触发，而是在 workflow 执行过程中，根据子任务完成状态、失败状态或输出质量来触发。\n\n论文/精读材料提到两种更新策略：\n\n1. **并发更新**：某个子任务一完成就立刻触发 workflow update，即使其他子任务还在运行。优点是可能更快，缺点是会产生更多 API 调用，也可能让仍在运行的任务变得冗余。\n2. **子任务完成后更新**：不在某个子任务刚完成后立即分配新任务，而是等待当前运行的一批子任务完成，再统一更新 workflow。论文说实践中采用第二种，以减少 API 使用。\n\n更新过程的输入包括：\n\n1. 当前任务需求或任务 prompt $P$。\n2. 当前 workflow / AOV 图 $\\tilde{G}$。\n3. 当前子任务的完成状态、失败状态或是否不可解。\n4. 已有子任务输出数据，也就是执行过程中产生的中间结果。\n5. 更新提示词 $P_{update}$。\n\n实现流程可以概括为：\n\n```text\n当前图 + 任务需求 + 子任务状态/输出\n-> update prompt\n-> LLM 生成多个候选新图\n-> 用并行度 P_avg 和依赖复杂度 C_dependency 打分\n-> 选择并行度更高、依赖更分散的图\n-> 后续执行按新图继续\n```\n\n更新能做的动作包括删除无用任务、添加补救任务、修改子任务要求、重跑失败任务、重新分配 agent、重连依赖边。论文强调的是在已有图和执行数据基础上调整，而不是把整个 workflow 从零生成一遍。"
+    }
+  ]
+}
