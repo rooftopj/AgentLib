@@ -1,0 +1,112 @@
+{
+  "slug": "skillrouter-skill-routing-llm-agents-scale",
+  "title": "SkillRouter: Skill Routing for LLM Agents at Scale",
+  "authors": [
+    "YanZhao Zheng",
+    "ZhenTao Zhang",
+    "Chao Ma",
+    "YuanQiang Yu",
+    "JiHuai Zhu",
+    "Wu Yong",
+    "Tianze Xu",
+    "Baohua Dong",
+    "Hangcheng Zhu",
+    "Ruohui Huang",
+    "Gang Yu"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "YanZhao Zheng",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "ZhenTao Zhang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Chao Ma",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "YuanQiang Yu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "JiHuai Zhu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Wu Yong",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Tianze Xu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Baohua Dong",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Hangcheng Zhu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Ruohui Huang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Gang Yu",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Alibaba Group, Hangzhou, China",
+      "translation": "阿里巴巴集团，中国杭州"
+    }
+  ],
+  "institutions": [
+    "Alibaba Group, Hangzhou, China"
+  ],
+  "year": 2026,
+  "venue": "COLM 2026 / arXiv",
+  "category": "skills",
+  "categoryLabel": "Skill 自进化",
+  "tags": [
+    "SkillRouter",
+    "skill 召回",
+    "skill routing",
+    "retrieve-and-rerank",
+    "reranker",
+    "SkillsBench"
+  ],
+  "summary": "SkillRouter 研究大规模 skill 注册表中的上游路由问题：当 Agent 只能看到少量候选 skill 时，系统必须先从约 8 万个高度重叠的 skill 中找出真正相关的条目。论文发现，只使用 name+description 会让 BM25、embedding 检索和 rerank pipeline 的路由准确率下降 31 到 44 个百分点，说明完整 skill body 是关键召回信号。基于这一发现，作者提出 0.6B bi-encoder + 0.6B cross-encoder reranker 的全正文 retrieve-and-rerank pipeline，并通过假负例过滤、困难负样本挖掘和 listwise reranking loss，在核心 benchmark 上达到 74.0% Hit@1，同时比最强 16B base pipeline 参数少 13 倍、延迟低 5.8 倍。",
+  "arxivId": "2603.22455",
+  "arxivUrl": "https://arxiv.org/abs/2603.22455",
+  "codeUrl": "https://github.com/zhengyanzhao1997/SkillRouter",
+  "sourcePath": "assets/papers/arXiv-2603.22455v4"
+}

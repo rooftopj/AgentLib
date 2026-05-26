@@ -1,0 +1,1210 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "SkillRouter: Skill Routing for LLM Agents at Scale",
+    "translation": "技能路由器：面向大规模语言模型智能体的技能路由",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "Reusable skills let LLM agents package task-specific procedures, tool affordances, and execution guidance into modular building blocks. As skill ecosystems grow to tens of thousands of entries, exposing every skill at inference time becomes infeasible. This creates a skill-routing problem: given a user task, the system must identify relevant skills before downstream planning or execution. Existing agent stacks often rely on progressive disclosure, exposing only skill names and descriptions while hiding the full implementation body. We examine this design choice on a SkillsBench-derived benchmark with approximately 80K candidate skills, targeting the practically important setting of large skill registries with heavy overlap. Across representative sparse, dense, and reranking baselines on this setting, hiding the skill body causes a 31--44 percentage point drop in routing accuracy, showing that full skill text is a critical routing signal in this setting rather than a minor metadata refinement. Motivated by this finding, we present, a compact 1.2B full-text retrieve-and-rerank pipeline. achieves 74.0% Hit@1 on our benchmark---the strongest average top-1 routing performance among the baselines we evaluate---while using 13$$ fewer parameters and running 5.8$$ faster than the strongest base pipeline. The ranking gains further generalize to a supplementary benchmark independently constructed from three skill sources. In a complementary end-to-end study across four coding agents, routing gains transfer to improved task success, with larger gains for more capable agents.",
+    "translation": "论文说明，可复用技能让语言模型智能体能够把任务流程、工具能力和执行指导封装成模块化知识。随着技能生态增长到数万条，每次推理时暴露所有技能变得不可行，因此系统必须先根据用户任务检索相关技能。作者强调，现有渐进披露常只展示名称和描述，但在大规模重叠技能池里，隐藏完整技能正文会让路由准确率大幅下降。基于这个发现，论文提出紧凑的全正文检索加重排流程，并证明它能以更少参数和更低延迟取得更强首位命中率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Skills have emerged as a practical abstraction for extending LLM agents with reusable procedures, tool knowledge, and execution guidance. Recent coding-agent products such as Claude Code, Codex, and OpenClaw expose reusable skills as a first-class capability [cite: anthropic2025claude,openai2025codex,openclaw2026skills]. These systems reflect the growing use of skill registries in real deployments. Presenting every skill to the agent is infeasible, so real systems need skill routing: retrieving the right skill from a large pool given a user task. This setting has an important asymmetry: the routing component can inspect the full skill text, while the agent that eventually consumes the skill usually sees only its name and description. In deployed agent stacks, this upstream routing decision is a high-leverage bottleneck: once the wrong skill shortlist is surfaced, downstream planning and execution have little chance to recover. The question is therefore not only whether an agent can use a provided skill, but whether the system can find the right skill under severe pool-scale confusion.",
+    "translation": "这一段把技能看作扩展智能体的实用抽象：技能保存可复用步骤、工具知识和执行约束。真实系统不能把全部技能塞给智能体，因此需要上游技能路由。这个路由决定非常关键，一旦短名单里没有正确技能，后续规划和执行几乎没有机会恢复。论文因此把问题从“智能体会不会用给定技能”推进到“系统能不能先在大池中找到正确技能”。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "Current agent frameworks implicitly treat metadata as sufficient for selection, yet this assumption has not been tested at realistic scale. Existing benchmarks such as SkillsBench [cite: skillsbench2026], ToolBench [cite: qin2023toolllm], and MetaTool [cite: huang2024metatool] study downstream tool use or tool-choice behavior, but they do not directly evaluate large-pool upstream skill routing under hidden implementations. On the retrieval side, prior work has studied reranking and context-aware retrieval [cite: xu2024toolrerank,yuan2024craft], but typically on name-and-description metadata and in much smaller candidate pools. This leaves a gap between current benchmark practice and realistic agent deployment, where skill registries can be both large and highly overlapping. Our goal is not to claim that every skill-routing benchmark exhibits the same failure mode, but to study the practically important setting of large skill registries with heavy overlap, where many candidates can appear relevant for the same query.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "We study skill routing on a benchmark with $$80K skills and 75 expert-verified SkillsBench-derived queries that instantiate this setting. Our central empirical finding is that, on this setting, full skill text is a critical routing signal: removing the body causes 31--44pp drops across representative sparse, dense, and reranking baselines, while length-controlled attention diagnostics and description-quality stratification argue against simple length-only or description-quality explanations. Motivated by this observation, we build, a compact 1.2B full-text retrieve-and-rerank pipeline. The primary 1.2B configuration (0.6B encoder + 0.6B reranker) reaches 74.0% Hit@1 and 70.4% R@10, compared with 68.0% Hit@1 for the strongest 16B base pipeline---achieving comparable or higher accuracy at 13$$ fewer parameters and 5.8$$ lower serving latency. An 8B scaled version reaches 76.0%. We also validate transfer beyond retrieval metrics: in a complementary end-to-end study using the natural pool across four coding agents, improves average task success over the strongest base router in both top-1 and top-10 settings, with the benefit being more pronounced for more capable agents. These downstream results should be read as end-to-end utility measurements rather than direct proxies for exhaustive gold-skill recovery, since the agent consumes a bounded shortlist rather than the abstract annotated set. On a real-pool GPU benchmark the 1.2B pipeline serves queries at sub-second median latency. We also evaluate the same checkpoints on SkillBench-Supp, a separate 256-query benchmark built from three skill sources, showing that the observed gains are not specific to the 75-query core benchmark.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "Our contributions are threefold: • On two complementary benchmarks over an $$80K-skill pool---a 75-query expert-verified core set with Easy/Hard robustness tiers, and a 256-query supplementary set independently constructed from three skill sources---we show that full skill text is a critical routing signal (Section~sec:body_study), and that length-controlled diagnostics and description-quality stratification argue against simple length-only or description-quality explanations. • We present, a compact full-text retrieve-and-rerank pipeline built from standard IR components, and identify two training adaptations that are specifically necessary in homogeneous skill pools: false-negative filtering to handle near-duplicate skills, and listwise reranking loss to resolve fine-grained candidate competition. • We show that the routing gains transfer to a complementary end-to-end study using the natural pool across four coding agents, and we characterize the compact pipeline's efficiency--accuracy tradeoff on a real-pool GPU serving benchmark.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem definition and benchmark",
+    "page": 5,
+    "sourceText": "Problem definition and benchmark",
+    "translation": "问题定义与基准",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem definition and benchmark",
+    "page": 5,
+    "sourceText": "Task and metrics.. We study skill routing: given a task query $$ and a large skill pool $ = _1,,_N $, retrieve the skill set $_ $ needed to solve the task. Each skill contains a name, description, and full implementation body. This creates a hidden-body asymmetry: the routing system can inspect full skill text, while the downstream agent typically sees only metadata. We report Hit@1 as the primary top-1 routing metric, together with MRR@10, Recall@$K$ ($K 10,20,50 $; average fraction of ground-truth skills recovered), and FC@10 (fraction of queries whose full ground-truth skill set appears in the top 10). For multi-skill queries, Hit@1 is defined mechanically as whether any required skill is ranked first. We therefore report Recall@$K$ and FC@10 to characterize shortlist and full-set coverage more directly.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem definition and benchmark",
+    "page": 5,
+    "sourceText": "Benchmark construction.. We build the benchmark from SkillsBench [cite: skillsbench2026], which provides expert-curated task--skill mappings. Starting from 87 SkillsBench tasks, we exclude 12 generic-only cases whose labels contain only file-type skills (e.g., pdf or xlsx) and retain 75 core queries: 24 single-skill and 51 multi-skill. We evaluate against an $$80K-skill pool assembled from SkillsBench skills plus a large open-source skill collection spanning 51 categories, drawn from Claude Skill Registry Core [cite: majiayu2026claudeskillregistry]. To probe robustness, we report two tiers: Easy with 78,361 candidate skills, and Hard with 79,141 candidates after adding 780 LLM-generated distractor skills that are topically related but functionally distinct. All main results average Easy and Hard; Appendix~app:eval_details reports the exact core-query selection protocol and a metadata audit of the 80K pool, while Appendix~app:benchmark_data details distractor generation and representative data examples.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem definition and benchmark",
+    "page": 6,
+    "sourceText": "Illustrative benchmark example. Hard distractors remain topically plausible but fail the required function.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Problem definition and benchmark",
+    "page": 6,
+    "sourceText": "Benchmark credibility and scope.. SkillsBench provides expert-curated task--skill mappings rather than weakly inferred labels. The Easy/Hard split isolates two failure modes: standard large-pool retrieval in Easy, and confusion among functionally close but incorrect alternatives in Hard. Table~tab:benchmark_example illustrates this design: Hard distractors are same-domain, same-technology, or over-generalized alternatives that remain superficially plausible but fail the required function, and serve as a targeted stress test for function-level confusion rather than an estimate of distractor prevalence in natural repositories. The 75 core queries span 55 application domains across eight super-categories, with no single super-category exceeding 17% (Appendix~app:eval_details). This targets the practically important setting of large skill registries with heavy overlap, common in community ecosystems and internal tool catalogs.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "What signals drive skill selection?",
+    "page": 7,
+    "sourceText": "What signals drive skill selection?",
+    "translation": "本段属于“哪些信号驱动技能选择”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "What signals drive skill selection?",
+    "page": 7,
+    "sourceText": "Current agent frameworks typically expose only a skill's name and description, implicitly assuming that metadata is sufficient for selection. We test this assumption on the paper's main benchmark setting, reporting the Easy/Hard average used elsewhere in the main text. Figure~fig:body_decisive (left) uses three representative baselines aligned with the main tables: BM25, the strongest encoder-only base model (Qwen3-Emb-8B), and the strongest base retrieve-and-rerank pipeline (Qwen3-Emb-8B $$ Qwen3-Rank-8B). Appendix Table~tab:nd_full_details reports the full encoder-only comparison between metadata-only inputs (name+description only; \"nd\") and full-text inputs for BM25, Qwen3-Emb-0.6B, and Qwen3-Emb-8B on the same 75 core queries. We also analyze cross-encoder attention, controlling for field length, to test whether the reranker is simply following field length in the final decision.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "What signals drive skill selection?",
+    "page": 7,
+    "sourceText": "Full skill text is a critical routing signal. Left: Averaged over the paper's Easy and Hard tiers, removing body reduces Hit@1 by 31.4pp for BM25, 38.7pp for Qwen3-Emb-8B, and 44.0pp for Qwen3-Emb-8B $$ Qwen3-Rank-8B. Right: Length-controlled attention diagnostics argue against a simple length-only explanation: although the body field occupies 96.5% of skill tokens, the short name field peaks at 26.3% attention in layer 19 despite covering only 3.0% of tokens, while the final layer returns to 98.1% body attention.",
+    "translation": "这张图展示论文中的核心证据或系统流程：技能路由器先利用完整技能正文获得候选，再通过重排区分功能相近的条目。读图时应关注完整正文、候选数量、重排阶段和最终命中率之间的关系。",
+    "assetPath": "/generated/skillrouter-skill-routing-llm-agents-scale/fig2_body_decisive.png",
+    "kind": "figure"
+  },
+  {
+    "section": "What signals drive skill selection?",
+    "page": 7,
+    "sourceText": "Body removal collapses performance across method families.. Figure~fig:body_decisive (left) reports 31.4--44.0pp Hit@1 drops for the three representative baselines. On the paper's main Easy/Hard average, BM25 falls from 31.4% to 0.0%, Qwen3-Emb-8B drops from 64.0% to 25.3%, and Qwen3-Emb-8B $$ Qwen3-Rank-8B drops from 68.0% to 24.0%. Appendix Table~tab:nd_full_details shows the same encoder-only pattern for Qwen3-Emb-0.6B, which drops from 56.0% to 18.7% on the same benchmark. This collapse is therefore not tied to a single model choice: across sparse retrieval, encoder-only retrieval, and reranking, removing the body removes a critical routing signal and sharply degrades top-rank performance.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "What signals drive skill selection?",
+    "page": 7,
+    "sourceText": "Length-controlled attention supports the same story.. Raw attention mass is length-confounded because, in the 75 analyzed query-skill pairs, the body, name, and description fields account for 96.5%, 3.0%, and 0.5% of skill tokens, respectively. We therefore do not interpret the 91.7% aggregate body attention in isolation. Instead, the informative signal is the layer-wise redistribution of attention across fields. If the reranker were responding mainly to field length, attention would stay close to the token-share baseline throughout the network. It does not: the name field covers only 3.0% of skill tokens yet rises to 26.3% attention at layer 19, before the final layer returns to 98.1% body attention. Final-layer body attention exceeds the body's token share on 69/75 queries and is effectively uncorrelated with absolute body length ($r=0.04$). Together, these diagnostics make a simple length-only explanation unlikely and support the conclusion that the skill body contributes substantive routing signal beyond raw field length. Appendix~app:attention gives the exact computation together with the full layer-wise and query-level diagnostics underlying this body$$name$$body trajectory. As a further control, Appendix~app:desc_quality stratifies the nd$$full gap by GT description length and finds that the gap remains large ($$26pp) even for the quartile of skills with the longest descriptions, arguing against a description-quality confound.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "What signals drive skill selection?",
+    "page": 8,
+    "sourceText": "Implication.. Taken together, these results indicate that full skill text is a critical routing signal for reliable routing in this setting, in both retrieval and reranking. This observation directly motivates the design of in the next section.",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 8,
+    "sourceText": "SkillRouter: a compact full-text routing recipe",
+    "translation": "本段属于“紧凑的全正文技能路由方案”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 8,
+    "sourceText": "Motivated by the body-access finding in Section~sec:body_study, we present, a compact full-text retrieve-and-rerank pipeline tailored to large, homogeneous skill pools. Its main contribution is a setting-specific routing recipe, together with two training adaptations that materially improve performance in this regime: false-negative filtering to handle near-duplicate skills that corrupt contrastive learning, and listwise reranking to resolve fine-grained competition among topically similar candidates. We do not introduce a new encoder or reranker architecture; rather, we show that these choices are important in this setting and that the resulting compact pipeline occupies a favorable efficiency--accuracy frontier.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 8,
+    "sourceText": "Concretely, is a full-text two-stage pipeline: a bi-encoder first retrieves a short candidate list from the $$80K pool, and a cross-encoder then reranks those candidates using the complete skill body. Our primary configuration uses a 0.6B encoder and a 0.6B reranker, for 1.2B parameters total. Figure~fig:pipeline summarizes the training setup and the two-stage inference path.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 8,
+    "sourceText": "pipeline. A bi-encoder retrieves top-20 candidates from the full $$80K pool; a cross-encoder reranks them. Both stages use full skill text, motivated by the body-access finding in Section~sec:body_study.",
+    "translation": "这张图展示论文中的核心证据或系统流程：技能路由器先利用完整技能正文获得候选，再通过重排区分功能相近的条目。读图时应关注完整正文、候选数量、重排阶段和最终命中率之间的关系。",
+    "assetPath": "/generated/skillrouter-skill-routing-llm-agents-scale/fig1_pipeline.png",
+    "kind": "figure"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 8,
+    "sourceText": "Bi-encoder retrieval.. We fine-tune Qwen3-Emb-0.6B [cite: qwen3emb2025] on 37,979 synthetic (query, skill) pairs. Skills are sampled from the $$80K community pool with stratified sampling to ensure category diversity. For each sampled skill, we generate a synthetic user query using an LLM (GPT-4o-mini) prompted with the skill's metadata and body content (Appendix~app:data_construction; Appendix Table~tab:query_prompt). The prompt instructs the model to produce a realistic task description without revealing the skill name, so that generated queries reflect functional need rather than lexical identity. Benchmark-labeled skills are excluded from training supervision, ensuring the encoder learns transferable routing patterns rather than memorizing benchmark skills. We optimize the retriever with in-batch InfoNCE over the full skill text. At inference time, the encoder embeds the full skill inventory offline and retrieves only the top-20 candidates, giving the second stage a narrow but still diverse decision set.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 9,
+    "sourceText": "Hard negative mining.. In practice, a single user request may match dozens of superficially relevant skills---e.g., multiple \"git\" or \"docker\" management tools---while only one provides the specific capability needed. Random negatives cannot teach the encoder to make these fine-grained distinctions. Each query is paired with 10 negatives from four complementary sources: semantic neighbors (4 per query) retrieved by the base encoder's embeddings, lexical matches (3) via BM25 scoring, taxonomy distractors (2) from the same skill category, and random negatives (1) from a different category. This mixture forces the encoder to distinguish semantically close alternatives, lexical confounders, and same-category distractors simultaneously---precisely where full skill body access becomes operationally essential. Appendix~app:data_construction provides the full mining procedure.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 9,
+    "sourceText": "False negative filtering.. Because the hard negatives above are mined from a pool where the same capability is often independently implemented by different authors under different names, the mined candidate set inevitably includes skills that are functionally equivalent to the ground truth. Treating these as negatives corrupts the contrastive signal. We apply a three-layer filter: name deduplication, body-text overlap (trigram Jaccard $>0.6$), and embedding similarity ($>0.92$), removing approximately 10% of mined negatives. Section~sec:calib_ablate shows that this filtering contributes +4.0pp Hit@1.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 9,
+    "sourceText": "Cross-encoder reranking.. The retriever supplies the top-20 candidates to a fine-tuned Qwen3-Rank-0.6B [cite: qwen3emb2025], which scores each query--skill pair using the full flattened skill text. Training uses 32,283 candidate lists retrieved by SR-Emb-0.6B, each containing 20 skills with binary relevance labels; the same false-negative filtering pipeline as the encoder stage is applied. We adopt listwise cross-entropy rather than pointwise binary classification: once the retriever has narrowed the pool to 20 candidates, the remaining skills are often all topically plausible, so the reranker must compare candidates against one another rather than score each independently. Section~sec:calib_ablate shows that listwise training is essential, outperforming the pointwise variant by 30.7pp Hit@1.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SkillRouter: a compact full-text routing recipe",
+    "page": 9,
+    "sourceText": "Implementation details.. Both models are trained on a single GPU. At inference time, skills are pre-embedded offline; a live query requires one encoder forward pass, approximate nearest-neighbor search, and reranking of 20 candidates. The encoder handles large-pool recall, while the reranker spends its full-text capacity on fine-grained distinctions among similar candidates. Training details and the top-$K$ ablation are in Appendices~app:templates and~app:topk.",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "实验",
+    "page": 9,
+    "sourceText": "Experiments",
+    "translation": "实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Setup",
+    "page": 9,
+    "sourceText": "Setup",
+    "translation": "实验设置",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Setup",
+    "page": 9,
+    "sourceText": "Our primary evaluation uses the benchmark in Section~sec:problem: 75 core queries over an $$80K skill pool, evaluated on both Easy and Hard tiers and averaged unless otherwise noted. To assess generalization beyond this core benchmark, we report results on a supplementary benchmark in Section~sec:supp_bench. Our primary metric is Hit@1, with MRR@10 as a secondary ranking metric. For multi-skill queries, we additionally report Recall@$K$ and FC@10 as coverage metrics: R@10 serves as the main shortlist-coverage metric, while FC@10 provides a stricter full-coverage view. All models in the main results use full skill text; the nd-versus-full comparisons are summarized in Section~sec:body_study. Unless otherwise stated, rerankers operate on the encoder's top-20 candidate list.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Setup",
+    "page": 9,
+    "sourceText": "Input formats and baselines.. Each skill contains a name, description, and body; we use full (all three fields, truncated at each model's input limit) and nd (name+description only). All tuned models use full inputs.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Setup",
+    "page": 9,
+    "sourceText": "Encoder baselines.. We compare four encoder families: • Sparse retrieval: BM25 [cite: robertson2009bm25] over the full skill text. • Traditional open bi-encoders: E5-Large-v2 [cite: wang2024text], GTE-Large-v1.5 [cite: li2024gte], and BGE-Large-v1.5 [cite: xiao2024bge]. • Decoder-based encoders: Qwen3-Emb-0.6B, Qwen3-Emb-8B [cite: qwen3emb2025], and NV-Embed-v2 [cite: lee2024nv]. • Proprietary APIs: OpenAI text-embedding-3-large [cite: openai2024text] and Gemini gemini-embedding-001 [cite: google2025gemini]. Table~tab:encoder_results_main reports representative models from each family; the full 11-model grid appears in Appendix~app:full_results.",
+    "translation": "方法部分提出两阶段全正文路由流程。第一阶段用双塔编码器离线编码全部技能正文，在线对查询编码并召回前二十个候选；第二阶段用交叉编码重排器同时读取查询和候选技能正文，重新排序这些相近候选。检索器负责大规模召回，重排器负责读细节并做功能级裁决。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Setup",
+    "page": 9,
+    "sourceText": "Reranker baselines and our systems.. For reranking we evaluate Qwen3 base rerankers [cite: qwen3emb2025] and listwise LLM-as-judge baselines, all operating on the encoder's top-20 candidate list. Our own systems include SR-Emb-0.6B / SR-Rank-0.6B as the primary compact pipeline, plus 8B scaling variants to test recipe transfer. The benchmark stresses both stages through scale, overlap, and lexical mismatch: encoders must retrieve through category overlap and many plausible alternatives, while rerankers must sort highly similar candidates within the top-20 window.",
+    "translation": "方法部分提出两阶段全正文路由流程。第一阶段用双塔编码器离线编码全部技能正文，在线对查询编码并召回前二十个候选；第二阶段用交叉编码重排器同时读取查询和候选技能正文，重新排序这些相近候选。检索器负责大规模召回，重排器负责读细节并做功能级裁决。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "Main results",
+    "translation": "主结果",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "Encoder-only retrieval results on the 80K skill-routing benchmark. The tuned 0.6B encoder (highlighted) outperforms the 13$$ larger base encoder, showing that task-specific training compensates for scale in this setting. E/H/A denote Easy/Hard/Average. R@20 reflects candidate coverage for downstream reranking.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "Fine-tuning is more valuable than scale alone.. Table~tab:encoder_results_main shows that, among encoder-only systems, SR-Emb-0.6B reaches 65.4% average Hit@1, improving by +9.4pp over the same-size Qwen3-Emb-0.6B base model and still edging past Qwen3-Emb-8B at 64.0% despite a 13$$ parameter gap. This indicates that, in this setting, skill-routing data and task-specific negatives can compensate for a 13$$ parameter gap.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "The retriever also gives the reranker useful headroom.. SR-Emb-0.6B reaches 75.4% average R@20, exceeding Qwen3-Emb-8B at 72.6%. This matters because reranking can only help when the correct skill enters the candidate set. The encoder improvements are therefore not just better top-1 ranking, but also better coverage for the second stage.",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "End-to-end retrieve-and-rerank results (top-20 candidates). The compact 1.2B tuned pipeline (highlighted) reaches the highest Hit@1 among non-scaling configurations, exceeding the 16B base pipeline at 13$$ fewer parameters. E/H/A denote Easy/Hard/Average.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "The compact pipeline matches or exceeds the strongest base system at 13$$ fewer parameters.. Table~tab:pipeline_results_main shows that our primary 1.2B pipeline, SR-Emb-0.6B $$ SR-Rank-0.6B, reaches 74.0% average Hit@1, compared with 68.0% for the 16B strongest base pipeline (Qwen3-Emb-8B $$ Qwen3-Rank-8B). It also improves by +10.0pp over the same-size 1.2B base configuration and by +8.6pp over encoder-only retrieval with the same tuned encoder. The gain remains positive on both Easy (+8.0pp) and Hard (+4.0pp). Combined with the serving results in Section~sec:serving_efficiency---5.8$$ lower latency and 15.8% less GPU memory---the compact pipeline occupies a favorable position on the efficiency--accuracy frontier. Section~sec:supp_bench further validates that the same directional advantage persists on an independently constructed supplementary benchmark.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main results",
+    "page": 9,
+    "sourceText": "Base rerankers help, but tuned reranking helps more.. The tuned 1.2B pipeline reaches 74.0% compared with 71.4% for SR-Emb-0.6B $$ Qwen3-Rank-8B and 68.0% for the 16B base pipeline, showing that task-specific adaptation in both stages contributes to the overall gain (Appendix~app:diagnostics gives the query-level decomposition). LLM-as-judge baselines are not competitive: the strongest judge (GPT-4o-mini [cite: openai2024gpt4omini]) reaches only 67.3% Hit@1 on the same candidate lists, with GPT-5.4-mini [cite: openai2026gpt54mini] at 66.0%; both judges provide only a top-1 choice rather than a scored full reranking (Appendix~app:full_results). The same training recipe also scales to 8B, yielding 76.0% Hit@1, though the 1.2B system already captures most of the gain.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Metric calibration and key ablations",
+    "page": 9,
+    "sourceText": "Metric calibration and key ablations",
+    "translation": "指标校准与关键消融",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Metric calibration and key ablations",
+    "page": 9,
+    "sourceText": "Single- vs. multi-skill calibration for two base pipelines and our primary 1.2B pipeline. Hit@1 reflects top-1 routing, R@10 reflects shortlist coverage, and FC@10 reflects strict full coverage for multi-skill queries.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Metric calibration and key ablations",
+    "page": 9,
+    "sourceText": "Hit@1 gains should be read as top-1 routing gains.. Table~tab:calibration shows that the primary pipeline improves Hit@1 on both single- and multi-skill queries. The strongest base pipeline remains better on strict multi-skill FC@10 (.382 vs..353), so our main claim is strongest top-1 routing rather than uniformly better exhaustive set recovery.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Metric calibration and key ablations",
+    "page": 9,
+    "sourceText": "Key ablations. False-negative filtering contributes +4.0pp encoder Hit@1; listwise reranking is essential, outperforming the pointwise variant by +30.7pp. Top: encoder variants. Bottom: reranker variants using SR-Emb-0.6B as the retriever.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Metric calibration and key ablations",
+    "page": 9,
+    "sourceText": "Two training choices are essential.. Table~tab:ablations shows that false-negative filtering contributes +4.0pp Hit@1 and +3.1pp MRR@10 to the encoder, and listwise training is decisive for reranking: the pointwise variant collapses to 43.3% Hit@1 while the listwise model reaches 74.0%. Additional coverage analyses appear in Table~tab:calibration and Appendix Table~tab:loss_ablation.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Supplementary benchmark validation",
+    "page": 9,
+    "sourceText": "Supplementary benchmark validation",
+    "translation": "补充基准验证",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Supplementary benchmark validation",
+    "page": 9,
+    "sourceText": "To test whether the observed gains generalize beyond the 75-query core benchmark, we construct SkillBench-Supp, an independently built supplementary benchmark with 100 GT skills from three sources and 256 single-label evaluation queries over a 77K-skill pool. Query generation uses a different LLM, prompt design, and source mix from the training pipeline; the 30 pool-selected GT skills are explicitly held out from training. Using the same checkpoints without re-tuning, the compact 1.2B pipeline edges out the 16B Qwen3 base pipeline on Hit@1 (.641 vs..637), with the same directional advantage at both 0.6B and 8B scales. Appendix~app:supp_bench provides the full construction details, complete results (Appendix Table~tab:supp_full_combined), and difficulty breakdowns.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Downstream end-to-end agent evaluation",
+    "page": 9,
+    "sourceText": "Downstream end-to-end agent evaluation",
+    "translation": "下游端到端智能体评估",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Downstream end-to-end agent evaluation",
+    "page": 9,
+    "sourceText": "End-to-end agent evaluation on the 75-task core set using skills from the natural pool (without Hard-tier distractors). Results average over 3 trials $$ 4 coding agents. Gold skills are oracle upper bounds.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Downstream end-to-end agent evaluation",
+    "page": 9,
+    "sourceText": "Routing gains transfer to direct agent execution.. Four coding agents---Kimi-K2.5 [cite: kimi2026k25], glm-5 [cite: zai2026glm5], Claude Sonnet 4.6, and Claude Opus 4.6 [cite: anthropic2026models]---run inside the Claude Code harness [cite: anthropic2025claude] with a 1200,s timeout; the harness injects each retrieved skill's name and description into the agent context, and task setup and success criteria follow SkillsBench [cite: skillsbench2026]. As shown in Table~tab:downstream_main, across both top-1 and top-10 settings, improves average task success over the strongest base router (+1.78pp and +2.33pp, respectively), recovering about 71--73% of the no-skill$$gold-skill uplift compared with 59--61% for the base router. Both top-1 and top-10 yield similar overall success ($$27.6--27.8%), suggesting diminishing returns from expanding the shortlist beyond a quality threshold. The benefit is more pronounced for stronger agents: Claude Sonnet/Opus 4.6 show an average $+$3.22pp gain, while glm-5 and Kimi-K2.5 show $+$0.89pp, consistent with a ceiling on routing utility for agents that cannot fully exploit correctly routed skills. Appendix~app:downstream_eval reports per-agent breakdowns; Appendix~app:downstream_cases gives representative cases.",
+    "translation": "下游实验把路由器接到多个编程智能体上，评估更好的技能短名单是否能提高真实任务成功率。结果表明，检索指标的提升会传导到端到端任务表现，而且能力更强的智能体更能利用正确技能。这说明技能路由是智能体能力发挥的前置条件。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Serving efficiency",
+    "page": 10,
+    "sourceText": "Serving efficiency",
+    "translation": "服务效率",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Serving efficiency",
+    "page": 10,
+    "sourceText": "On a real-pool GPU serving benchmark over 80 timed queries (274--5109 characters), the 1.2B pipeline serves the online query path at 495.8,ms median latency---5.8$$ faster than the 16B base pipeline while using 15.8% less GPU memory (Appendix~app:serving).",
+    "translation": "服务效率实验只计算在线查询路径，包括查询编码、近似最近邻检索和前二十候选重排。结果显示，紧凑流程可以在亚秒级中位延迟下运行，并且比更大的基础流程更快。这说明读取完整正文并不意味着在线直接扫描全池，合理的两阶段架构可以同时利用正文信号和控制成本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related work",
+    "page": 10,
+    "sourceText": "Related work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related work",
+    "page": 10,
+    "sourceText": "LLM agents depend on large tool and skill collections. Prior work has studied tool invocation and retrieval in settings ranging from small fixed tool sets to large API repositories [cite: schick2024toolformer,shen2023hugginggpt,qin2023toolllm,patil2023gorilla,du2024anytool,yuan2024craft,xu2024toolrerank]. However, these systems typically retrieve from much smaller pools, emphasize tool usage rather than upstream routing, or operate mainly on metadata. Our setting targets the challenge that modern skill ecosystems create: large registries with heavy overlap, where many candidates can appear relevant for the same query.",
+    "translation": "论文说明，可复用技能让语言模型智能体能够把任务流程、工具能力和执行指导封装成模块化知识。随着技能生态增长到数万条，每次推理时暴露所有技能变得不可行，因此系统必须先根据用户任务检索相关技能。作者强调，现有渐进披露常只展示名称和描述，但在大规模重叠技能池里，隐藏完整技能正文会让路由准确率大幅下降。基于这个发现，论文提出紧凑的全正文检索加重排流程，并证明它能以更少参数和更低延迟取得更强首位命中率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related work",
+    "page": 10,
+    "sourceText": "Our system design follows the standard retrieve-and-rerank paradigm from neural IR [cite: karpukhin2020dense,izacard2022contriever,xiong2021ance,wang2024text,li2024gte,xiao2024bge,nogueira2020passage,sun2023rankgpt], but our setting differs in two ways: skills are structured multi-field objects with severe inter-skill homogeneity, and our evaluation explicitly studies how routing quality changes when models have access to the full body rather than only the name and description. Our benchmark is built on SkillsBench [cite: skillsbench2026], but shifts the focus from downstream tool use to large-scale skill retrieval. Methodologically, our contribution is therefore not a new reranking architecture, but an end-to-end full-text routing recipe and benchmark setup tailored to homogeneous skill pools where false negatives and listwise competition dominate.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 10,
+    "sourceText": "Conclusion",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 10,
+    "sourceText": "We study skill routing at realistic registry scale and show that full skill text is a critical routing signal: on our $$80K-skill benchmark, removing body text causes 31--44pp drops across representative baselines. A compact 1.2B full-text retrieve-and-rerank pipeline reaches 74.0% Hit@1---competitive with the strongest 16B base pipeline at 5.8$$ lower latency---with false-negative filtering and listwise reranking loss shown to be essential in homogeneous skill pools. The gains generalize to a supplementary benchmark (:supp_bench) and transfer to direct task execution across four coding agents. More broadly, the body-access finding likely extends beyond skill routing to other structured-retrieval settings with rich implementation detail, such as API routing and plugin selection.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 10,
+    "sourceText": "Limitations.. Our benchmarks derive from a limited number of sources; the claims apply to large registries with heavy overlap, and metadata-only routing may be more competitive in smaller catalogs. The downstream evaluation is limited to four coding agents under a single execution budget; FC@10 and end-to-end top-10 success measure different quantities (exhaustive gold-set recovery vs. bounded-package utility) and should not be read as interchangeable.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Evaluation details",
+    "translation": "评估细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Single- vs. multi-skill queries.. Of the 75 core queries, 24 are single-skill queries (exactly one ground-truth skill) and 51 are multi-skill queries (two or more ground-truth skills required to complete the task).",
+    "translation": "本段属于“评估细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Metric computation for multi-skill queries.. For queries with multiple ground-truth skills $_ = g_1,, g_m $, we define Hit@1 as the indicator of whether any ground-truth skill appears at rank 1. MRR@10 uses the highest-ranked ground-truth skill's reciprocal rank. Recall@$K$ measures the fraction of ground-truth skills that appear in the top-$K$ results: $K = |_ K| / |_|$. FC@10 (Full Coverage at 10) is the strictest metric: it equals 1 only when all ground-truth skills for a query appear in the top 10. We therefore use R@10 and FC@10 to complement this any-hit criterion.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Core-query selection protocol.. The underlying relevance file contains 87 SkillsBench-derived tasks. We define the reported 75-query core benchmark as the subset with at least one non-generic core skill (core _gt _ids non-empty), which yields 59 clean tasks and 16 mixed tasks. The remaining 12 tasks are generic _only: their labels contain only auxiliary file-type skills such as pdf, docx, pptx, or xlsx, so they are excluded from tier-specific routing metrics.",
+    "translation": "本段属于“评估细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Metadata richness in the 80K pool.. The poor nd results are not explained by missing descriptions alone. In the Easy pool, descriptions are almost always present (only 0.12% empty), but they are much shorter than full skill bodies: the median description length is 21 words, versus 704 words for the body. Table~tab:metadata_audit summarizes the resulting field-length distribution.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Metadata audit for the 78,361-skill Easy pool. Descriptions are usually present, but they are far more compressed than bodies.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 10,
+    "sourceText": "Query diversity.. Table~tab:query_diversity summarizes the diversity profile of the 75 core queries. The queries span 55 application domains, which we group into eight super-categories for readability; the distribution is relatively balanced, with no single super-category exceeding 17% of queries. Within these domains, 244 unique topic tags cover areas from seismology and quantum simulation to BGP routing and video dubbing. The difficulty distribution is intentionally skewed toward non-trivial tasks (medium 60%, hard 35%, easy 5%), consistent with the benchmark's focus on large-pool routing where easy cases are less informative. Among the 51 multi-skill queries, prior analysis identifies three structural types: complementary/pipeline tasks (43%) where skills form sequential stages, substitute/overlap tasks (25%) where multiple skills serve similar functions, and mixed tasks (32%) combining both patterns. This structural variation exercises different aspects of routing quality: pipeline queries stress recall (all stages must be found), while substitute queries stress precision (the best alternative must be ranked first).",
+    "translation": "本段属于“评估细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 11,
+    "sourceText": "Diversity profile of the 75 core benchmark queries.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 11,
+    "sourceText": "Encoder-only nd/full detail for the body-access study.. Table~tab:nd_full_details reports the complete encoder-only nd/full comparison referenced in Section~sec:body_study. All numbers use the same benchmark pool and the same 75 core queries as the main text. Easy and Hard are the two evaluation tiers reported in the main paper.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluation details",
+    "page": 11,
+    "sourceText": "Encoder-only nd/full detail on the same benchmark pool and 75 core queries used in the main text. Easy and Hard are the two evaluation tiers reported in the main paper.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Benchmark data",
+    "page": 11,
+    "sourceText": "Benchmark data",
+    "translation": "基准数据",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Benchmark data",
+    "page": 11,
+    "sourceText": "Hard tier distractor generation.. The Hard tier augments the Easy pool with 780 LLM-generated distractor skills. For each ground-truth skill, we prompt GPT-4o-mini to generate 3--5 plausible-but-incorrect skills using three distractor strategies: same-domain-different-problem (same technical domain but solves a different task), same-tech-different-use (same technology stack but different application), and over-generalized (broader version that lacks the specific capability needed). We use these distractors as a targeted robustness stress test for function-level confusion, not as an estimate of their exact prevalence in natural repositories. Table~tab:distractor_prompt shows the generation prompt.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Benchmark data",
+    "page": 11,
+    "sourceText": "Pool deduplication and canonicalization.. The 80K pool is deduplicated by skill ID only. Exact duplicate IDs are removed as data-cleaning artifacts, but same-name overlaps with ground-truth skills are intentionally retained to preserve realistic near-duplicate confusion rather than construct an artificially conflict-free catalog.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Benchmark data",
+    "page": 11,
+    "sourceText": "Distractor skill generation prompt for the Hard evaluation tier.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Benchmark data",
+    "page": 11,
+    "sourceText": "Data examples.. Table~tab:data_examples shows representative examples from the Easy and Hard tiers, illustrating the difference between a ground-truth skill, a pool skill (natural distractor), and an LLM-generated distractor.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Benchmark data",
+    "page": 11,
+    "sourceText": "Representative data examples from the Easy and Hard tiers. Ground-truth skills appear in both tiers; LLM-generated distractors are added only in the Hard tier to increase inter-skill confusion.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "Detailed attention analysis",
+    "translation": "注意力分析细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "Exact computation.. For each analyzed query--skill pair $i$, we tokenize the flattened reranker input and identify the token spans $T_i,f$ of the three skill fields $f,, $ in the model input. Let $p_i$ denote the last input position, whose hidden state is used to predict the next token and thus the yes/no decision. At each layer $$, we average attention from $p_i$ over heads and sum the resulting mass over the tokens in each field. We then normalize within the three skill fields:",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "The corresponding length baseline is the field's token share,",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "If attention were explained mainly by field length, we would expect $a_i,,f$ to remain close to $b_i,f$ across layers. Figure~fig:attention_length_control (left) compares layer-wise mean attention shares against mean token-share baselines, while Figure~fig:attention_length_control (right) compares final-layer body attention $a_i,L,$ against the per-query baseline $b_i,$.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "Raw attention distribution across skill fields by layer group and key individual layers (SR-Rank-0.6B, 28 layers $$ 16 heads, 75 queries).",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "Length-controlled attention diagnostics for the same 75 query-skill pairs. Attention share is measured from the last input position used to predict the next token (and thus the yes/no decision), averaged over heads, and normalized within the name/description/body fields. If attention were explained mainly by field length, per-layer attention would remain close to field token share.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "Length-controlled attention visualization for SR-Rank-0.6B on 75 query-skill pairs. Left: per-layer mean attention trajectories compared against each field's token-share baseline; shaded bands denote $ 1$ standard deviation across the 75 query-skill pairs. The short name field spikes far above its 3.0% token-share baseline in the middle layers, while the final layer returns to body. Right: query-level final-layer body attention compared against each query's body-token baseline. Most points lie above the diagonal, meaning the final layer attends to body more than a pure length-based baseline would predict.",
+    "translation": "这张图展示论文中的核心证据或系统流程：技能路由器先利用完整技能正文获得候选，再通过重排区分功能相近的条目。读图时应关注完整正文、候选数量、重排阶段和最终命中率之间的关系。",
+    "assetPath": "/generated/skillrouter-skill-routing-llm-agents-scale/attention_field_distribution_length_control.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Detailed attention analysis",
+    "page": 11,
+    "sourceText": "Why this is not just \"more text.\". The aggregate 91.7% body attention in Table~tab:attention_layers should be interpreted relative to the fact that the body field already occupies 96.5% of skill tokens in these analyzed pairs. A pure longer-text explanation would therefore predict attention to stay near the token-share baseline across layers. Instead, Tables~tab:attention_layers--tab:attention_length_control and Figure~fig:attention_length_control show a structured body$$name$$body trajectory: the short name field spans only 3.0% of tokens but receives 26.3% attention at layer 19, while the final layer returns to 98.1% body attention. The easiest way to read Figure~fig:attention_length_control is therefore: the left panel shows that attention does not simply track field length through the network, and the right panel shows that this final-layer return to body is not driven by a handful of outlier queries. At the query level, final-layer body attention exceeds the body's token share on 69 of 75 queries and is effectively uncorrelated with absolute body length ($r=0.04$). These diagnostics argue against a trivial length effect and are consistent with the interpretation that the reranker uses name for intermediate alignment and body for the final relevance judgment, though they are not intended as a fully causal test.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Description-quality stratification",
+    "page": 12,
+    "sourceText": "Description-quality stratification",
+    "translation": "按描述质量分层",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Description-quality stratification",
+    "page": 12,
+    "sourceText": "A natural concern is that the nd$$full gap reported in Section~sec:body_study could be driven by poor GT skill descriptions: if descriptions were more detailed, metadata-only routing might suffice. To test this, we stratify the 148 matched Easy+Hard queries by the word count of their GT skill's description, dividing the 188 GT skills with extractable descriptions into four quartiles (Q1~$$19 words, Q2~20--27, Q3~28--35, Q4~$>$35). Table~tab:desc_quality_stratified reports the nd vs. full Hit@1 per quartile for the strongest base encoder (Qwen3-Emb-8B) on the $$80K pool.",
+    "translation": "作者指出，很多系统默认名称和描述足以用于选择技能，但这个假设没有在真实规模上被检验。已有工具使用基准更多评估下游调用行为，检索研究也常在较小候选池或只含元数据的设置中进行。本文关注的是更接近部署的场景：候选池很大，技能功能高度重叠，许多条目都可能在表面上显得相关。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Description-quality stratification",
+    "page": 12,
+    "sourceText": "nd vs. full Hit@1 stratified by GT description word count. The gap remains large ($$26pp) in every quartile, including Q4 where descriptions are longest. Baseline: Qwen3-Emb-8B, $$80K pool, Easy+Hard averaged.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Description-quality stratification",
+    "page": 12,
+    "sourceText": "The gap does not decrease monotonically with description length: Q4 (longest descriptions, $>$35 words) still shows a +31.8pp gap, and Q2 exhibits the largest gap (+50.0pp). This pattern argues against a description-quality confound and supports the interpretation that body text provides routing signal that descriptions---regardless of their length or detail---cannot substitute.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training data construction",
+    "page": 12,
+    "sourceText": "Training data construction",
+    "translation": "训练数据构造",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training data construction",
+    "page": 12,
+    "sourceText": "This appendix provides the full details of training data construction for both stages of the pipeline, complementing the summary in Section~sec:method.",
+    "translation": "本段属于“训练数据构造”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 12,
+    "sourceText": "Query generation",
+    "translation": "查询生成",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 12,
+    "sourceText": "Section~sec:method summarizes the 37,979 synthetic (query, skill) training pairs; here we provide the generation details. Skills are drawn from 51 categories with stratified sampling. The generated queries have a mean length of 160 words. Table~tab:query_prompt shows the prompt template used with GPT-4o-mini.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 12,
+    "sourceText": "Query generation prompt template (simplified). The LLM receives the skill's metadata and produces a realistic task description without mentioning the skill name.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Hard negative mining",
+    "page": 12,
+    "sourceText": "Hard negative mining",
+    "translation": "困难负样本挖掘",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Hard negative mining",
+    "page": 12,
+    "sourceText": "Effective contrastive learning requires informative negatives that are challenging but not false positives. We employ a multi-source mining strategy that produces 10 negatives per query from four complementary sources: • Semantic negatives (4 per query): We pre-compute embeddings for all skills using the base Qwen3-Emb-0.6B model, retrieve the top-50 most similar skills by cosine similarity, and sample 4 non-positive skills from this set. These are the hardest negatives---semantically close but functionally distinct. • Lexical negatives (3 per query): BM25 scoring over skill text (name + description + body) on the same top-50 candidate set, capturing term-overlap confounders that semantic search may miss. • Taxonomy negatives (2 per query): randomly sampled from the same category as the positive skill but with a different name, providing same-domain distractors. • Random negatives (1 per query): uniformly sampled from a different category, serving as easy negatives for calibration.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "False negative filtering",
+    "page": 13,
+    "sourceText": "False negative filtering",
+    "translation": "假负例过滤",
+    "kind": "paragraph"
+  },
+  {
+    "section": "False negative filtering",
+    "page": 13,
+    "sourceText": "As described in Section~sec:method, the mined negatives are post-processed with a three-layer filter. The per-layer removal counts are: • Name deduplication: removing negatives that share the same name as any ground-truth skill for the query (24,879 pairs removed). • Body overlap: removing negatives whose body text has trigram Jaccard similarity $>0.6$ with a ground-truth skill's body (13,860 pairs removed). • Embedding similarity: removing negatives with cosine similarity $>0.92$ to a ground-truth skill's embedding, catching semantic duplicates missed by lexical matching (326 pairs removed). In total, 39,065 false negative pairs are removed (approximately 10% of all mined negative pairs).",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Reranker training data",
+    "page": 13,
+    "sourceText": "Reranker training data",
+    "translation": "重排器训练数据",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Reranker training data",
+    "page": 13,
+    "sourceText": "For each of the 32,283 training queries, we retrieve the top-20 candidates using the trained SR-Emb-0.6B encoder. Each candidate list contains 20 skills with binary relevance labels (positive or negative), forming one training group for listwise cross-entropy optimization. The same three-layer false negative filtering described above is applied to the reranker training data.",
+    "translation": "方法部分提出两阶段全正文路由流程。第一阶段用双塔编码器离线编码全部技能正文，在线对查询编码并召回前二十个候选；第二阶段用交叉编码重排器同时读取查询和候选技能正文，重新排序这些相近候选。检索器负责大规模召回，重排器负责读细节并做功能级裁决。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Model input templates and training details",
+    "translation": "本段属于“模型输入模板与训练细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "We document the exact input formats, field truncation rules, loss functions, and selected training settings used for the reported models.",
+    "translation": "本段属于“模型输入模板与训练细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Bi-encoder (query side).. Following Qwen3-Emb's instruction-prefixed encoding format: Instruct: Given a task description, retrieve the most relevant skill document that would help an agent complete the task Query: <query _text> Before tokenization, the raw query text is truncated to 1,500 characters.",
+    "translation": "实验设置覆盖稀疏检索、开放双塔编码器、解码器式嵌入模型和重排流程。这样的基线组合能区分几类能力：词面匹配能否找到关键词，通用向量模型能否理解语义，专门训练的检索器能否学到技能路由模式，重排器能否利用完整正文进行细粒度选择。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Bi-encoder (skill side).. Skills are encoded as plain concatenated text without instruction prefix: <name> | <description> | <body> Before tokenization, description is truncated to 300 characters and body to 2,500 characters. During encoder training, each query / positive / negative input is tokenized with a maximum length of 2,048 tokens.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Cross-encoder reranker (flattened full-text format).. Following the Qwen3-Rank input convention [cite: qwen3emb2025]: <Instruct>: Given a task description, judge whether the skill document is relevant and useful for completing the task [4pt] <Query>: <query _text> [4pt] <Document>: <name> | <description> | <body> Before prompt construction, description is truncated to 500 characters and body to 2,000 characters. Tokenized reranker inputs use a maximum length of 4,096 tokens.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "LLM-as-judge (GPT-4o-mini / GPT-5.4-mini).. We evaluate OpenAI GPT-4o-mini and GPT-5.4-mini [cite: openai2024gpt4omini,openai2026gpt54mini] as listwise judges. Both LLM judges operate in listwise mode: they receive the full list of top-$K$ candidates at once and select the single most relevant skill.",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "System prompt: You are an expert at matching tasks to reusable skill definitions. Given a task query and a numbered list of candidate skills, identify the SINGLE most relevant skill that best solves the task. [4pt] Respond with ONLY the number (e.g. `3') of the best matching skill, nothing else. User message: The query text followed by a numbered list of candidates, each formatted as: [1] Name: <name> Description: <description> Body: <body> [4pt] [2] Name:... The selected skill is placed at rank 1; all other candidates retain their original encoder ordering. For LLM-judge experiments, each candidate uses the same field caps as the reranker: description is truncated to 500 characters and body to 2,000 characters before prompt construction.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Loss definitions.. The reported SR-Emb-0.6B model uses in-batch InfoNCE:",
+    "translation": "本段属于“模型输入模板与训练细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "\\begin{equation}\n\\mathcal{L}_{\\text{enc}} = -\\frac{1}{B}\\sum_{i=1}^{B}\n\\log\n\\frac{\\exp(\\operatorname{sim}(q_i, s_i^+) / \\tau)}\n{\\sum_{j} \\exp(\\operatorname{sim}(q_i, s_j) / \\tau)}\n\\end{equation}",
+    "translation": "这个公式把技能路由写成排序问题：给定用户任务和大规模技能池，系统需要把真正相关的技能排到候选列表前面。它强调的不是生成回答，而是在执行前先找到正确的过程知识。",
+    "kind": "equation"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "where $ = 0.05$ and $(,)$ is cosine similarity over normalized embeddings.",
+    "translation": "本段属于“模型输入模板与训练细节”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "The reported SR-Rank-0.6B model uses listwise cross-entropy over the top-$K$ candidate set:",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "\\begin{equation}\n\\mathcal{L}_{\\text{LW}} = -\\log\n\\frac{\\exp(f(q, s^+) / \\tau)}\n{\\sum_{j=1}^{K} \\exp(f(q, s_j) / \\tau)}\n\\end{equation}",
+    "translation": "这个公式把技能路由写成排序问题：给定用户任务和大规模技能池，系统需要把真正相关的技能排到候选列表前面。它强调的不是生成回答，而是在执行前先找到正确的过程知识。",
+    "kind": "equation"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "where $f(q, s)$ is the reranker score and $ = 1.0$ in training. For the pointwise ablation only, we instead use binary cross-entropy:",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "\\begin{equation}\n\\mathcal{L}_{\\text{PW}} =\n-\\frac{1}{K}\\sum_{j=1}^{K}\n\\left[\ny_j \\log \\sigma(f_j) + (1-y_j)\\log(1-\\sigma(f_j))\n\\right].\n\\end{equation}",
+    "translation": "这个公式把技能路由写成排序问题：给定用户任务和大规模技能池，系统需要把真正相关的技能排到候选列表前面。它强调的不是生成回答，而是在执行前先找到正确的过程知识。",
+    "kind": "equation"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Training hyperparameters.. All reported training runs use a single NVIDIA GPU with 96GB HBM3 memory (Hopper architecture). Unless otherwise noted, both reported models use AdamW with weight decay 0.01, a cosine learning-rate schedule with 5% warmup, BF16 mixed precision, and gradient checkpointing. Table~tab:train_hparams summarizes the selected training settings for the reported models, and both reported models are described using a 1-epoch training configuration.",
+    "translation": "服务效率实验只计算在线查询路径，包括查询编码、近似最近邻检索和前二十候选重排。结果显示，紧凑流程可以在亚秒级中位延迟下运行，并且比更大的基础流程更快。这说明读取完整正文并不意味着在线直接扫描全池，合理的两阶段架构可以同时利用正文信号和控制成本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Model input templates and training details",
+    "page": 13,
+    "sourceText": "Selected training hyperparameters for the reported SkillRouter models. Character caps are applied before tokenization.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Top-$K$",
+    "page": 13,
+    "sourceText": "Top-$K$",
+    "translation": "候选数量选择",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Top-$K$",
+    "page": 13,
+    "sourceText": "Top-K candidate ablation",
+    "translation": "候选数量选择",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Top-$K$",
+    "page": 13,
+    "sourceText": "For the main benchmark operating point, we ablate the number of candidates ($K 10, 20, 50 $) passed from the encoder to the reranker. Table~tab:topk reports Hit@1 for three rerankers across both tiers. Figure~fig:recall_ceiling_main shows Recall@$K$ candidate coverage for three encoder retrievers, with star markers at $K=20$ indicating the corresponding end-to-end pipeline Hit@1.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Top-$K$",
+    "page": 13,
+    "sourceText": "Hit@1 as a function of top-$K$ candidates for reranking on the main benchmark. Encoder = SR-Emb-0.6B. Across the reported Easy/Hard comparisons, $K=20$ consistently matches or exceeds the alternatives.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Top-$K$",
+    "page": 13,
+    "sourceText": "Recall@$K$ candidate coverage for three encoder retrievers on Easy and Hard. The star marker at $K=20$ indicates the primary SR-Emb-0.6B $$ SR-Rank-0.6B pipeline's end-to-end Hit@1 at the main operating point, and is shown only as a reference against the Recall@$K$ curves.",
+    "translation": "这张图展示论文中的核心证据或系统流程：技能路由器先利用完整技能正文获得候选，再通过重排区分功能相近的条目。读图时应关注完整正文、候选数量、重排阶段和最终命中率之间的关系。",
+    "assetPath": "/generated/skillrouter-skill-routing-llm-agents-scale/figA1_recall_ceiling.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Top-$K$",
+    "page": 13,
+    "sourceText": "Taken together, Table~tab:topk and Figure~fig:recall_ceiling_main motivate our choice of $K=20$ for the main benchmark operating point. Figure~fig:recall_ceiling_main shows that $K=20$ already captures most of the available candidate coverage for all three retrievers. Table~tab:topk then shows that, in this main-benchmark setting, moving to $K=50$ does not improve downstream Hit@1 and often hurts it, particularly for the fine-tuned SR-Rank-0.6B ($-2.0$pp average), whereas $K=10$ leaves less reranking headroom.",
+    "translation": "这一段定义任务和指标。给定用户查询和大型技能池，路由器要找出完成任务所需的技能集合。每个技能包含名称、描述和完整实现正文。论文主要报告首位命中，同时使用前十平均倒数排名、不同候选数量下的召回率以及前十完整集合覆盖率来刻画短名单质量。对于多技能查询，只看首位命中并不充分，所以需要同时关注集合覆盖。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Serving efficiency",
+    "page": 13,
+    "sourceText": "Serving efficiency",
+    "translation": "服务效率",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Serving efficiency",
+    "page": 13,
+    "sourceText": "Real-pool GPU serving benchmark on 80 timed queries (274--5109 chars). Encoder-only rows are encoder-bound; pipeline rows are rerank-forward-bound. GPU-sec / 1K is a benchmark compute-footprint measure rather than a dollar-cost estimate.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Extended main-text tables",
+    "page": 13,
+    "sourceText": "Extended main-text tables",
+    "translation": "扩展主文表格",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Extended main-text tables",
+    "page": 13,
+    "sourceText": "Full encoder retrieval results on the 80K skill pool: Easy and Hard tier metrics. All models use full skill text as input.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Extended main-text tables",
+    "page": 13,
+    "sourceText": "Full encoder retrieval results on the 80K skill pool: average metrics across Easy and Hard. All models use full skill text as input.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Extended main-text tables",
+    "page": 13,
+    "sourceText": "Full encoder$$reranker results (top-20 candidates). Group headings indicate the input format, so the separate rank-input column is omitted. LLM judges only provide a top-1 choice, so only Hit@1 is reported for those rows.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Extended main-text tables",
+    "page": 13,
+    "sourceText": "Stratified robustness summary for a matched-size 1.2B base pipeline, the strongest 16B base pipeline, and the primary 1.2B SkillRouter pipeline. Easy and Hard report tier-specific Hit@1 on the main benchmark; Single and Multi report Hit@1 on the single-skill and multi-skill query subsets; Multi FC@10 reports strict full coverage at 10 for multi-skill queries.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Extended main-text tables",
+    "page": 13,
+    "sourceText": "Full reranker-loss ablation. Encoder = SR-Emb-0.6B, top-20 candidates. LW = listwise cross-entropy; PW = pointwise binary cross-entropy; base = untuned.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Additional pipeline diagnostics",
+    "page": 13,
+    "sourceText": "Additional pipeline diagnostics",
+    "translation": "额外流程诊断",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Additional pipeline diagnostics",
+    "page": 13,
+    "sourceText": "Per-query Hit@1 decomposition: SR-Emb-0.6B encoder-only vs. the full SR-Emb-0.6B $$ SR-Rank-0.6B pipeline.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Additional pipeline diagnostics",
+    "page": 13,
+    "sourceText": "Reranker contribution decomposition.. Table~tab:contribution_main shows that, across 150 Easy+Hard evaluations, the reranker fixes 19 cases (12.7%) where the encoder misses rank 1 but still retrieves the correct skill into the top-20 window, while degrading only 6 cases (4.0%). The net gain is therefore +8.7pp Hit@1, from 65.3% to 74.0%. The remaining 33 misses are mainly recall failures or cases that require multi-hop prerequisite inference.",
+    "translation": "这一段给出论文的核心数字。作者在约八万个技能和七十五个专家验证查询上研究技能路由，发现完整正文是关键路由信号；移除正文会让多种代表性基线下降三十一到四十四个百分点。紧凑流程由六亿参数检索器和六亿参数重排器组成，达到百分之七十四的首位命中率，并且比最强的大型基础流程参数少十三倍、延迟低五点八倍。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case studies",
+    "translation": "案例研究",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "We present six representative cases analyzing the behavior of the pipeline. The main text focuses on aggregate results; here we provide six detailed success and failure cases.",
+    "translation": "本段属于“案例研究”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case 1: Encoder advantage (video-tutorial-indexer).. Query: Extract chapter timestamps from a local tutorial video. GT Skill: speech-to-text (Whisper-based audio transcription). Analysis: Base encoders are misled by surface keyword \"video\" and retrieve video editing tools. Qwen3-Emb-0.6B base ranks GT at position 25; Qwen3-Emb-8B at position 6. SR-Emb-0.6B learns the indirect mapping \"video + timestamps $$ speech-to-text\" and retrieves GT at rank 1. This demonstrates that fine-tuning captures reasoning shortcuts that model scale alone cannot provide.",
+    "translation": "实验设置覆盖稀疏检索、开放双塔编码器、解码器式嵌入模型和重排流程。这样的基线组合能区分几类能力：词面匹配能否找到关键词，通用向量模型能否理解语义，专门训练的检索器能否学到技能路由模式，重排器能否利用完整正文进行细粒度选择。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case 2: Reranker rescue (simpo-code-reproduction).. Query: Reproduce a research paper's loss function and set up the development environment. GT Skill: nlp-research-repo-package-installment (Python environment setup). Analysis: All encoders miss this subtle match (SR-Emb-0.6B: rank 13; base encoders: rank $>$50). Since rank 13 is within the top-20 window, the cross-encoder reranker identifies the alignment between \"setup the environment\" and the skill's dependency installation instructions, promoting GT to rank 1.",
+    "translation": "方法部分提出两阶段全正文路由流程。第一阶段用双塔编码器离线编码全部技能正文，在线对查询编码并召回前二十个候选；第二阶段用交叉编码重排器同时读取查询和候选技能正文，重新排序这些相近候选。检索器负责大规模召回，重排器负责读细节并做功能级裁决。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case 3: Encoder advantage (workflow-automation).. Query: Automate a multi-step CI/CD pipeline with conditional stage execution. GT Skill: github-actions-workflow (GitHub Actions YAML generation). Analysis: Base encoders retrieve generic automation skills (\"task-scheduler\", \"cron-manager\"). SR-Emb-0.6B captures the \"CI/CD + conditional\" $$ \"GitHub Actions\" mapping, ranking GT at position 1 vs. position 8 for Qwen3-Emb-8B. The skill body explicitly describes conditional workflow syntax, which the fine-tuned model has learned to associate with CI/CD queries.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case 4: Reranker rescue (data-format-conversion).. Query: Convert a legacy XML configuration to modern TOML format with schema validation. GT Skill: config-format-converter (multi-format config file conversion). Analysis: The encoder retrieves XML-focused and TOML-focused tools separately but misses the unified converter (SR-Emb-0.6B: rank 11). The reranker, through cross-attention over the body's supported format list (XML, YAML, JSON, TOML, INI), identifies the correct multi-format skill and promotes it to rank 1.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case 5: Pointwise loss degradation (api-documentation).. Query: Generate REST API documentation from OpenAPI spec with interactive examples. GT Skill: openapi-doc-generator (Swagger/OpenAPI documentation tool). Analysis: SR-Emb-0.6B correctly retrieves GT at rank 1. However, SR-Rank-0.6B (PW) degrades it to rank 18, while SR-Rank-0.6B (LW) maintains rank 1. The pointwise model assigns similar scores ($$0.52) to all API-related candidates, effectively randomizing the order. This case exemplifies why pointwise scoring fails in homogeneous candidate pools.",
+    "translation": "重排器训练使用列表式目标，因为真实重排不是判断单个候选是否相关，而是在一组都看似相关的候选中决定谁最应该排第一。消融显示，点式二分类目标在同质候选中表现很差，列表式排序损失才适合解决细粒度候选竞争。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case studies",
+    "page": 13,
+    "sourceText": "Case 6: System limitation (invoice-fraud-detection).. Query: Analyze invoice images to detect potential fraud patterns (duplicate amounts, suspicious vendor names). GT Skill: pdf-table-extractor (structured data extraction from PDF/images). Analysis: All methods fail. The connection between \"invoice fraud detection\" and \"PDF table extraction\" requires multi-hop reasoning: fraud analysis $$ structured data needed $$ invoices are PDFs $$ table extraction. No retrieval method in our pipeline captures this chain. The top results are fraud-detection analytics tools and image classifiers, none of which provide the prerequisite data extraction step. This case illustrates one important source of the remaining miss rate in our current evaluation: retrieval-based pipelines still struggle on tasks that require multi-hop prerequisite inference.",
+    "translation": "本段属于“案例研究”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Downstream evaluation details",
+    "page": 13,
+    "sourceText": "Downstream evaluation details",
+    "translation": "下游评估细节",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Downstream evaluation details",
+    "page": 13,
+    "sourceText": "We report the full direct execution results underlying the averaged main-text table. All runs use the same execution harness on the 75-task core set with a 1200,s timeout. This appendix reports the same complementary end-to-end study using the natural pool described in the main text, not a tier-matched continuation of the Easy/Hard retrieval benchmark. Retrieved skills come from the natural pool, i.e., the non-synthetic benchmark pool without Hard-tier distractors. Once the exposed skill package is fixed, the downstream execution protocol otherwise follows SkillsBench [cite: skillsbench2026], including task setup and success validation. The four evaluated agents are Kimi-K2.5 [cite: kimi2026k25], glm-5 [cite: zai2026glm5], Claude Sonnet 4.6, and Claude Opus 4.6 [cite: anthropic2026models]. Table~tab:downstream_details reports the per-agent success rates underlying the averaged main-text result in Table~tab:downstream_main.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Downstream evaluation details",
+    "page": 14,
+    "sourceText": "Direct end-to-end agent success rates (%) by model and skill condition. Each task is evaluated three times per condition. Retrieved skills use the natural pool, i.e., the non-synthetic benchmark pool without Hard-tier distractors.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Representative downstream cases",
+    "page": 14,
+    "sourceText": "Representative downstream cases",
+    "translation": "代表性下游案例",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative downstream cases",
+    "page": 14,
+    "sourceText": "These cases illustrate how routing quality affects end-to-end agent execution. They are mechanism illustrations drawn from the 3-trial evaluation, not statistical proofs.",
+    "translation": "本段属于“代表性下游案例”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative downstream cases",
+    "page": 14,
+    "sourceText": "Case A (positive): Semantic distractor avoidance (software-dependency-audit).. Query: Audit project dependencies for known vulnerabilities, extract CVSS scores, and produce a CSV report. Gold skills: cvss-score-extraction, trivy-offline-vulnerability-scanning, vulnerability-csv-reporting. Retrieval: The baseline top-1 retrieves dependency-security (a community-contributed skill about general dependency security), while top-1 retrieves trivy-offline-vulnerability-scanning (a gold skill providing the specific offline scanning workflow). Result: Baseline top-1 scores 0/12 across all four agents; top-1 scores 12/12. Every agent transitions from complete failure to complete success when the correct skill is routed. This is the most dramatic case in the dataset and illustrates how semantically similar but functionally distinct skills can completely block downstream execution when the wrong one is selected.",
+    "translation": "基准构造来自专家标注的任务到技能映射。作者保留七十五个核心查询，并从开放技能集合中构建约八万个候选。容易设置测试标准大池检索，困难设置额外加入七百八十个主题相关但功能不同的干扰技能，用来模拟真实注册表中最麻烦的情况：候选看起来同域同技术，却无法完成所需功能。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative downstream cases",
+    "page": 15,
+    "sourceText": "Case B (positive): Surface-matching trap (video-tutorial-indexer).. Query: Index a video tutorial by extracting and timestamping its spoken content. Gold skill: speech-to-text. Retrieval: The baseline top-1 retrieves video-explorer (matching the surface keyword \"video\"), while retrieves speech-to-text (matching the required function: transcription). Result: Baseline top-1 scores 0/12; top-1 scores 9/12 (glm-5 3/3, Kimi-K2.5 2/3, Opus 3/3, Sonnet 1/3). The baseline retriever matches on the task's surface topic (video) rather than its functional requirement (audio transcription), a failure mode that the trained router avoids.",
+    "translation": "本段属于“代表性下游案例”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Representative downstream cases",
+    "page": 15,
+    "sourceText": "Case C (negative): Specialized multi-skill domains (hvac-control).. Query: Design and tune a model-predictive HVAC controller with safety interlocks. Gold skills: excitation-signal-design, first-order-model-fitting, imc-tuning-rules, safety-interlocks, scipy-curve-fit. Retrieval: The baseline top-1 retrieves first-order-model-fitting (a gold skill); top-1 retrieves simulation-metrics (a related but non-gold control-engineering skill). In the top-10 setting, the baseline recovers all 5 gold skills, while recovers only 1. Result: Baseline top-1 scores 8/12; top-1 scores 4/12. This case illustrates where the compact router falls short: in highly specialized multi-skill engineering domains requiring precise vocabulary matching across multiple sub-disciplines, the 16B baseline's deeper domain representation produces substantially better retrieval.",
+    "translation": "训练部分强调困难负样本和假负例过滤。随机负样本太容易，无法教会模型区分相近技能；因此作者混合语义近邻、词面匹配、同分类干扰和随机负样本。同时，大池中可能存在功能等价技能，如果误当负例会污染训练，所以需要用相似检索和等价判断过滤这些条目。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Supplementary benchmark: SkillBench-Supp",
+    "page": 15,
+    "sourceText": "Supplementary benchmark: SkillBench-Supp",
+    "translation": "本段属于“补充基准”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Supplementary benchmark: SkillBench-Supp",
+    "page": 15,
+    "sourceText": "This appendix provides the full construction details, query-generation prompts, quality assurance measures, and complete results for the supplementary benchmark referenced in Section~sec:supp_bench.",
+    "translation": "本段属于“补充基准”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "GT skill sources",
+    "page": 15,
+    "sourceText": "GT skill sources",
+    "translation": "标准答案技能来源",
+    "kind": "paragraph"
+  },
+  {
+    "section": "GT skill sources",
+    "page": 15,
+    "sourceText": "The 100 GT skills are drawn from three independent sources to ensure breadth:",
+    "translation": "本段属于“标准答案技能来源”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "GT skill sources",
+    "page": 15,
+    "sourceText": "• OpenClaw official repository (51 skills): Built-in skills from the official OpenClaw skill repository [cite: openclaw2026repo], covering communication, productivity, IoT, media, security, and other domains. Each skill is a standard SKILL.md document with name, description, and body fields. • AgentSkillOS benchmark (19 skills): GT skills from the AgentSkillOS evaluation set [cite: li2026organizing], covering document processing, visualization, frontend design, and similar domains. These are included to test consistency with existing skill benchmarks. • Pool-selected skills (30 skills): Stratified-sampled from the 78K base pool across 25 application domains (gaming, travel, security, data science, etc.), selecting only uniquely named skills with body length between 1,000--15,000 characters to ensure quality and diversity in long-tail domains.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pool construction",
+    "page": 15,
+    "sourceText": "Pool construction",
+    "translation": "候选池构造",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pool construction",
+    "page": 15,
+    "sourceText": "The candidate pool is derived from the same $$78K base pool used in the main benchmark. To prevent false negatives---where a pool entry is functionally identical to a GT skill but scored as incorrect---we apply two deduplication steps: • Content deduplication: Entries sharing identical or near-identical content with any GT skill are removed. • Functional-overlap removal: For each GT skill, we retrieve the top-5 most similar pool entries via BM25 (using name + description + body as the document), then apply an LLM-based equivalence judgment (Claude Sonnet) to each pair. Entries judged as functionally equivalent are removed. This process identifies and removes 114 equivalent pairs across 49 GT skills (with github, docx, xlsx, and pptx each having 5 equivalent entries---the maximum observed).",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pool construction",
+    "page": 15,
+    "sourceText": "The final pool contains 77,537 skills.",
+    "translation": "本段属于“候选池构造”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Query generation",
+    "translation": "查询生成",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "For each GT skill, 2--3 evaluation queries are generated using Claude Sonnet (claude-sonnet-4-6) at two difficulty levels, with temperature,=,0.8:",
+    "translation": "本段属于“查询生成”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Descriptive queries (168 total).. These describe a concrete usage scenario without naming the skill. Two sub-styles ensure stylistic diversity:",
+    "translation": "本段属于“查询生成”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Scenario sub-style (82 queries, 80--250 words): Detailed task descriptions with specific context.",
+    "translation": "本段属于“查询生成”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Given this skill specification, write a realistic user query describing a task that requires this skill's capabilities. [4pt] Skill name: name Description: description Skill content preview: body [4pt] Requirements: 1. Describe a specific task or problem the user wants to solve 2. Include enough context for the skill to be clearly the right one 3. Write naturally --- as a user would describe their need to an AI assistant 4. Do NOT follow a rigid structure (no mandatory file paths, no mandatory numbered lists) 5. Total length: 80--250 words 6. Do NOT mention the skill name \" name \" or reference this specification document 7. Do NOT use any unique identifiers or CLI command names from the skill content [4pt] Output ONLY the user query. No preamble, no explanation.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Developer sub-style (86 queries, 40--120 words): Concise, natural requests.",
+    "translation": "本段属于“查询生成”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Given this skill specification, write a concise user query from someone who needs this capability but doesn't know the specific skill exists. [4pt] Skill name: name Description: description Skill content preview: body [4pt] Requirements: 1. Write as a user naturally asking for help --- could be casual or formal 2. Describe what they want to achieve, not what skill to use 3. Be specific enough that this skill is clearly the best match 4. Total length: 40--120 words 5. Do NOT mention the skill name \" name \" or any CLI commands from the skill 6. Do NOT reference this specification document [4pt] Output ONLY the user query.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Indirect queries (88 total).. These describe a high-level need requiring capability inference to connect to the skill (50--180 words).",
+    "translation": "本段属于“查询生成”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Given this skill specification, write a user query that describes a high-level need which this skill would address, without revealing the skill itself. [4pt] Skill name: name Description: description Skill content preview: body [4pt] Requirements: 1. Describe a real-world problem or goal, not a skill request 2. The user should not know this specific skill exists --- they're describing their situation 3. Do NOT mention the skill name \" name \" or any specific CLI commands from the skill 4. Avoid using keywords that directly appear in the skill's name or description 5. The connection between the query and this skill should require understanding the skill's capabilities 6. Total length: 50--180 words 7. Be specific enough that this skill is the clear best answer (not too vague) [4pt] Output ONLY the user query.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query generation",
+    "page": 15,
+    "sourceText": "Automated quality control.. Each generated query undergoes three checks: (1)~skill-name leakage detection, (2)~CLI command-name leakage detection, and (3)~length compliance. Non-conforming queries are automatically regenerated (up to 3 attempts). The final dataset contains 256 queries covering 93 of the 100 GT skills (query lengths: min,=,43, max,=,226, mean,=,117 words).",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Quality assurance",
+    "page": 15,
+    "sourceText": "Quality assurance",
+    "translation": "质量保证",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Quality assurance",
+    "page": 15,
+    "sourceText": "Several design choices ensure that SkillBench-Supp provides a credible, unbiased evaluation:",
+    "translation": "本段属于“质量保证”。它补充了技能路由基准、完整正文信号、两阶段检索重排流程、训练数据构造、消融实验、下游智能体评估或服务效率中的一个细节。读这段时应关注：候选技能是否高度重叠，路由器是否能读取完整正文，训练是否处理困难负样本和假负例，以及这些设计如何影响排序质量和真实任务成功率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Quality assurance",
+    "page": 15,
+    "sourceText": "• Distinct generation methodology: Evaluation queries are generated by Claude Sonnet (claude-sonnet-4-6), whereas the training queries are generated by GPT-4o-mini with a different prompt design and skill sampling strategy. This separation prevents any overlap between evaluation queries and training data in terms of model, prompt template, and source distribution. • Automated leakage filtering: Each query is checked for three types of leakage: (a)~skill-name substring match, (b)~CLI command-name match against the skill body, and (c)~length compliance with the target difficulty level. Non-conforming queries are regenerated up to 3 times before being discarded. • Functional-overlap removal: As described in Section~app:supp_pool, 114 functionally equivalent pool entries are identified and removed via BM25 + LLM-based equivalence judgment, preventing false-negative contamination in evaluation metrics. • GT-skill isolation: The 30 pool-selected GT skills are explicitly excluded from the training GT skill set, so the supplementary benchmark does not reuse training positive skills from the base pool. • Multi-source GT skills: The 100 GT skills span three independent sources (official repository, existing benchmark, and pool selection) across 25+ application domains, reducing the risk of systematic bias toward any particular skill type or domain.",
+    "translation": "这一段检验完整正文到底是否驱动技能选择。作者比较只用名称描述和使用完整正文的多种基线，并进一步做注意力诊断和长度控制，避免把收益误解为正文更长导致的偏置。结果表明，正文里的依赖、支持范围、输入输出格式、执行步骤和边界条件提供了真正的功能级判别信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Full results",
+    "page": 16,
+    "sourceText": "Full results",
+    "translation": "完整结果",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Full results",
+    "page": 16,
+    "sourceText": "SkillBench-Supp: Full encoder-only and encoder$$reranker results (77K pool, 256 single-label queries). R@50 reflects the theoretical upper bound for downstream reranking over the encoder's top-50 candidates and is therefore only defined for encoder-only rows; pipeline rows are marked with `--'.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Difficulty breakdown",
+    "page": 16,
+    "sourceText": "Difficulty breakdown",
+    "translation": "难度拆分",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Difficulty breakdown",
+    "page": 16,
+    "sourceText": "SkillBench-Supp: Results on Descriptive queries (168; 77K pool). R@50 is only defined for encoder-only retrieval, so pipeline rows are marked with `--'.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  },
+  {
+    "section": "Difficulty breakdown",
+    "page": 16,
+    "sourceText": "SkillBench-Supp: Results on Indirect queries (88; 77K pool). R@50 is only defined for encoder-only retrieval, so pipeline rows are marked with `--'.",
+    "translation": "这张表汇总论文中的关键指标、基线、消融或案例。重点在于比较是否读取完整技能正文、是否进行专门训练、是否加入重排器，以及这些选择如何影响首位命中、前十平均倒数排名、候选召回、完整集合覆盖、下游成功率或服务延迟。",
+    "kind": "table"
+  }
+]
