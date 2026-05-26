@@ -1,0 +1,1270 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "Magma: A Foundation Model for Multimodal AI Agents",
+    "translation": "Magma：面向多模态 AI 智能体的基础模型",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "We present, a foundation model that serves multimodal AI agentic tasks in both the digital and physical worlds. is a significant extension of vision-language (VL) models in that it not only retains the VL understanding ability (verbal intelligence) of the latter, but is also equipped with the ability to plan and act in the visual-spatial world (spatial-temporal intelligence) and complete agentic tasks ranging from UI navigation to robot manipulation. To endow the agentic capabilities, Magma is pretrained on large amounts of heterogeneous datasets spanning from images, videos to robotics data, where the actionable visual objects (e.g., clickable buttons in GUI) in images are labeled by Set-of-Mark (SoM) for action grounding, and the object movements (e.g., the trace of human hands or robotic arms) in videos are labeled by Trace-of-Mark (ToM) for action planning. Extensive experiments show that SoM and ToM reach great synergy and facilitate the acquisition of spatial-temporal intelligence for our model, which is fundamental to a wide range of tasks as shown in Fig.~fig:teaser. In particular, creates new state-of-the-art results on UI navigation and robotic manipulation tasks, outperforming previous models that are specifically tailored to these tasks. On image and video-related multimodal tasks, Magma also compares favorably to popular large multimodal models that are trained on much larger datasets. We make our model and code public for reproducibility.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "摘要",
+    "page": 1,
+    "sourceText": "^ First Authors; ^ Second Authors; ^* Project Lead; ^ Leadership",
+    "translation": "作者脚注说明了共同一作、共同二作、项目负责人和领导贡献等署名角色；这类信息不影响方法主线，但有助于理解团队分工。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Introduction",
+    "translation": "引言",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "A long-standing research topic of AI is to develop autonomous agents that can perceive visual stimuli, language inputs, and other environmentally-grounded data and produce meaningful embodied actions in physical and digital environments to complete specific tasks.",
+    "translation": "这一段把问题放在通用自主智能体的背景下：理想 Agent 需要同时感知视觉、语言和环境信号，并把这些信号转化为可执行动作。论文关心的不是单纯回答图像问题，而是在真实数字或物理环境中完成目标。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 1,
+    "sourceText": "Recently, there has been a growing interest in developing AI agents based on Vision-Language-Action (VLA) models~[cite: kim2024openvla,driess2023palm, brohan2022rt,brohan2023rt,hong2023cogagent,seeclick]. These models are typically pretrained on large amounts of vision-language datasets and then action trajectories to attain ability to take actions given VL inputs. However, due to the inherent difference between various environments~(e.g., 2D digital world and 3D physical ones), VLA models are typically trained separately for simplicity and then used for different tasks. Exemplary models in the digital world include Pix2ACT~[cite: shaw2023pixels], WebGUM~[cite: furuta2023multimodal], and Ferret-UI~[cite: you2023ferret] for UI navitation. VLA models in the 3D physical world include RT-2~[cite: brohan2022rt] and OpenVLA~[cite: kim2024openvla] for robotics manipulation. Although claimed as generalist, most of these models prioritize learning a task-specific action policy at the cost of a significant decline in generic multimodal understanding capabilities, rendering limited genralizability across tasks and domains.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "In this research, we strive to develop a foundation model for multimodal AI agents and argue that it requires simultaneously possessing the following capabilities: • Multimodal Understanding to understand multimodal input from various domains (both digital and physical) not only semantically, but also spatially and temporally. • Multimodal Action Prediction to break down the long-horizon task into an accurate action sequence, which can be effectively executed by AI agent systems. Such an agent system should be driven by external goals specified by human commands as shown in Fig.~fig:intro.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "To endow the broad capabilities, we effectively leverage large amounts of heterogeneous vision-language and action datasets, including UI datasets such as SeekClick~[cite: seeclick], robotic manipulation dataset OXE~[cite: open_x_embodiment_rt_x_2023], human instructional videos like Ego-4d~[cite: grauman2022ego4dworld3000hours] and image-text pairs used in LMMs~[cite: liu2023llava,chen2023sharegpt4v]. Instead of sequentially training on one domain and adapting to another, we train a single foundation model which can be applied in a zero-shot manner to different downstream tasks in various settings.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 2,
+    "sourceText": "Simply combining those datasets, however, does not bring benefits to the foundation model, due to the significant gap between multimodal understanding which is mostly verbal (i.e., textual descriptions for images and videos) and the action-taking tasks which are mostly spatial~(i.e., 2D coordinates for UI or 7-DoF for robot arm). To bridge the gap, we propose two surrogate tasks for model training, action grounding and action planning, by asking the model to predict the proximal action outputs given the visual-spatial observations, represented as images or video frames. Specifically, in each image, we label the visual objects that are actionable by Set-of-Mark (SoM) (e.g., clickable buttons in Fig.~fig:teaser bottom-middle) and labeled in each video the object movements, which are the results of actions, with Trace-of-Mark (ToM) (e.g., the trace of human hand or robotic arm in Fig.~fig:teaser top-middle). In this way, the image and video datasets, which are not labeled with actions, are transformed into \"vision-language-action\" data to morph the gap among different types of tasks. We show through extensive empirical studies that SoM and ToM achieve are environment-agnostic and easy to generalize to new agentic tasks, offering an effective and efficient approach to scaling up our model pretraining using large amounts of unlabeled videos, such as raw instructional videos.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 3,
+    "sourceText": "To the best of our knowledge, is the first foundation model for multimodal AI agents that can understand multimodal inputs~(see Fig.~fig:teaser~left), perform action grounding and planning for the future~(see Fig.~fig:teaser~middle), and finally adapt to downstream (unseen) agentic tasks in both the digital and physical environments(see Fig.~fig:teaser~right). We evaluated Magma on three task categories: UI navigation (e.g., Mind2Web, AITW), where it has to reason and act in evolving digital environments; vision-language understanding (e.g., GQA, VideoMME), where it grounds language in visual objects and events; and finally robotic manipulation (e.g., Bridge, LIBERO), which tests its 3D spatial intelligence for physical interaction. achieves new SOTA results on UI navigation and robotic manipulation tasks, outperforming even domain-specific models while maintaining strong performance on VL tasks which are comparable to SOTA LMMs.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "A multimodal AI agent should be capable of mutimodal understanding and action-prediction towards a given goal.",
+    "translation": "图表说明了论文中的一个关键实验、数据或方法模块。阅读时应关注它对应的输入形式、监督信号以及与 Magma 跨场景迁移能力之间的关系。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/intro_fig.png",
+    "kind": "figure"
+  },
+  {
+    "section": "引言",
+    "page": 4,
+    "sourceText": "In summary, the main contributions of this work are: • We propose, the first foundation model that acquires not only multimodal understanding but also spatial-temporal reasoning abilities for agentic tasks in both digial and physical environments. • We propose the use of Set-of-Mark and Trace-of-Mark techniques to significantly enhance the spatial-temporal intelligence for action grounding and planning, and allow to be pretrained effectively on large amounts of heterogeneous datasets. • We curate a large-scale pretraining dataset, which consists of not only open-source VL datasets, but also UI, robotics data and human instructional videos, auto-labeled using SoM and ToM. In total, our training corpus contains approximately 39 million diverse samples. • We extensively evaluate the pretrained model to demonstrate the superior model performance across a wide range of tasks. with a single suite of parameters achieves new SOTA on both robotic manipulation and UI navigation over open-sourced counterparts. • We show that the proposed pretraining method significantly improves model's verbal and spatial-temporal intelligence abilities. For instance, can achieve SOTA performance on the BLINK dataset without instruction fine-tuning, and SOTA performance on video question-answering benchmarks despite being pretrained on much fewer frames.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 5,
+    "sourceText": "Related Work",
+    "translation": "相关工作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 5,
+    "sourceText": "Large Multimodal Models~(LMMs). Large Language Models (LLMs) like ChatGPT~[cite: chatgpt], GPT-4~[cite: gpt4], and Llama~[cite: touvron2023llama] have demonstrated impressive reasoning and generalization capabilities for text. The introduction of models that integrate visual data has brought about a significant shift in the landscape of LLMs, such as GPT-4V(ision)[cite: GPT4V_System_Card]. Building upon open-source LLMs [cite: touvron2023llama,vicuna2023], a wide range of multimodal models have achieved remarkable progress, led by pioneering models such as LLaVA~[cite: liu2023llava, liu2023improvedllava] and MiniGPT-4~[cite: zhu2023minigpt], which combine LLMs' capabilities with a CLIP~[cite: radford2021learning] based image encoder. Recently, a growing number of LMMs have been developed to handle a wider range of tasks and modalities, such as region-level LMMs~[cite: cai2024vipllava, zhang2023gpt4roi, chen2023shikra, peng2023kosmos,zhang2023llavagrounding], and video LMMs~[cite: lin2023video, zhang2023video, zhang2024llavanextvideo,tan2024koala]. In parallel, more sophisticated benchmarks are proposed to assess these capabilities~[cite: fu2024videommefirstevercomprehensiveevaluation,fu2024blink,cai2024temporalbenchbenchmarkingfinegrainedtemporal].",
+    "translation": "贡献总结可以概括为四点：提出一个兼顾语义理解和空间-时间推理的基座模型；用 SoM 和 ToM 增强动作落地与规划；构建约三千九百万样本规模的异构训练语料；在界面导航、机器人操作、空间推理、图像和视频理解任务上展示统一预训练的收益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 6,
+    "sourceText": "Agent in Digital World. Recently there has been a lot of work on designing autonomous GUI agents to perform tasks in place of human users. One line of work is to train an end-to-end model to directly predict the next action, representative works include Pixel2Act~[cite: pixel2act] and WebGUM[cite: webgum] in web domain, Ferret~[cite: ferretui], CogAgent~[cite: cogagent], and Fuyu~[cite: fuyu_8b] in Mobile domain. Another line of work involves leveraging existing multimodal models such as GPT-4V to perform user tasks. Representative works include MindAct~[cite: mind2web], SeeAct~[cite: zheng2024gpt4vision] in web domain and others ~[cite: gpt4v_wonderland, mobile_agent, aitw] for mobile domain. These works often leverage the DOM information in web browsers, or the view hierarchies in mobile apps to get the ground truth position of interactable elements of the screen, and use Set-of-Mark~[cite: setofmark] or more advanced localization model~[cite: lu2024omniparser] to overlay the bounding boxes on top of the screenshot that feed into the vision-language models.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "相关工作",
+    "page": 7,
+    "sourceText": "-Language-Action for Robotics. Several studies have investigated the application of LMMs in robotics~[cite: brohan2023rt,niu2024llarva,zhu2024vision,li2024llara,kim2024openvla,zheng2024tracevla,ye2024latent]. Among these, RT-2~[cite: brohan2023rt] finetuned LMMs on robotic trajectory data, enabling the output of discretized robot action tokens. OpenVLA~[cite: kim2024openvla] is the first open-source VLA foundation that is fine-tuned an open-source Prismatic VLM backbone~[cite: karamcheti2024prismatic]. LLARVA~[cite: niu2024llarva] generated 2D visual traces for robot arms along with textual representations of actions, using visual trace prediction as an auxiliary task, while TraceVLA~[cite: zheng2024tracevla] used visual trace prompting to improve spatial-temporal awareness of robot policy. Most recently, learning from videos by predicting the latent VQVAE tokens is explored in [cite: cheang2024gr2generativevideolanguageactionmodel,ye2024latentactionpretrainingvideos]. In this work, we follow a similar approach as OpenVLA to represent the action but leverage rich multimodal data far beyond robotics datasets. Also, instead of asking model to predict latent tokens, we propose SoM and ToM techniques to significantly enhance the spatial-temporal intelligence, demonstrating significantly stronger performance and generalization capability for agentic tasks.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Multimodal Agentic Modeling",
+    "page": 8,
+    "sourceText": "Multimodal Agentic Modeling",
+    "translation": "多模态智能体建模",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 8,
+    "sourceText": "Problem Definition",
+    "translation": "问题定义",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 8,
+    "sourceText": "A generalist multimodal AI agent should be performant for both multimodal understanding and action-taking. We define a multimodal AI agent $$, which takes past visual observations $ = I_1,...,I_k $ and a task description $task$ in text as input and outputs a set of $T 1$ tokens $$ as:",
+    "translation": "论文把多模态 Agent 的能力拆成两部分：一是理解来自数字和物理场景的多模态输入，并把语义、空间和时间关系看清楚；二是把用户目标分解成可执行动作序列。Magma 的训练目标正是让这两类能力在同一个模型里协同出现。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 8,
+    "sourceText": "\\begin{equation}\n    \\mathcal{O} = \\mathcal{\\pi}(\\mathcal{I}, \\texttt{task}, \\texttt{ctx}) = \\{o^{l}_{1},\\cdot\\cdot\\cdot,o^{l}_{T}\\}\n    \\label{equ1:original target}\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“Problem Definition”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 8,
+    "sourceText": "where $ctx$ denotes the context, $l verbal, spatial $ indicates if the $i$-th token $o_i$ is a verbal or spatial token. This formula generalizes across different tasks: • UI navigation in 2D screenshots. The task could be \"book a hotel\" and output should include both language tokens denoting the semantic type of action (e.g., \"type\", \"click\", ) and the location $(x,y)$ or box $(x,y,w,h)$ to which actions are applied. • Robotic manipulation in the 3D world. For a task like \"close the drawer\", the output consists of 6-DoF displacements $(x,y,z,yaw,pitch,roll)$ of the end effector and, in some cases, one additional dimension to indicate whether the gripper is open or not. • Multimodal understanding tasks. When the task is purely about $$, e.g., a VQA task, the problem is reduced to a multimodal understanding task that generates a textual description and/or location of objects for input images/videos.",
+    "translation": "论文把多模态 Agent 的能力拆成两部分：一是理解来自数字和物理场景的多模态输入，并把语义、空间和时间关系看清楚；二是把用户目标分解成可执行动作序列。Magma 的训练目标正是让这两类能力在同一个模型里协同出现。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Definition",
+    "page": 9,
+    "sourceText": "For these seemingly different output modalities, we follow a common practice to transform all output into textual tokens to facilitate model learning. Specifically, we convert 2D actions into a textual dictionary as in~[cite: seeclick], and represent robot actions with the last 256 discrete language tokens that is barely used in LLMs, following~[cite: kim2024openvla]. Despite such unification into language space, we notice considerable conflicts among tasks, as we will show in our experiments. In what follows, we will discuss how to mitigate such challenges to train agentic foundation on a wide range of datasets.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 9,
+    "sourceText": "Method",
+    "translation": "方法",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 9,
+    "sourceText": "We approach two key challenges while building a highly capable foundation for the multimodal AI agent.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 9,
+    "sourceText": "Pretraining objectives: How to build a unified pretraining interface to facilitate joint training? A straightforward way would be to predict the 2D coordinates for the navigation of the UI, 3D positions for the end effectors, and regular textual outputs for VL tasks. However, in our experiments, we observed that these tasks have inherent domain gaps in both input and output. The former results in a huge search space at the pixel level, and the latter directly predicts the output of proprioceptive action, which is not grounded on the observations of the image. Can we come up with a surrogate task that can bridge the gap among all tasks?",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 9,
+    "sourceText": "Data scaling-up: Existing vision-language-action data have limited amount and diversity, unlike language or image-text corpus for LLMs and LMMs, respectively.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 9,
+    "sourceText": "For example, the largest open source robotic dataset OXE~[cite: open_x_embodiment_rt_x_2023] consists of around 1M trajectories taken from 22 environments. On the other hand, large-scale image-text datasets like LAION~[cite: schuhmann2021laion] barely contain useful supervisions for action pretraining as they are all static without the notion of action. Videos, however, depict numerous human actions and human-object interactions. Can we largely take advantage of these video data for our agentic pretraining?",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method",
+    "page": 9,
+    "sourceText": "In this work, we propose a simple yet effective method to address the aforementioned challenges. Inspired by the generality of Set-of-Mark~(SoM) rompting~[cite: yang2023set], we employ it to enable the action grounding onto images for both UI and robotic tasks in that model faces much less difficulties to predict the numeric marks for both clickable buttons or robot arms in the image space. We further extend it along the temporal axis and ask the model to predict Trace-of-Mark~(ToM), which forces the model to learn a longer horizon by predicting distant future \"actions\", and more importantly provides an effective way to leverage unlabeled video data. The combination of SoM and ToM enables a seamless synergy across agentic tasks in digital and physical domains, as well as a scalable way to curate \"action\" supervisions from raw videos. We describe them in detail below in Sec.~sec:som and~sec:tom, respectively. =-1",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "Set-of-Mark for Action Grounding",
+    "translation": "用于动作落地的 Set-of-Mark",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "SoM prompting~[cite: yang2023set] was first proposed to enhance the grounding capability of GPT-4V and has then been widely adopted for various agentic tasks~[cite: liu2024moka,nasiriany2024pivot,yan2023gpt,huang2024copa,cheng2024spatialrgpt]. Unlike previous works that exploited it for prompting off-the-shelf LMMs to enhance visual-language grounding, here we propose to train an agentic model for action grounding, i.e., locating actionable points / regions for a specific task and further predict atomic actions if needed.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "Set-of-Mark supervisions for action grounding on UI screenshot~(left), robot manipulation~(middle) and human video~(right). All coordinates are normalized by image size~(height, width) and then quantized into 256 bins. Images better viewed by zooming in.",
+    "translation": "这张图展示机器人操作中的定性或定量结果。它突出 Magma 相比 OpenVLA 等机器人专用模型在目标定位、抓取路径和放置动作上的优势，说明空间-时间预训练能迁移到物理操作。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/som_fig.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "Given an image observation $I_t ^H W 3$ at timestep $t$, a task $task$ and context $ctx$, we first extract a set of $K$ candidate regions or points that are actionable $ = p_1,...,p_K $, where $p_k$ could be a four-dimensional box coordinate or two-dimensional point coordinates. Subsequently, we overlay the marks and boxes (if any) to the corresponding location of the image with numerical labels, i.e., $ = 1:p_1,2:p_2,...,K:p_K $ giving us a new marked image $I_t^M$.",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "Given the prompted image $I_t^M$ in an atomic action step, the model needs to select the candidate marks along with the original coordinates, significantly easing the action grounding for the agentic model. In this way, Eq.~ can be reformulated as:",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "\\begin{equation}\n    {o}_t^{mark} = \\texttt{action}_t:\\texttt{mark}_t = \\bm{\\pi}(\\mathcal{I}_t^{M}, \\texttt{task}, \\texttt{ctx})\n    \\label{equ2:reformulate with marker}\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“Set-of-Mark for Action Grounding”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "where $o_t^mark$ is a subset of marks $$.",
+    "translation": "本段属于“用于动作落地的 Set-of-Mark”部分，主要补充 Magma 如何把多模态理解、空间定位、时间轨迹和动作预测合并到统一 Agent 训练框架中。读这段时可以抓住三个问题：输入数据来自哪个环境，论文如何把它转成可学习的标记或动作监督，以及这个设计怎样支持后续的界面导航、机器人操作或通用视觉语言评估。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Set-of-Mark for Action Grounding",
+    "page": 10,
+    "sourceText": "In Fig.~fig:som_illustration, we show a few instances to demonstrate the SoM-based action grounding in Fig~fig:teaser. To obtain candidate regions to mark, we can leverage different proposal networks such as image segmentation models~[cite: zou2023segment,kirillov2023segment], object detection models~[cite: liu2023grounding,li2021grounded], or domain-specific models~[cite: lu2024omniparser]. Readers refer to Supp. for more details.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "Trace-of-Mark for Action Planning",
+    "translation": "用于动作规划的 Trace-of-Mark",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "Trace-of-Mark supervisions for robot manipulation~(left) and human action~(right). Same coordinate normalization and quantization is used as SoM. Images show the future traces to predict.",
+    "translation": "这张图说明 SoM 和 ToM 如何把静态对象编号与动态运动轨迹结合起来。SoM 标出当前可操作对象，ToM 则把未来运动轨迹显式画出，二者共同把视觉输入转成模型可以预测的行动线索。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/tom_fig.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "Video data contains a lot of information about human actions and activities, which can essentially be leveraged to boost the capability of agentic models. However, due to the absence of action labels, previous methods rarely explore this direction, apart from a few works focused on world model learning~[cite: mendonca2023structured,liu2024world]. We extend the strategy of \"overlaying marks\" from static images to dynamic videos by proposing Trace-of-Mark~(ToM) to allow the agentic model to effectively learn to plan and act from videos.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "Given the sequence of visual observations from a video $ = I_1,...,I_t $, we extend along the time axis to the future $l$ frames, $_future = I_t+1,..., I_t+l $. Given the $K$ marks at $t$-th frame $I_t$, we extract the corresponding positions of the overlay marks in the next $l$ frames, denoted traces $ = _t+1,..., _t+l $. Following the prediction of action type and valid marks as in Eq.~, we further ask the model to predict the future trajectories for the valid marks:",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "\\begin{equation}\n\\begin{aligned}\n  {o}_t^{mark} & = \\texttt{action}_t:\\texttt{mark}_t:\\texttt{trace}_{t+1:t+l} \\\\\n& = \\pi(\\{\\mathcal{I}_1,...,\\mathcal{I}_{t-1},\\mathcal{I}_t^{M}\\}, \\texttt{task}, \\texttt{ctx})    \n\\end{aligned}\n\\label{EQ:ToM}\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“Trace-of-Mark for Action Planning”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "where $trace_t+1:t+l$ is a subset of the trace sequences for valid marks in $mark_t$ in $$. Our proposed ToM predicting is a simple yet effective way of leveraging video data and brings two unique modeling benefits: $(i)$ It forces the model to understand the temporal dynamics in the video observations and to \"look ahead of time\" before taking the next actions; $(ii)$ Unlike predicting next frames as used in~[cite: liu2024worldmodelmillionlengthvideo], predicting traces uses much fewer tokens to capture much longer temporal horizon and action-related object dynamics, while disregarding ambient contents.",
+    "translation": "ToM 把 SoM 从静态图像扩展到时间维度。系统在视频帧上跟踪点或物体的未来轨迹，让模型根据当前观察预测接下来的运动痕迹。这样，普通教学视频和机器人视频也能提供动作规划监督，帮助模型学习长时程的空间变化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Trace-of-Mark for Action Planning",
+    "page": 10,
+    "sourceText": "To extract ToM, we employ point tracking models CoTracker~[cite: karaev2023cotracker], though any performant model can be used. In particular, given a sequence of frames $ I_t,I_t+1,...,I_t+l ^(l+1) H W 3$, we apply a dense tracking for $s^2$ grid points to extract $s^2$ traces of length $(l+1)$. Given these $s^2$ traces, we drop those traces whose average motion magnitudes between two adjacent timesteps are smaller than a certain value $$ (Please see more details in the supplementary material). The remaining ones are regarded as foreground motions driven by a given task.",
+    "translation": "ToM 把 SoM 从静态图像扩展到时间维度。系统在视频帧上跟踪点或物体的未来轨迹，让模型根据当前观察预测接下来的运动痕迹。这样，普通教学视频和机器人视频也能提供动作规划监督，帮助模型学习长时程的空间变化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Modeling",
+    "page": 10,
+    "sourceText": "Modeling",
+    "translation": "建模方式",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Modeling",
+    "page": 10,
+    "sourceText": "To retain the multimodal understanding capability required for, we adopt the common practice used in current VLMs~(e.g., LLaVA~[cite: liu2023llava] and Phi-3-Vision~[cite: abdin2024phi3]). Given the visual observations $$, we use a vision encoder $$ to encode each frame into a number of tokens and then concatenate all tokens into a sequence and feed them to a decoder-only LLM along with the language tokens that encode task descriptions. Due to the task diversity, a vision encoder that can seamlessly encode images and videos of various resolutions is needed. In light of this, we propose to use convolutional networks ConvNeXt~[cite: liu2022convnet] as the vision backbone, considering that it supports arbitrary image resolutions by default. To handle the high-resolution images (e.g., up to 2000 for UI screenshots), we simply perform global encoding without the bells and whistles used in previous work and find that it can encode the global context as well as combining global and local crops~[cite: liu2024llavanext,abdin2024phi3]. To that end, we formulate the agentic modeling as an autoregressive decoding procedure:",
+    "translation": "论文把多模态 Agent 的能力拆成两部分：一是理解来自数字和物理场景的多模态输入，并把语义、空间和时间关系看清楚；二是把用户目标分解成可执行动作序列。Magma 的训练目标正是让这两类能力在同一个模型里协同出现。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Modeling",
+    "page": 11,
+    "sourceText": "\\begin{equation}\n    o^{l,*}_{t+1} \\sim p(o_{t+1}^l | \\{o_1^l,...,o_t^l\\};  \\mathcal{V}(\\mathcal{I}), \\texttt{task}, \\texttt{ctx}).\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“Modeling”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "Multimodal Agentic Pretraining",
+    "page": 11,
+    "sourceText": "Multimodal Agentic Pretraining",
+    "translation": "多模态智能体预训练",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 11,
+    "sourceText": "Datasets",
+    "translation": "数据集",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 11,
+    "sourceText": "To develop a foundation model with both verbal and spatial intelligence that is capable of handling diverse agentic tasks, we curated a comprehensive pretraining dataset from a wide range of images, videos, and robotics domains.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 11,
+    "sourceText": "SoM and ToM applied to various data types. ToM is not applied to UI data as they are a sequence of discrete screenshots.",
+    "translation": "该表是关键消融实验。结果表明，直接混合 UI 和机器人数据会受动作空间差异影响；加入 SoM 和 ToM 后，不同数据源被统一到标记与轨迹接口中，模型才真正同时提升语言、空间和动作能力。",
+    "kind": "table"
+  },
+  {
+    "section": "Datasets",
+    "page": 11,
+    "sourceText": "• Robotics manipulation data. For robotics task, we follow OpenVLA~[cite: kim2024openvla] and use the robotics dataset of Open-X-Embodiment~[cite: embodimentcollaboration2024openxembodimentroboticlearning].",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 11,
+    "sourceText": "• UI navigation Data. We exploit two pretraining datasets, SeeClick~[cite: seeclick] and Vision2UI~[cite: gui2024vision2uirealworlddatasetlayout]. • Instructional videos. We compile Epic-Kitchen~[cite: Damen2018EPICKITCHENS, Damen2022RESCALING], Ego4d~[cite: grauman2022ego4dworld3000hours], Somethingv2~[cite: goyal2017something] and other related considering the coarse but rich goal-driven human actions. • Multimodal understanding. Lastly, we include ShareGPT4V~[cite: chen2023sharegpt4vimprovinglargemultimodal], instruction tuning data in LLaVA-1.5~[cite: liu2024llavanext], and a few other OCR-related datasets~[cite: masry-etal-2022-chartqa,mathew2021infographicvqa] to attain image understanding capability. We noticed that many more related datasets could be used for our model pretraining, such as large-scale instruction tuning data~[cite: tong2024cambrian,li2024llavaonevision], more diverse video data~[cite: chen2024panda70mcaptioning70mvideos]. In this study, we focus on the demonstration of our pretraining methodology and leave the further scaling up for future. In the next, we elaborate on how we extract the surrogate action supervisions through Set-of-Mark~(SoM) and Trace-of-Mark~(ToM).",
+    "translation": "论文把多模态 Agent 的能力拆成两部分：一是理解来自数字和物理场景的多模态输入，并把语义、空间和时间关系看清楚；二是把用户目标分解成可执行动作序列。Magma 的训练目标正是让这两类能力在同一个模型里协同出现。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM Generation",
+    "page": 12,
+    "sourceText": "SoM and ToM Generation",
+    "translation": "SoM 与 ToM 生成",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM Generation",
+    "page": 12,
+    "sourceText": "As shown in Table~tab:som_tom_generation, we apply SoM and ToM for different data types, where SoM is applied to all to learn a uinified action grounding. ToM is not fit for the UI data as it consists of sequences of discrete screenshots.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM for UI Navigation",
+    "page": 12,
+    "sourceText": "SoM for UI Navigation",
+    "translation": "面向界面导航的 SoM",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM for UI Navigation",
+    "page": 12,
+    "sourceText": "For UI screenshots in our pretraining data, we mainly rely on the original annotations extracted based on DoM Tree. In addition to the bounding boxes extracted from HTML code~[cite: seeclick,gui2024vision2uirealworlddatasetlayout], we further annotate the mobile screenshots in SeeClick data with bounding boxes derived from Android view hierarchies~[cite: rico_semantics]. Given the extracted candidate bounding boxes for an image, we apply Alg.~alg:som_prompting to assign a textual label (line 3) and draw the boxes around the objects. To minimize overlapping box placements, we determine the optimal position for a label using previously drawn boxes (line 5) before computing the textbox size and assigning its coordinates (line 7). During the evaluation, we follow the common practice by applying OmniParser~[cite: lu2024omniparser] for the zero-shot evaluation on ScreenSpot~[cite: seeclick], and using the candidate boxes provided by~[cite: mind2web] for downstream training and evaluation on Mind2Web.",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM for UI Navigation",
+    "page": 13,
+    "sourceText": "Algorithm: SoM generation for UI images\nRequire: image $I$, bounding boxes $B$, image height and width $(i_h, i_w)$\n$B^* ← []$\nfor $(idx, b) \\in \\textttenumerate(B)$:\n  $text ← \\textttstr(idx+1)$\n  $I ← \\textttDrawRectangle(I, b)$\n  $(c_y, c_x) ← \\textttFindOptimalCorner(b, B^*, (i_h, i_w))$\n  \\textcolorcommentcolor\n  $(m_h, m_w) ← \\textttGetMarkSize(text, H, W)$\n  $text_box ← (c_y, c_x, c_y \\pm m_h, c_x \\pm m_w)$\n  $I ← \\textttDrawRectangle(I, text_box)$\n  $I ← \\textttDrawText(I, (c_x, c_y), text, color=white)$\n  $B^* ← B^* + [b]$ \\textcolorcommentcolor\nReturn $I$",
+    "translation": "算法描述如何在界面图像上生成 SoM：先获取候选框或候选点，再为每个可操作对象分配编号，最后将编号和框绘制到截图上，供模型学习从指令到目标标记的映射。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 13,
+    "sourceText": "SoM and ToM for Videos and Robotic Data",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 13,
+    "sourceText": "We use marks and traces as surrogate action supervisions to pretrain our model for action grounding and planning. To extract reliable traces, we use the state-of-the-art point tracking model CoTracker~[cite: karaev2023cotracker] to track the keypoints in each video segment. Unlike object detection and tracking systems used in previous works~[cite: ravi2024sam2segmentimages,niu2024llarva,li2025hamsterhierarchicalactionmodels], point tracking provides the finest grained moving trajectories for both end effectors~(robot arms or human hands) and objects, and more importantly can be feasibly applied to any videos as it does not require object recognition.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 13,
+    "sourceText": "Algorithm: SoM and ToM generation for instructional videos and robotic data\nRequire: image sequence $I = \\I_t,...I_l\\$; grid size $s$; global motion threshold $\\eta$; foreground threshold $\\epsilon$\n$M = \\M_t,...,M_l\\ ← \\textttCoTracker(I, s)$\nif $\\textttHasGlobalMotion(M, \\eta)$:\n  $M ← H(M)$ \\textcolorcommentcolor\n$M^f, M^b = \\textttClassifyTraces(M, \\epsilon)$\\textcolorcommentcolor\n$k ← \\textttRandom(1, \\min(5, |M^f|))$\n$M^f,M^b = \\textttKMeans(M^f, k), \\textttKMeans(M^b, 2k)$\n\\textcolorcommentcolor\n$I_t ← SoM(I_t, \\M^f_t, M^b_t\\)$ \\textcolorcommentcolor\nReturn $I, M_f^*$",
+    "translation": "算法描述视频和机器人数据的 SoM 与 ToM 生成流程：从视频片段中选择起始帧，跟踪未来点轨迹，过滤遮挡和背景轨迹，再把当前标记与未来轨迹作为训练监督。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 13,
+    "sourceText": "An illustration of Alg.~alg:tom_prompting to handle videos with camera motions for SoM/ToM generation.",
+    "translation": "这张图说明 SoM 和 ToM 如何把静态对象编号与动态运动轨迹结合起来。SoM 标出当前可操作对象，ToM 则把未来运动轨迹显式画出，二者共同把视觉输入转成模型可以预测的行动线索。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/tom_fig5.png",
+    "kind": "figure"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 13,
+    "sourceText": "Overview of Pretraining Data Sources. A diverse collection of datasets including instructional videos (orange), robotics manipulation (green), UI navigation (pink), and multimodal understanding (blue). Note that we count the size of each dataset by the number of image samples. For video and robotics data, we extract the images from the short clips and trajectories, respectively.",
+    "translation": "图中给出 Magma 的预训练流水线：不同来源的图像、视频、界面截图和机器人观察先被统一编码，再由语言模型生成文字、空间坐标、标记编号或动作 token。重点是多种监督都进入同一个生成接口。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_figure_data_sample_v2.png",
+    "kind": "figure"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 13,
+    "sourceText": "of CoTracker. To determine the generalizability of such traces, we examine the reliability of CoTracker before running the algorithm on all our pretraining data. We note that CoTracker was already well validated on multiple video datasets such as TAP-Vid~[cite: doersch2022tap] and PointOdyssey~[cite: zheng2023pointodyssey] in the original paper. In this work, we proposed comprehensive strategies to handle scene transition and camera motions in videos~(Alg.~alg:tom_prompting), which effectively scale to datasets like Ego4D and other instructional videos~(Fig~fig:data_dist). To further validate the reliability of ToM, we quantitatively evaluated the traces on a subset of YouCook2-BB~[cite: ZhLoCoBMVC18] with box annotations by humans. We extract the traces from each annotated box and count the number of future traces still falling into the box 1 second forward. On 1320 clips, we got a precision of 0.89, indicating that the traces reliably capture temporal motions.",
+    "translation": "ToM 把 SoM 从静态图像扩展到时间维度。系统在视频帧上跟踪点或物体的未来轨迹，让模型根据当前观察预测接下来的运动痕迹。这样，普通教学视频和机器人视频也能提供动作规划监督，帮助模型学习长时程的空间变化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 14,
+    "sourceText": "and CLIP-score filtering As the point tracking system works in a short time window, we begin by using the annotations provided, curated or otherwise, to split each video into segments, and then run PySceneDetect~[cite: PySceneDetect] to further break each segment into short video clips with consistent shots. However, the detected video clips may not always be relevant to their associated text annotations. Thus, we use the pretrained CLIP~[cite: radford2021learning] visual and text encoders to compute the cosine similarity score between each clip and text pair, and filter out clips with $<0.25$ scores.",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 14,
+    "sourceText": "Once we have the fine-grained video clips in hand, we apply Alg.~alg:tom_prompting to generate SoM and ToM. Given a video clip with $l$ frames $ I_1,I_2,...,I_l ^(l) H W 3$, we start from the time step $t$ and put a grid of equally spaced $s^2$ points on $I_t$. Then, we use CoTracker to extract $s^2$ future traces of length $(l-t)$ each. The output also contains predicted occlusion labels for each trace, which indicate if any points on the trace are obstructed at some time steps.",
+    "translation": "SoM 的作用是把图像中的可操作区域显式编号。模型不必直接回归复杂坐标或猜测元素名称，而是学习在带编号标记的画面中选择目标编号，再必要时输出点、框或动作参数。这种离散化接口让网页按钮、手机控件和机器人场景中的物体可以共享一种动作落地语言。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 14,
+    "sourceText": "of global motions. Many instructional videos, particularly the ego-centric ones~[cite: grauman2022ego4dworld3000hours], contain significant camera movements. Consequently, the extracted traces may reflect external movements instead of relevant actions to accomplish a given task. We mitigate this issue by performing the homography transformation~[cite: dubrofsky2009homography]. Specifically, we compute the $3 3$ transformation matrix $h_i$ with the future mark positions and current ones:",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 14,
+    "sourceText": "\\begin{equation}\n    h_i = \\mathcal{H}({M}_t, {M}_{t+i}) \\in \\mathcal{R}^{3\\times 3}\n\\end{equation}",
+    "translation": "公式说明：该公式服务于“SoM and ToM for Videos and Robotic Data”部分，用来刻画论文中的关键变量、目标函数或约束关系。",
+    "kind": "equation"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 14,
+    "sourceText": "Given $h_i$, we apply the homography transformation to $M_t+i$ to obtain $M^*_t+i$ which shares the same coordinate system as $M_t$. Valid traces of marks to predict in Eq.~ are then extracted from $ M_t, M^*_t+1, M^*_t+l $. It turns out that the proposed method is effective to remove global camera motions for both ego-centric videos and exo-centric ones, as ilustrated in Fig.~fig:homo.",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "SoM and ToM for Videos and Robotic Data",
+    "page": 14,
+    "sourceText": "After extracting the traces and applying the homography transformation if needed (lines 2-4), we classify them into two categories, foreground and background traces based on the average motion magnitude between two adjacent time steps, where traces with average motion magnitude of at least $$ (line 5) are counted as foreground. Finally, we select the number of clusters (line 6) and perform a K-Means clustering for the foreground and background traces separately~(line 7) before randomly selecting one or more points from each cluster as the final traces. In practice, we set $s$, $$ and $$ to be 15, 2 and 2, respectively.",
+    "translation": "本段属于“面向视频和机器人数据的 SoM 与 ToM”部分，主要补充 Magma 如何把多模态理解、空间定位、时间轨迹和动作预测合并到统一 Agent 训练框架中。读这段时可以抓住三个问题：输入数据来自哪个环境，论文如何把它转成可学习的标记或动作监督，以及这个设计怎样支持后续的界面导航、机器人操作或通用视觉语言评估。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining",
+    "page": 14,
+    "sourceText": "Pretraining",
+    "translation": "预训练",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining",
+    "page": 14,
+    "sourceText": "Magma pretraining pipeline. For all training data, texts are tokenized into tokens, while images and videos from different domains are encoded by a shared vision encoder. The resulted discrete and continuous tokens are then fed into a LLM to generate the outputs in verbal, spatial and action types. Our proposed method reconcile the multimodal understanding and action prediction tasks.",
+    "translation": "图中给出 Magma 的预训练流水线：不同来源的图像、视频、界面截图和机器人观察先被统一编码，再由语言模型生成文字、空间坐标、标记编号或动作 token。重点是多种监督都进入同一个生成接口。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_pt_v3.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Pretraining",
+    "page": 14,
+    "sourceText": "The above data and annotation curation results in a comprehensive pretraining suite which covers $(i)$ different digital and physical environments; $(ii)$ both verbal and spatial annotations and $(iii)$ various multimodal understanding and agentic tasks. As seen in Fig.~fig:dataset_vis~(left), we include close to 2.7M UI navigation screenshots from SeeClick~[cite: seeclick] and Vision2UI~[cite: gui2024vision2uirealworlddatasetlayout]. We follow OpenVLA~[cite: kim2024openvla] to incorporate 970K trajectories in Open-X-Embodiment~[cite: open_x_embodiment_rt_x_2023], which consists of 9.4M image- language-action triplets. Another majority of the pretraining data are videos which comprise over 25M samples sourced from around 4M shot-consistent video clips. Finally, we include 1.2M image and text pairs from ShareGPT4V~[cite: chen2023sharegpt4v], and LLaVa-1.5~[cite: liu2024improvedbaselinesvisualinstruction] and a few other OCR-related datasets~[cite: masry-etal-2022-chartqa,mathew2021infographicvqa], which we denote by Magma-SFT~(820K).",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining",
+    "page": 15,
+    "sourceText": "By default, we use LLaMA-3-8B~[cite: llama3] as the language backbone and ConvNext-XXlarge~[cite: liu2022convnet] as the vision backbone. We show the pretraining architecture in Fig.~fig:magma_pt. Our proposed SoM and ToM play as the bridge to connect verbal and action supervisions for all four types of data, and significantly enhance model's spatial intelligence as we observe during our experiments.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining",
+    "page": 15,
+    "sourceText": "For comparisons, we run a few variants for the ablation studies in our experiments: • -8B~(SFT) is the model trained with Magma-SFT~(820K) for the instruction tuning following a conventional recipe used on LMM training. • -8B~(UI) and -8B~(OXE) are the models pretrained on UI screenshots and OXE robotics data, respectively. • -8B~(ACT) is pretrained jointly on UI screenshots and robotics data. • -8B~(Full) is the full model trained with the whole dataset with SoM and ToM annotations.",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining",
+    "page": 15,
+    "sourceText": "Unless noted otherwise, all pretrainng includes the Magma-SFT~(820K). We pretrain our model using our curated data for maximally three epochs with a constant learning rate of 1e-5, and evaluate the pretrained model on different tasks under the zero-shot setting as well as finetune its weights on the downstream tasks. The entire model including the parameters of the language model and the vision encoder is tuned. See Appendix for more detailed settings.",
+    "translation": "模型结构采用共享视觉编码器和语言模型骨干，把图像、视频和文本转成离散或连续 token 后统一送入语言模型。Magma 的输出既可以是文字回答，也可以是空间坐标、标记编号或机器人动作 token，因此它把理解、定位和动作预测放进同一个生成框架。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiment",
+    "page": 15,
+    "sourceText": "Experiment",
+    "translation": "实验",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiment",
+    "page": 15,
+    "sourceText": "Zero-shot evaluation on agentic intelligence. We report the results for pretrained without any domain-specific finetuning. is the only model that can conduct the full task spectrum. \"SS\" denotes the ScreenSpot benchmark proposed in SeeClick~[cite: seeclick]; \"VWB\" denotes VisualWebBench~[cite: liu2024visualwebbench]; \"SE\" denotes the SimplerEnv simulator~[cite: li24simpler]. `n/a' means not available and `-' means not supported. For all related evaluations, we use OmniParser to provide the detection results only, without local semantics.",
+    "translation": "该表比较零样本智能体能力，指标覆盖界面动作落地、网页导航、机器人模拟和通用视觉问答。它的重点不是单一分数，而是 Magma 是少数能在完整任务谱上同时给出有效结果的模型。",
+    "kind": "table"
+  },
+  {
+    "section": "Experiment",
+    "page": 15,
+    "sourceText": "SimplerEnv performance comparison on Google Robots and Bridge. Magma(OXE) represents our model trained solely on Open-X-Embodiment (OXE)~[cite: embodimentcollaboration2024openxembodimentroboticlearning], while Magma is our pretrained model. Results for each task are averaged across visual matching and variant aggregation scenarios.",
+    "translation": "这张图展示机器人操作中的定性或定量结果。它突出 Magma 相比 OpenVLA 等机器人专用模型在目标定位、抓取路径和放置动作上的优势，说明空间-时间预训练能迁移到物理操作。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_simpler.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Evaluating Agentic Capability",
+    "page": 15,
+    "sourceText": "Evaluating Agentic Capability",
+    "translation": "智能体能力评估",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Agentic Capability",
+    "page": 15,
+    "sourceText": "We examine the effectiveness of as the foundation model for multmodal agents on UI Navigation tasks in the digital world, the robotic manipulation in the physical world, as well as the generic multimodal understanding.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "Zero-Shot Evaluation",
+    "translation": "零样本评估",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "To evaluate the zero-shot transferability of, we employ ScreenSpot~[cite: seeclick] and VisualWebBench~[cite: liu2024visualwebbench] for evaluating UI action grounding and navigation, and SimplerEnv~[cite: li24simpler] for robotic manipulation. In addition to these evaluations, we also validate our model on generic~[cite: goyal2017vqav2] and text-rich~[cite: singh2019textvqa] VQA tasks as well as hallucination benchmark POPE~[cite: li2023pope]. As shown in Table~tab:agentic_evaluation, ~consistently outperforms all other general-domain LMMs~(e.g., LLaVA, Qwen-VL) and domain-specific agentic models such as SeeClick~[cite: seeclick] for UI navigation and OpenVLA~[cite: kim2024openvla] for robotic manipulation. Notably, the zero-shot performance of on UI is much better than the state-of-the-art vision-based method that uses GPT-4V and Omniparser~[cite: lu2024omniparserpurevisionbased].",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "We report the results on two commonly used simulator embodiments in SimplerEnv~[cite: li24simpler], Bridge and Google Robot including 8 tasks with 172 visual matching and variant aggregation scenarios.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "Since OpenVLA uses real robot trajectories for pre-training, the model is susceptible to the domain gap for real-to-sim adaptation. In contrast, our model, trained for multimodal understanding and action prediction on a wide range of heterogeneous datasets, is significantly more resilient to the gap and achieves significantly better success rates.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "Fig.~fig:simpler_env shows detailed comparisons between our pretrained model and other representative models. Remarkably, surpasses the second-place OpenVLA by 19.6%, nearly doubling the average success rate. On those challenging tasks such as \"Put Object in Drawer\" and \"Put Carrot on Plate\", achieves a remarkable success rate while most baselines fail entirely. Notably, tuned on our pretrained model showcases substantially better results than the version trained solely on robotic datasets, highlighting the value of spatial intelligence learned from diverse datasets for physical robotic manipulation tasks.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "Ablation study on the effect of data mixtures and pretraining techniques. w/o SoM+Tom means using original action supervisions~(2D coordinates for UI and 7DoF for robots.)",
+    "translation": "该表是关键消融实验。结果表明，直接混合 UI 和机器人数据会受动作空间差异影响；加入 SoM 和 ToM 后，不同数据源被统一到标记与轨迹接口中，模型才真正同时提升语言、空间和动作能力。",
+    "kind": "table"
+  },
+  {
+    "section": "Zero-Shot Evaluation",
+    "page": 15,
+    "sourceText": "Studies. We ablate our model pretraining techniques and data mixtures. The results are shown in Table~tab:ablations. First, we observe from the top three rows that simply combining UI and robotics data does not bring gains, but instead hurts the performance for both tasks. This is expected because the two agentic tasks have significantly different image domains as well as action spaces~(2D coordinates v.s. 7-DoF). Adding video data to the pretraining slightly improves the performance across board but still can not fill the gap in between, as the additional video narrations can only enhance the verbal intelligence. However, once we apply SoM and ToM to all the pretraining data to put them into the unified interface, our model can learn effectively from the heterogeneous data for both verbal and spatial intelligence. This study highlights the effectiveness of our proposed method and indicates equally importance of verbal and spatial understanding for agentic tasks.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "Efficient Finetuning",
+    "translation": "高效微调",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "Efficient finetuning on Mind2Web for web UI navigation. \"Ele. Acc\" denotes element selection accuracy. \"Op. F1\" denotes the token-wise F1 score between predicted ground-truth operation. \"Step SR\" denotes the step-wise success rate. ^ Numbers reported in chen2024guicourse. ^ Numbers reported in seeclick. ^ Numbers reported in multiUI.",
+    "translation": "该表展示界面导航结果，通常包含元素选择准确率、操作 F1 或步骤成功率等指标。Magma 在这些指标上优于通用视觉语言模型和部分界面专用模型，说明预训练学到的动作落地能力可被高效微调。",
+    "kind": "table"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "Efficient finetuning on AITW for mobile UI navigation. We compared models either using DoM tree or image screenshot. We finetune our jointly and then report the results on individual tasks. ^ Numbers reported in zhang2024dynamic. ^ Numbers reported in chen2024guicourse. ^ Numbers reported in seeclick.",
+    "translation": "该表展示界面导航结果，通常包含元素选择准确率、操作 F1 或步骤成功率等指标。Magma 在这些指标上优于通用视觉语言模型和部分界面专用模型，说明预训练学到的动作落地能力可被高效微调。",
+    "kind": "table"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "With moderate finetuning, the pretrained model can be easily transferred to various downstream agentic tasks.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "UI Navigation. Following the prior works~[cite: seeclick,cogagent], we finetune on Mind2Web and AITW, to examine the web and mobile UI navigation capabilities, respectively. For Mind2Web, we first apply the SoM prompting to the training samples according to the top candidates selected by~[cite: zheng2023seeact], and then finetune on the same samples as in SeeClick~[cite: seeclick]. Table~tab:mind2web shows the results in three subtasks, and clearly indicates 's superiority to both general-domain and specific-domain LMMs. Similarly, on AITW outperforms the state-of-the-art methods based on open-source or prosperity models. Considering that we use a similar size of LLM and a moderate amount of UI-related pretraining data, this decent performance is largely due to the proposed SoM and ToM modeling techniques, which significantly facilitate action grounding for UI navigation.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "Robotics Manipulation. Table~tab:agentic_evaluation shows that the model without domain-specific finetuning already outperforms the recently proposed OpenVLA model pretrained for 27 epochs on the same amount of OXE data. Below, we testify the effectiveness of the finetuned model by comparing it with OpenVLA in three settings: • Finetune on real robot data to evaluate on out-of-distribution manipulation tasks; • Finetune in simulated robot settings with a limited number of trajectories using the LIBERO benchmark to evaluate 's capability of task adaptation; and • Evaluate on the physical WidoxW 250 Arm.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "Few-shot finetuning and generalization performance on real robot. On a WidowX robot, we evaluate on 4 tasks including diverse everyday object manipulation.",
+    "translation": "这张图展示机器人操作中的定性或定量结果。它突出 Magma 相比 OpenVLA 等机器人专用模型在目标定位、抓取路径和放置动作上的优势，说明空间-时间预训练能迁移到物理操作。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_real.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "Few-shot finetuning results on the LIBERO simulation benchmark, using 10 trajectories per task for fine-tuning.",
+    "translation": "这张图展示机器人操作中的定性或定量结果。它突出 Magma 相比 OpenVLA 等机器人专用模型在目标定位、抓取路径和放置动作上的优势，说明空间-时间预训练能迁移到物理操作。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_libero.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 16,
+    "sourceText": "We collect four manipulation tasks each of which has roughly 50 trajectories (See details in our supplementary material), and finetune both OpenVLA and jointly on these tasks. For evaluation, we perform 10 trials per task, ensuring the same initial states (positions and orientations of end-effector and objects) across models. As shown in Fig.~fig:real, the results clearly demonstrate 's superior performance. For those challenging tasks that involve everyday objects like \"Pick Place Hotdog Sausage\", \"Put Mushroom in Pot\", and \"Push Cloth Right to Left\", OpenVLA can hardly accomplish the tasks, mainly because of the imprecise arm movement and object localization per our observation. In contrast, performs well on these sophisticated tasks, largely owing to its strong spatial understanding and grounding capability obtained from pertaining. Additionally, we evaluate models' performance on an unseen task \"Push Cloth Left to Right\" which are not included in our finetuning dataset. substantially outperforms the baseline, indicating a stronger ability to preserve pretrained knowledge and generalize to new tasks.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 17,
+    "sourceText": "The efficient adaptation (via finetuning) capability of is further validated through few-shot finetuning evaluations on the LIBERO benchmark. For each task suite in the benchmark, we sample only 10 trajectories for finetuning. During the evaluation, we perform 100 trials per task suite. The results, shown in Fig.~fig:libero, indicate that achieves a significantly higher average success rate in all task suites.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 17,
+    "sourceText": "Additionally, removing SoM and ToM during pretraining has a negative impact on model performance, underscoring the effectiveness of our pretraining method.",
+    "translation": "SoM 的作用是把图像中的可操作区域显式编号。模型不必直接回归复杂坐标或猜测元素名称，而是学习在带编号标记的画面中选择目标编号，再必要时输出点、框或动作参数。这种离散化接口让网页按钮、手机控件和机器人场景中的物体可以共享一种动作落地语言。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 17,
+    "sourceText": "Spatial reasoning evaluations. We use * to denote results that are obtained by us evaluating the provided model weights. Superscript `w/o' means models pretrained without SoM/ToM.",
+    "translation": "该表是关键消融实验。结果表明，直接混合 UI 和机器人数据会受动作空间差异影响；加入 SoM 和 ToM 后，不同数据源被统一到标记与轨迹接口中，模型才真正同时提升语言、空间和动作能力。",
+    "kind": "table"
+  },
+  {
+    "section": "Efficient Finetuning",
+    "page": 17,
+    "sourceText": "Spatial evaluation predictions. Spatial reasoning questions are challenging even for GPT-4o but can answer relatively well despite relying on much fewer pretraining data.",
+    "translation": "图中给出 Magma 的预训练流水线：不同来源的图像、视频、界面截图和机器人观察先被统一编码，再由语言模型生成文字、空间坐标、标记编号或动作 token。重点是多种监督都进入同一个生成接口。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_spatial_visualizations_v2.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Evaluating Spatial Reasoning",
+    "page": 17,
+    "sourceText": "Evaluating Spatial Reasoning",
+    "translation": "空间推理评估",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Spatial Reasoning",
+    "page": 17,
+    "sourceText": "We attribute the much improved performance of our model on the tasks of UI navigation and robotic manipulation, as shown above, to its improved ability to perform spatial reasoning. To verify this hypothesis, we evaluate the effectiveness of the spatial intelligence that is learned in our pretrained model on the challenging Visual Spatial Reasoning (VSR)~[cite: liu2023visual], BLINK~[cite: fu2024blink] and SpatialEval~[cite: wang2024picture] benchmarks under the zero-shot setting. The results are summarized in Table~tab:spatial_eval_results. We see that outperforms existing approaches by significant margins on VSR and SpatialEval, and that performs on par with CogVLM, despite only using $$29M images for pretraining as compared to $$1.5B images in the latter. In addition, our ablation study demonstrates the effectiveness of the SoM and ToM pretraining tasks in helping improve its spatial reasoning capabilities. Last but not least, we also note the benefits of using video data during pretraining by showing that removing vidoes from training data leads to $$8% performance drop on BLINK. Finally, we also provide some example predictions of our model in Figure~fig:spatial_eval_examples. We observe that spatial reasoning questions are also challenging for SOTA proprietary models such as GPT-4o. Despite the lack of pretraining on data with mazes, we see that is still able to answer spatial reasoning questions about them.",
+    "translation": "贡献总结可以概括为四点：提出一个兼顾语义理解和空间-时间推理的基座模型；用 SoM 和 ToM 增强动作落地与规划；构建约三千九百万样本规模的异构训练语料；在界面导航、机器人操作、空间推理、图像和视频理解任务上展示统一预训练的收益。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Spatial Reasoning",
+    "page": 18,
+    "sourceText": "Finetuned performance on multimodal image understanding tasks. Pretraining on full set with SoM and ToM~(last row) attains the overall best performance compared with our own baselines and counterparts of the same model class.",
+    "translation": "该表是关键消融实验。结果表明，直接混合 UI 和机器人数据会受动作空间差异影响；加入 SoM 和 ToM 后，不同数据源被统一到标记与轨迹接口中，模型才真正同时提升语言、空间和动作能力。",
+    "kind": "table"
+  },
+  {
+    "section": "Evaluating Spatial Reasoning",
+    "page": 18,
+    "sourceText": "Zero-shot Video QA benchmarks. We compare our Magma model to other state-of-the-art approaches with comparable numbers of parameters. Our model performs competitively and even outperforms some state-of-the-art approaches such as Video-Llama2 and ShareGPT4Video on most benchmarks, despite using much fewer video instruction tuning data.",
+    "translation": "该表比较零样本智能体能力，指标覆盖界面动作落地、网页导航、机器人模拟和通用视觉问答。它的重点不是单一分数，而是 Magma 是少数能在完整任务谱上同时给出有效结果的模型。",
+    "kind": "table"
+  },
+  {
+    "section": "Evaluating Multimodal Understanding",
+    "page": 18,
+    "sourceText": "Evaluating Multimodal Understanding",
+    "translation": "多模态理解评估",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Multimodal Understanding",
+    "page": 18,
+    "sourceText": "Image instruction tuning.. To further assess 's multimodal understanding capability, we conduct continuous finetuning on our Magma-SFT-820K data. Then, we compare the finetuned model with existing VLMs on a suite of commonly used image reasoning benchmarks, e.g. MME and GQA. As shown in Table~tab:image_qa_results, outperforms recently-proposed VLMs on most of the tasks, with notable gains of $$5% and $$22% on TextVQA and ChartQA, respectively. Similarly to our observations in Table~tab:spatial_eval_results, our ablation study highlights the effectiveness of using SoM and ToM for pre-training, which leads to $$ 5% improvement in ChartQA.",
+    "translation": "论文把多模态 Agent 的能力拆成两部分：一是理解来自数字和物理场景的多模态输入，并把语义、空间和时间关系看清楚；二是把用户目标分解成可执行动作序列。Magma 的训练目标正是让这两类能力在同一个模型里协同出现。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Multimodal Understanding",
+    "page": 18,
+    "sourceText": "Video Instruction Tuning. In Table~tab:video_qa_results, we report the performance of our model on multiple challenging video question answering (QA) benchmarks including IntentQA~[cite: Li2023IntentQACV], NextQA~[cite: xiao2021next], VideoMME~[cite: fu2024videommefirstevercomprehensiveevaluation] and MVBench~[cite: li2024mvbenchcomprehensivemultimodalvideo]. We use the LMMs-Eval framework~[cite: lmms_eval2024] for the latter three benchmarks to ensure reproducibility of our evaluation results.",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Multimodal Understanding",
+    "page": 18,
+    "sourceText": "The results demonstrate the effectiveness of our pretraining approach, where we outperform most state-of-the-art models with comparable number of parameters consistently across the different benchmarks. For instance, our model achieves a performance gain over the IG-VLM and SF-LLaVA models by approximately 28%. The IntentQA benchmark evaluates a model's capability to discern the intentions behind observed actions in videos. Thus, the significant improvement on this dataset achieved by can possibly be attributed to the effectiveness of our ToM pretraining task, where it encourages the model to reason about temporal dynamics in future video frames. This is also corroborated by the notable improvement on the subtask of action prediction in MVBench that obtains over state-of-the-art models such as VideoChat2 and LLaVA-OV.",
+    "translation": "相关工作部分说明，大型多模态模型已经在图像理解、区域理解和视频理解上取得进展，但这些模型通常仍以语言回答为中心。Magma 继承这条路线的视觉语言理解能力，同时把动作和未来状态预测作为训练目标。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Evaluating Multimodal Understanding",
+    "page": 18,
+    "sourceText": "State-of-the-art video LMMs often rely on much large video and text datasets such as Webvid and ShareGPT4Video for pretraining and these datasets span over 4M samples with curated text. Moreover, the aforementioned models also use a higher number of frames during pretraining. In contrast, even when multi-frame pretraining is performed in our case, we only use a maximum of 4 frames due to computational constraints. Thus, it is especially significant that outperforms approaches such as LLaVA-OV and ShareGPT4Video on VideoMME and MVBench, since these approaches often use larger instruction tuning datasets that include both image and video data. Additionally, as evidenced by the performance gain obtained by over the proprietary GPT-4V model, we note that such improvements in results are not solely due to using a more recent and powerful language model like LLama-3. It is also notable that Magma achieves substantially better performance than LongVA, despite using only 32 frames instead of the 64 frames used by the latter.",
+    "translation": "相关工作部分说明，大型多模态模型已经在图像理解、区域理解和视频理解上取得进展，但这些模型通常仍以语言回答为中心。Magma 继承这条路线的视觉语言理解能力，同时把动作和未来状态预测作为训练目标。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "Conclusion",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "We present the foundation model that can understand and act on multimodal inputs to complete agentic tasks in different environments. Our experiments show that the use of SoM and ToM prediction tasks in pretraining helps the model learn to ground and plan actions, respectively. In our experiments, shows strong spatial-temporal reasoning ability and significantly outperforms baselines on downstream UI navigation and robotic manipulation tasks.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "Social Impacts and Limitations..",
+    "translation": "结论",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "To develop a foundation model with both verbal and spatial intelligence capable of handling diverse agentic tasks in digital and physical environments, we curated a comprehensive pretraining dataset from a wide range of image, video, and robotics domains: • UI navigation data. We leverage two pretraining datasets SeeClick and Vision2UI. • Instructional videos. As our goal was to learn an agentic model that can undertake daily tasks like humans, we compile the videos from Epic Kitchen, Ego4d, Something-Something v2 and other instructional videos.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "• Robotics manipulation data. For robotics task, we follow OpenVLA to leverage the robotics data in Open-X-Embodiment. • Multimodal understanding data. Lastly, we include a small set of multi modal pretraining data ShareGPT4V, and instruction tuning data LlaVA-1.5 plus a number of other domain-specific data to retain the generic multimodal understanding capability of the pre-trained model.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "The data markup of the robotics and UI navigation data is fairly standardized focusing on generic manipulation tasks (“Place x object on y object”) and generic UI navigation tasks (“Click search button”). We, however, performed a detailed data reflection exercise on the video data of people performing certain tasks. The core inferences we took from these videos were the trajectory of objects over time when the tasks were performed.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "We note that the distribution of identities and activities in the instructional videos are not representative of the global human population and the diversity in society. We are cognizant of the unintended societal, gender, racial and other biases in training with these data, so we will ensure required disclaimers are in place when publishing the models. The training dataset, task list and descriptions focus on the next action to perform only – not describe, act on, or perform any analysis on the subject itself. While there can be unintended outputs from the model based on adverse task descriptions, we will ensure to highlight the use cases the model was trained for and it’s intended use.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "Responsible AI.. It is important to note that the model is specifically designed for UI navigation in a controlled Web UI and Android simulator, and robotic manipulation tasks and should not be broadly applied to other tasks. The recommended usage is within the settings they were trained on, namely, an enclosure equipped with a robotic arm and everyday objects for robotic manipulation and an android simulator running on a computer for UI manipulation. For UI navigation task, researchers should make sure that a human is in the loop and in control for every action the agentic system generates. Since the model cannot act by itself, the sub-module a researcher uses to actually perform the UI navigation action should ensure that no unintended consequences can occur as a result of performing the UI action proposed by the model.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "The model by itself demonstrates good-enough capability in UI navigation and robotic manipulation, but is not usable as is for exploitation scenarios. A threat actor, can however use specific training data for a specific malicious task, to leverage the model as a base to perform automated UI navigation. This is a generic risk associated with the agentic models.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "Acknowledgments.. We would also like to thank Professor Yong Jae Lee for thoughtful discussions, Xiyang Dai for valuable discussions and data support, Mei Yang and Denny Sun for early data engineering effort, and Swadheen Shukla for internal RAI and data reviews. We would also like to thank Doug Burger and Desney Tan for the multifaceted leadership support.",
+    "translation": "本段属于“结论”部分，主要补充 Magma 如何把多模态理解、空间定位、时间轨迹和动作预测合并到统一 Agent 训练框架中。读这段时可以抓住三个问题：输入数据来自哪个环境，论文如何把它转成可学习的标记或动作监督，以及这个设计怎样支持后续的界面导航、机器人操作或通用视觉语言评估。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "RGB235,244,253 aibox/.style= width=, top=10pt, colback=white, colframe=black, colbacktitle=black, center,",
+    "translation": "本段属于“结论”部分，主要补充 Magma 如何把多模态理解、空间定位、时间轨迹和动作预测合并到统一 Agent 训练框架中。读这段时可以抓住三个问题：输入数据来自哪个环境，论文如何把它转成可学习的标记或动作监督，以及这个设计怎样支持后续的界面导航、机器人操作或通用视觉语言评估。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "[1][]colback=lightgray!20, colframe=lightgray!50!black, boxrule=0pt, enhanced, #1 [1][]colback=red!10, colframe=red!50!black, boxrule=0pt, enhanced, #1 [1][]colback=green!10, colframe=green!50!black, boxrule=0pt, enhanced, #1 [1][]colback=magenta!10, colframe=magenta!50!black, boxrule=0pt, enhanced, #1 RGB144, 238, 144",
+    "translation": "本段属于“结论”部分，主要补充 Magma 如何把多模态理解、空间定位、时间轨迹和动作预测合并到统一 Agent 训练框架中。读这段时可以抓住三个问题：输入数据来自哪个环境，论文如何把它转成可学习的标记或动作监督，以及这个设计怎样支持后续的界面导航、机器人操作或通用视觉语言评估。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "[2][]aibox,title=#2,#1 aiboxsmall/.style= width=0.62, top=10pt, colback=white, colframe=black, colbacktitle=black, enhanced, top, attach boxed title to top left=yshift=-0.1in,xshift=0.15in, boxed title style=boxrule=0pt,colframe=white,, RGB34,139,34",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "结论",
+    "page": 19,
+    "sourceText": "Algorithm: AFlowname PyTorch pseudocode.\n\\beginalgorithm*[H]\n\\scriptsize\n\\Comment\n$\\mathbfH_0$: Input embeddings for LLM (Original inputs args for traditional LMM); \\\\\n$vis_pos$: the location of visual tokens; \\\\\n$\\mathbfX$, $\\mathbfX^stack$: Original visual tokens, Extra high-resolution visual token list; \\\\\n$l_start$, $n$: Index of starting layer, and layer interval for stacking.\n\\Functionforward($\\mathbfH_0$, $\\mathbfX^stack$, $l_start$, $n$, $vis_pos$)\n\\var$\\mathbfH$ = $\\mathbfH_0$\n\\For($idx$, \\varTransformerLayer) in enumerate(\\varself.layers)\nif $idx$ >= $l_start$ & $(idx - l_start) % n == 0$:\n  $\\mathbfH[vis_pos]$ += $\\mathbfX^stack[(idx - l_start)//n]$\n  $\\mathbfH$ = \\varTransformerLayer($\\mathbfH$)\n  \\endalgorithm*",
+    "translation": "算法给出了论文中标记、轨迹或训练样本生成的具体步骤。它的作用是把原始视觉数据整理成模型可预测的离散动作或轨迹监督。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "Pretraining and Finetuning",
+    "page": 19,
+    "sourceText": "Pretraining and Finetuning",
+    "translation": "预训练与微调",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining and Finetuning",
+    "page": 19,
+    "sourceText": "Experimental settings pretraining and finetuning of models. We maximally use either 32 Nvidia H100s or 64 AMD MI300 GPUs for all training jobs.",
+    "translation": "该表用于汇总论文中的指标、基线、数据规模或消融设置。阅读时应比较 Magma、去除 SoM 或 ToM 的版本，以及专用模型之间的差异，才能看出统一训练接口的真实贡献。",
+    "kind": "table"
+  },
+  {
+    "section": "Pretraining and Finetuning",
+    "page": 19,
+    "sourceText": "For all the model variants, we use the same training recipe as shown in Table~tab:settings_pt_ft. To handle different image resolutions from different datasets, we also use a multi-crop strategy to enable batch forward for a given minibatch, though the ConvNext vision backbone can naturally support arbitrary resolutions. Specifically, for our pretraining, we use 512 as the base image size, and resize an input image maximally to 4 crops for UI and image pretraining data, while use 1 crop for video and robotics data.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining and Finetuning",
+    "page": 19,
+    "sourceText": "For downstream finetuning, we following common practice to tune the pretrained magma model as shown in Table~tab:settings_pt_ft right. As mentioned above, the vision encoder can be effortlessly adapted to different image resolutions required for different tasks.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 19,
+    "sourceText": "Datasets",
+    "translation": "数据集",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Datasets",
+    "page": 19,
+    "sourceText": "Statistics of UI related pretraining data.",
+    "translation": "该表展示界面导航结果，通常包含元素选择准确率、操作 F1 或步骤成功率等指标。Magma 在这些指标上优于通用视觉语言模型和部分界面专用模型，说明预训练学到的动作落地能力可被高效微调。",
+    "kind": "table"
+  },
+  {
+    "section": "Pretraining Data",
+    "page": 19,
+    "sourceText": "Pretraining Data",
+    "translation": "预训练数据",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining Data",
+    "page": 19,
+    "sourceText": "Due to space constraints, we briefly introduced the datasets for our pretraining in Sec~4.1 of our main submission. To ensure the reproducibility of our pretraining stage, we provide additional details of our pretraining data below.",
+    "translation": "本段属于“预训练数据”部分，主要补充 Magma 如何把多模态理解、空间定位、时间轨迹和动作预测合并到统一 Agent 训练框架中。读这段时可以抓住三个问题：输入数据来自哪个环境，论文如何把它转成可学习的标记或动作监督，以及这个设计怎样支持后续的界面导航、机器人操作或通用视觉语言评估。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Pretraining Data",
+    "page": 19,
+    "sourceText": "Training samples in our Magma-PT-UI. It covers a wide range of action grounding and UI understanding tasks including: (a) Given the bounding box or point coordinates as the query, assistant should return the natural language description or the content. (b) Given the natural language or the exact content as the query, assistant should return the value of the bounding box coordinates.. (c) Given the natural language as the query, assistant should return the value of the point coordinate. (d) Widget captioning. (e) UI summarization.",
+    "translation": "这张图展示界面导航案例。模型根据当前截图、任务指令和历史动作逐步选择可操作元素，说明 SoM 标记不仅能做单步定位，也能服务多轮界面任务。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_ui_data_example.png",
+    "kind": "figure"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 19,
+    "sourceText": "UI Navigation",
+    "translation": "界面导航",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 19,
+    "sourceText": "Our pretraining data related to UI agent are sourced from two datasets, SeeClick~[cite: seeclick] and Vision2UI~[cite: gui2024vision2uirealworlddatasetlayout]. We further process these source data by adding marks on screenshots to provide grounded supervisions.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 19,
+    "sourceText": ". We generally follow the original procedure and make the following modifications to associate with the Set of Mark~[cite: yang2023set] strategy. For each webpage screenshot, multiple (text, bounding _box) pairs are available. Therefore, we directly overlay all the bounding boxes with corresponding marks on the screenshot. For each mobile screenshot, only a single (text, bounding _box) pair is available in the SeeClick data. To enrich the pairs, we incorporate additional pairs from the RICO dataset~[cite: deka2017rico], and employ an OCR tool to obtain text boxes. Finally, we display the enriched bounding boxes along with their corresponding marks on the mobile screenshot.",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 19,
+    "sourceText": "2UI. We consider all bounding boxes whose \"content\" property is not null. To prevent the marks from overwhelming the main content of the webpage, we sample bounding boxes with varying probabilities based on their \"type\" property. Specifically, we assign a sampling weight of 0.5 to boxes of type h1, h2, a, button, option, and nav with 0.5, while other types are weighted at 0.1. Given the high importance of input areas for interaction, we include boxes of type input directly without sampling for mark plotting. After obtaining the elements of high interest, we apply similar tasks as SeeClick~[cite: seeclick] to produce the instruction data, including (a) grounding task, which involves two forms: predicting center point coordinates (text _2 _point) and predicting bounding box (text _2 _bbox); (b) generating text for elements, categorized into predicting text based on the coordinates of center points (point _2 _text) or bounding boxes (bbox _2 _text); and further introduce the task of (C) locating input fields, including predicting center point coordinates (input _2 _point) and bounding box coordinates (input _2 _bbox) of the input fields.",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 20,
+    "sourceText": "Given a webpage, since the first two categories of tasks are grounding or generating texts for the same group of web elements, we further weight the four subtasks, i.e., (text _2 _point), (text _2 _bbox), (point _2 _text), and (bbox _2 _text) with [0.4, 0.4, 0.1, 0.1], and sample only one of them to construct the pretraining data. Similarly, we sample one subtask from (input _2 _point) and (input _2 _bbox) with equal probabilities. We merge the sampled subtasks from the same webpage into one example to improve training efficiency. We denote the full pretraining data related to UI by Magma-PT-UI, and list the sizes of individual subsets in Table~tab:ui_pretrain.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 20,
+    "sourceText": "Action distributions in three types of action-oriented pretraining datasets. (a) UI Navigation; (b) Robotic Manipulation; (c) Instructional Videos.",
+    "translation": "图中给出 Magma 的预训练流水线：不同来源的图像、视频、界面截图和机器人观察先被统一编码，再由语言模型生成文字、空间坐标、标记编号或动作 token。重点是多种监督都进入同一个生成接口。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/data_dist.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Instructional Videos",
+    "page": 20,
+    "sourceText": "Instructional Videos",
+    "translation": "教学视频",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Instructional Videos",
+    "page": 20,
+    "sourceText": "As mentioned in the main submission, we curate the supervisions from human instructional videos to learn the agentic capability for our model. To cover different scenarios, we considered both 3rd point view videos and egocentric videos. In particular, we start with Epic-Kitchen~[cite: Damen2018EPICKITCHENS] video data sets considering that their text annotations are relatively high quality. Afterwards, we expand to Something-Soomething v2~[cite: materzynska2020something] to include more human-object interactions, and Ego4D~[cite: grauman2022ego4dworld3000hours] and other related instructional videos for scaling up.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Instructional Videos",
+    "page": 20,
+    "sourceText": "Epic-Kitchen~[cite: Damen2018EPICKITCHENS]. Epic-Kitchen contains 495 egocentric videos recorded by 32 participants in kitchen rooms. Each video contains a number of segments labeled with narrations, start and end frame ids. However, the original video narrations (e.g., \"open door\") are too coarse to depict the human actions in a certain time frame.",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Instructional Videos",
+    "page": 20,
+    "sourceText": "For the videos in Epic-Kitchen, we apply the video preprocessing method as discussed in Sec~4.2 of our main submission. Concretely, for each of the original video segments in the dataset, we run PySceneDetect to detect the temporal boundaries and split them into sub-segments. During our model pretraining, the textual annotations are used in two ways. Our model is asked to predict the detailed description in the first frame. In addition, they are used as the task description as input to the model for predicting the traces of marks.",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Instructional Videos",
+    "page": 20,
+    "sourceText": "Sth-Sth-v2~[cite: materzynska2020something], Ego4D~[cite: grauman2022ego4dworld3000hours]. The Sth-Sth v2 dataset is a comprehensive collection of labeled video clips featuring humans performing predefined actions with everyday objects. The list of action classes spans a wide variety of atomic actions, including but not limited to \"pushing something from right to left\", \"throwing something\" and \"covering something with something\". In total, the dataset contains 220,847 seconds-long video clips. To create our pretraining data, we only leverage the videos in the train and validation splits. This amounts to around 160K video clips. We note that we do not use PySceneDetect for Sth-Sth v2 since the original video clips have been highly curated.",
+    "translation": "SoM 的作用是把图像中的可操作区域显式编号。模型不必直接回归复杂坐标或猜测元素名称，而是学习在带编号标记的画面中选择目标编号，再必要时输出点、框或动作参数。这种离散化接口让网页按钮、手机控件和机器人场景中的物体可以共享一种动作落地语言。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Instructional Videos",
+    "page": 20,
+    "sourceText": "The Ego4D dataset is a large-scale egocentric dataset that contains approximately 3,025 hours of videos. It comprises over 3,670 hours of video footage captured from wearable cameras across a diverse environments and activities. The dataset spans a wide range of real-world scenarios, including daily activities and social interactions. Given the duration of these videos can span over 30 minutes, we leverage the original dense caption annotations that are provided to split each videos into seconds-long segments with consistent views.",
+    "translation": "空间推理评估用于验证 Magma 的提升是否来自更强的空间-时间表征。结果显示，SoM 和 ToM 对 VSR、BLINK、SpatialEval 等任务有明显帮助，去掉视频数据会让 BLINK 出现约八个百分点下降，说明时间信息确实参与了空间推理能力形成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robotic Manipulation",
+    "page": 20,
+    "sourceText": "Robotic Manipulation",
+    "translation": "机器人操作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robotic Manipulation",
+    "page": 20,
+    "sourceText": "Real robot setup. Magma is deployed on a WidowX 250 robot arm to perform a sequence of kitchen manipulation tasks including object pick-place and soft manipulation.",
+    "translation": "这张图展示机器人操作中的定性或定量结果。它突出 Magma 相比 OpenVLA 等机器人专用模型在目标定位、抓取路径和放置动作上的优势，说明空间-时间预训练能迁移到物理操作。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_real_description.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Robotic Manipulation",
+    "page": 20,
+    "sourceText": "We follow the training recipe in OpenVLA~[cite: kim2024openvla] to prepare our pretraining data for robotics manipulation. Specifically, we take the data mixture \"siglip-224px+mx-oxe-magic-soup\" as in OpenVLA, which gives us 9.4M image-language-action triplets, extracted from 326K trajectories, from 23 separate datasets.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Multimodal Image Understanding",
+    "page": 20,
+    "sourceText": "Multimodal Image Understanding",
+    "translation": "多模态图像理解",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Multimodal Image Understanding",
+    "page": 20,
+    "sourceText": "We simply include the 1.2M synthetic image-text pairs in ShareGPT4V~[cite: chen2023sharegpt4v] and 665K image instruction tuning data collected by LLaVA-1.5~[cite: liu2024llavanext] as our multimodal image pretraining data. The former helps our pretrained model to have a global understanding of visual contents, while the latter helps to get the model familiar with various types of human instructions. We denote this dataset by Magma-PT-Image.",
+    "translation": "相关工作部分说明，大型多模态模型已经在图像理解、区域理解和视频理解上取得进展，但这些模型通常仍以语言回答为中心。Magma 继承这条路线的视觉语言理解能力，同时把动作和未来状态预测作为训练目标。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Data Statistics",
+    "page": 20,
+    "sourceText": "Data Statistics",
+    "translation": "数据统计",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Data Statistics",
+    "page": 20,
+    "sourceText": "Given our goal of training a general vision-language-action foundation model, we analyze the distribution of verbs present in the text annotations of the UI and robotic manipulation as well as instructional video datasets in Figure~fig:data_dist. We see that the text annotations in the UI navigation component contain many helpful verbs that help guide agents to achieve a specific task such as \"locate\" and \"turn\". This is complemented by the more action-oriented words in the vocabulary of the robot manipulation component, including \"pick\", \"push\" and \"slide\". Such annotations are especially valuable in helping our model to learn to reason about interactions with everyday objects. Finally, we also scale up the amount of training data and diversity of verbs by including data from instructional videos (Figure~fig:data_distc). As evidenced by the relatively high frequency of words such as \"lifting\" and \"throwing\", such annotations can be very beneficial for gaining a stronger understanding the of temporal dynamics involved in common activities. More importantly, the diversity of activities present in these datasets can be effective at helping the model generalize better to a larger variety of tasks.",
+    "translation": "论文提出 Magma，一个面向数字界面和物理机器人场景的多模态 Agent 基座模型。它不只保留视觉语言模型的语义理解能力，还把空间定位、时间预测和动作生成纳入同一训练目标，使模型能够从界面导航扩展到机器人操作。作者强调，SoM 与 ToM 把原本异构的图像、视频、界面和机器人数据转成统一的动作监督，是 Magma 获得空间-时间智能的关键。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Downstream Data",
+    "page": 21,
+    "sourceText": "Downstream Data",
+    "translation": "下游数据",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Agent Navigation",
+    "page": 21,
+    "sourceText": "UI Agent Navigation",
+    "translation": "界面智能体导航",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Agent Navigation",
+    "page": 21,
+    "sourceText": "We evaluated the UI grounding and navigation capability mainly on three datasets, ScreenSpot~[cite: seeclick], Mind2Web~[cite: mind2web] and AITW~[cite: aitw].",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Agent Navigation",
+    "page": 21,
+    "sourceText": "ScreenSpot is a benchmark used to evaluate the UI action grounding proposed in~[cite: seeclick]. It consists of 600 screenshots images associated with 1.2K instructions spanning iOS, Android, macOS, Windows, and web pages. The evalaution covers both text based elements and a variety of widgets and icons. To evaluate the zero-shot action grounding performance for our model, we use OmniParser~[cite: lu2024omniparser] to help parse the screenshot and propose actionable regions/icons/buttons. We used the sample code and default settings provided in the official repo. For these candidate regions, we overlay numeric marks and ask our model to pick one.",
+    "translation": "这一段解释了为什么简单混合数据不够。界面任务通常输出二维点击坐标，机器人任务输出多自由度控制，图像和视频又多是文字描述。Magma 用动作落地和动作规划两个替代任务把差距补上：静态图像用 SoM 标出可操作对象，视频用 ToM 标出未来运动轨迹，从而把无动作标注的数据也转成可训练的动作样本。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Agent Navigation",
+    "page": 21,
+    "sourceText": "2Web is first proposed in~[cite: mind2web] for text-based web agent. For fair comparison among vision-based web agent, we follow the protocol proposed in SeeClick~[cite: seeclick]. Given a webpage, we convert it into a screenshot associated with ground-truth bounding boxes to which the actions should be applied. As the original screenshot of the full website is usually out of the scope of display. We follow a similar way as in~[cite: seeclick] to crop the region of interests centering around the ground truth boxes, which gives us a local screenshot as wide as original webpage but with maximal height 1344. To propose the candidate marks for our model, we directly exploit the candidate ranks provided in Mind2Web, and use the top 30 candidates for evaluation.",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Agent Navigation",
+    "page": 21,
+    "sourceText": "AITW is a dataset originally collected in~[cite: aitw] for navigation of the android UI. The original dataset contains up to 715K trajectories, resulting in 5.7M screenshots. In our experiments, to examine the efficient finetuning performance, we alteratively follow the same protocol in SeeClick~[cite: seeclick] and include a much smaller number of training samples. Specifically, there are 545, 688, 306, 700, 700 instructions from General/Install/GoogleApps/Single/WebShopping, respectively. $80%$ of each split is used for training and the remainder is used for evaluation. Instead of finetuning our model for each category, we jointly finetune our pretrained on the combined data and evaluate across all categories using a single model.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": "Robot Manipulation",
+    "translation": "机器人操作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": ". We employ SimplerEnv~[cite: li24simpler] as the main testbed for our learned robot policy. As we do not need to tune our model on the simulated trajectories, we simply report the numbers following the protocol proposed in the original work.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": "-world Setting. We design four tabletop manipulation tasks for our physical WidowX-250 robot setup as shown in fig:supp_real. As with BridgeData-v2, the RGB image observations from the robot are captured using a stationary third-person camera, maintaining a resolution of $256 256$. For finetuning our pretrained model, we collect approximately 50 robot demonstration trajectories for each task as our finetuning dataset. Our experimental design includes classic soft object manipulation and pick-and-place operations tasks. Detailed language instructions for the designed tasks are presented below. For each trial, we randomize the initial location of the target object and include 2-3 random distracting objects (e.g., corn, eggplant) in the scene. For reproducibility, we release the collected robot trajectories.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": "Tasks included in the finetuning dataset: • Hot dog assembly: Pick up the hot dog sausage from the desk and place it into the bun. The trial is counted as success only when the robot successfully grasps the sausage and accurately places it within the hot dog bun.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": "• Mushroom placement: Pick up the mushroom and place it into the pot. The trial is counted as success only when the robot correctly grasps the mushroom and places it into the cooking pot without dropping or misaligning it.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": "• Cloth pushing: Push the cloth from right to left across the surface. The trial is counted as success only when the robot successfully manipulates the cloth in the specified direction without disturbing other objects on the surface.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robot Manipulation",
+    "page": 21,
+    "sourceText": "Unseen task for evaluating generalization: • Bidirectional cloth manipulation: Push the cloth in both directions while maintaining its shape. This task examines the model's spatial understanding and reasoning capabilities, as it requires generalization from unidirectional pushing in the training data to bidirectional manipulation in novel scenarios.",
+    "translation": "这一段把多模态 Agent 和传统视觉语言模型区分开来：Agent 不只是描述画面，还必须知道哪些对象可操作、下一步应该作用在哪里，以及动作之后环境会如何变化。Magma 的方法围绕这些可执行信息组织训练。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Image Instruction Tuning",
+    "page": 21,
+    "sourceText": "Image Instruction Tuning",
+    "translation": "图像指令微调",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Image Instruction Tuning",
+    "page": 21,
+    "sourceText": "We show a breakdown of our 820k Magma image instruction tuning data in Table~tab:magma_820k. As the 760k image instruction tuning data used in LLaVA-1.6~[cite: liu2024llavanext] is not released, we follow their guidance to curate 748k public available data including ShareGPT~[cite: sharegpt], LLaVA-Instruct~[cite: liu2023llava], ShareGPT4V~[cite: chen2023sharegpt4v], LAION-GPT4V~[cite: laion4v], VQAv2~[cite: goyal2017making], GQA~[cite: hudson2019gqa], OKVQA~[cite: marino2019ok], OCRVQA~[cite: mishra2019ocr], ChartQA~[cite: masry2022chartqabenchmarkquestionanswering], DVQA~[cite: kafle2018dvqa], DocVQA~[cite: mathew2021docvqa], AI2D~[cite: ai2d], SynthDog-EN~[cite: kim2022ocr], A-OKVQA~[cite: schwenk2022okvqa], RefCOCO~[cite: kazemzadeh2014referitgame] and VG~[cite: krishna2017visual]. To complement the claimed \"improved reasoning, OCR and world knowledge\", we resort to a few other open-sourced datasets including InfoGraphicsVQA~[cite: mathew2021infographicvqa], augmented ChartQA~[cite: masry2022chartqabenchmarkquestionanswering], FigureQA~[cite: kahou2018figureqaannotatedfiguredataset], TQA~[cite: tqa2017] and ScienceQA~[cite: lu2022learnscienceqa]. We denote the full set by Magma-SFT-Image.",
+    "translation": "相关工作部分说明，大型多模态模型已经在图像理解、区域理解和视频理解上取得进展，但这些模型通常仍以语言回答为中心。Magma 继承这条路线的视觉语言理解能力，同时把动作和未来状态预测作为训练目标。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Video Instruction Tuning",
+    "page": 22,
+    "sourceText": "Video Instruction Tuning",
+    "translation": "视频指令微调",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Video Instruction Tuning",
+    "page": 22,
+    "sourceText": "For comparisons with state-of-the-art video LMMs, we adopt the LLava-Video-178K dataset~[cite: zhang2024llavanextvideo] for instruction tuning. It consists of approximately 1.6M video and text instruction samples from 178K videos. The dataset is compiled from multiple video sources ranging from Charades~[cite: sigurdsson2016hollywood], Sth-SthV2~[cite: materzynska2020something] to Kinetics-700~[cite: carreira2019short]. We refer interested readers to the original papers for more details.",
+    "translation": "相关工作部分说明，大型多模态模型已经在图像理解、区域理解和视频理解上取得进展，但这些模型通常仍以语言回答为中心。Magma 继承这条路线的视觉语言理解能力，同时把动作和未来状态预测作为训练目标。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Video Instruction Tuning",
+    "page": 22,
+    "sourceText": "A detailed breakdown of our 820k Magma image instruction tuning data used in our multimodal image understanding experiments shown in Table~5 in our main submission.",
+    "translation": "该表列出图像指令微调数据组成。Magma 使用混合来源补充 OCR、图表、文档、常识和视觉问答能力，使动作预训练后的模型仍能保持通用图像理解。",
+    "kind": "table"
+  },
+  {
+    "section": "Details about SoM for training and evaluation",
+    "page": 22,
+    "sourceText": "Details about SoM for training and evaluation",
+    "translation": "SoM 的作用是把图像中的可操作区域显式编号。模型不必直接回归复杂坐标或猜测元素名称，而是学习在带编号标记的画面中选择目标编号，再必要时输出点、框或动作参数。这种离散化接口让网页按钮、手机控件和机器人场景中的物体可以共享一种动作落地语言。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Details about SoM for training and evaluation",
+    "page": 22,
+    "sourceText": "we exploit three ways to extract the candidate bounding boxes for the SoM prompt: • DoM Tree. In addition to the bounding boxes extracted from HTML code~[cite: seeclick,gui2024vision2uirealworlddatasetlayout], we further annotate the mobile screenshots in SeeClick data with bounding boxes derived from Android view hierarchies~[cite: rico_semantics]. These annotations are used during our model pretraining. • Vision model. For zero-shot evaluation on Screenspot~[cite: seeclick], we exploit the OmniParser model~[cite: lu2024omniparser] to make a fair comparison with the state-of-the-art methods~[cite: lu2024omniparser,seeclick]. Note that we only use the bounding boxes without local semantics. The original bounding boxes in AITW~[cite: aitw] are identified using an OCR model and IconNet~[cite: rico_semantics].",
+    "translation": "作者使用了大规模异构数据，包括界面数据、机器人轨迹、教学视频和图文指令数据。关键思路不是先训练一个领域再迁移到另一个领域，而是直接训练一个可以在多种下游任务中零样本或少样本适配的统一模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Details about SoM for training and evaluation",
+    "page": 22,
+    "sourceText": "• Language model. For evaluation on As discussed earlier, we directly apply the predictions provided by Mind2Web~[cite: mind2web] using a pretrained language model DeBERTa-v3-base. This model gives approximately $85%$ recall@50.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Qualitative Analysis",
+    "page": 22,
+    "sourceText": "Qualitative Analysis",
+    "translation": "定性分析",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 22,
+    "sourceText": "UI Navigation",
+    "translation": "界面导航",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 22,
+    "sourceText": "Given the performant UI navigation performance across different tasks, we show some Mobile UI navigation samples in Fig.~fig:supp_aitw_ui. We prompt the model to complete two daily tasks starting from the home page: \"What's the weather like in Tokyo\" and \"Install app `Instagram'\". Despite that our model is never trained with the full trajectory, it can handle the tasks in the wild pretty well.",
+    "translation": "作者把 Magma 定位为首个同时覆盖多模态理解、动作落地、未来规划以及数字和物理环境迁移的多模态 Agent 基座模型。评估覆盖界面导航、视觉语言理解和机器人操作三类任务，重点验证同一套参数能否跨任务保持能力。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "UI Navigation",
+    "page": 22,
+    "sourceText": "Examples for mobile UI navigation sample. We prompt the model with two tasks: \"What's the weather like in Tokyo\" and \"Install app `Instagram'\". The model take actions sequentially given the new observation and history action information.",
+    "translation": "这张图展示界面导航案例。模型根据当前截图、任务指令和历史动作逐步选择可操作元素，说明 SoM 标记不仅能做单步定位，也能服务多轮界面任务。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_ui_case_study.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Robotics Manipulation",
+    "page": 22,
+    "sourceText": "Robotics Manipulation",
+    "translation": "机器人操作",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Robotics Manipulation",
+    "page": 22,
+    "sourceText": "Comparison between OpenVLA (top two rows) and Magma (bottom two rows) for real robot manipulation task. The two robot policies starts with the same initial stage and asked to perform exactly the same task. The whole task requires precise spatial understanding and planning for the model. For both tasks, OpenVLA failed to accomplish while our model successfully handle.",
+    "translation": "这张图说明 SoM 和 ToM 如何把静态对象编号与动态运动轨迹结合起来。SoM 标出当前可操作对象，ToM 则把未来运动轨迹显式画出，二者共同把视觉输入转成模型可以预测的行动线索。",
+    "assetPath": "/generated/magma-foundation-model-multimodal-ai-agents/magma_mushroom.png",
+    "kind": "figure"
+  },
+  {
+    "section": "Robotics Manipulation",
+    "page": 22,
+    "sourceText": "We further show the real robot manipulation rollout for OpenVLA and Magma model. As discussed in our main paper, our model exhibits much better generalization ability to different real robot manipulation tasks. In Fig.~fig:supp_real_robot, we qualitatively show how two models handle a complicated task of \"Pick up the sausage and put it inside the hotdog\". Thanks to the proposed pretraining techniques, our Magma model can not only precisely pick up the sausage but also move smoothly to the top of the hotdog, demonstrating superior spatial understanding and reasoning capability compared with the counterpart.",
+    "translation": "作者回顾了视觉语言动作模型的发展，并指出已有系统往往按环境分别训练：界面导航模型处理二维坐标和页面元素，机器人模型处理三维空间和机械臂动作。这样做虽然简化了训练，却削弱了跨任务泛化，也常常牺牲通用多模态理解能力。",
+    "kind": "paragraph"
+  }
+]

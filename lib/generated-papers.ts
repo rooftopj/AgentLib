@@ -10,6 +10,8 @@ import paper4Meta from "@/content/papers/chatsop-sop-guided-mcts-dialogue-agents
 import paper4Reading from "@/content/papers/chatsop-sop-guided-mcts-dialogue-agents/reading.json";
 import paper5Meta from "@/content/papers/flow-modularized-agentic-workflow-automation/paper.json";
 import paper5Reading from "@/content/papers/flow-modularized-agentic-workflow-automation/reading.json";
+import paper6Meta from "@/content/papers/magma-foundation-model-multimodal-ai-agents/paper.json";
+import paper6Reading from "@/content/papers/magma-foundation-model-multimodal-ai-agents/reading.json";
 
 export const generatedPaperModules = [
   { meta: paper0Meta, reading: paper0Reading, explainerCoverImagePath: "/generated/aflow-automating-agentic-workflow-generation/FORMULATION.png" },
@@ -17,5 +19,6 @@ export const generatedPaperModules = [
   { meta: paper2Meta, reading: paper2Reading, explainerCoverImagePath: "/generated/agentic-context-engineering-evolving-contexts-self-improving-language-models/figure_2_CR.png" },
   { meta: paper3Meta, reading: paper3Reading, explainerCoverImagePath: "/generated/agentsquare-automatic-llm-agent-search-modular-design-space/f2.png" },
   { meta: paper4Meta, reading: paper4Reading, explainerCoverImagePath: "/generated/chatsop-sop-guided-mcts-dialogue-agents/exa_11.png" },
-  { meta: paper5Meta, reading: paper5Reading, explainerCoverImagePath: "/generated/flow-modularized-agentic-workflow-automation/Picture1.png" }
+  { meta: paper5Meta, reading: paper5Reading, explainerCoverImagePath: "/generated/flow-modularized-agentic-workflow-automation/Picture1.png" },
+  { meta: paper6Meta, reading: paper6Reading, explainerCoverImagePath: "/generated/magma-foundation-model-multimodal-ai-agents/magma_teaser.png" }
 ];

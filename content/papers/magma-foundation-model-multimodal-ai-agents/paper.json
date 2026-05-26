@@ -1,0 +1,156 @@
+{
+  "slug": "magma-foundation-model-multimodal-ai-agents",
+  "title": "Magma: A Foundation Model for Multimodal AI Agents",
+  "authors": [
+    "Jianwei Yang",
+    "Reuben Tan",
+    "Qianhui Wu",
+    "Ruijie Zheng",
+    "Baolin Peng",
+    "Yongyuan Liang",
+    "Yu Gu",
+    "Mu Cai",
+    "Seonghyeon Ye",
+    "Joel Jang",
+    "Yuquan Deng",
+    "Lars Liden",
+    "Jianfeng Gao"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Jianwei Yang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Reuben Tan",
+      "institutionIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Qianhui Wu",
+      "institutionIds": [
+        1,
+        3
+      ]
+    },
+    {
+      "name": "Ruijie Zheng",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Baolin Peng",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yongyuan Liang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yu Gu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Mu Cai",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Seonghyeon Ye",
+      "institutionIds": [
+        1,
+        4
+      ]
+    },
+    {
+      "name": "Joel Jang",
+      "institutionIds": [
+        1,
+        5
+      ]
+    },
+    {
+      "name": "Yuquan Deng",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Lars Liden",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Jianfeng Gao",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Microsoft Research",
+      "translation": "微软研究院"
+    },
+    {
+      "id": 2,
+      "name": "University of Maryland",
+      "translation": "马里兰大学"
+    },
+    {
+      "id": 3,
+      "name": "University of Wisconsin-Madison",
+      "translation": "威斯康星大学麦迪逊分校"
+    },
+    {
+      "id": 4,
+      "name": "KAIST",
+      "translation": "韩国科学技术院"
+    },
+    {
+      "id": 5,
+      "name": "University of Washington",
+      "translation": "华盛顿大学"
+    }
+  ],
+  "institutions": [
+    "Microsoft Research",
+    "University of Maryland",
+    "University of Wisconsin-Madison",
+    "KAIST",
+    "University of Washington"
+  ],
+  "year": 2025,
+  "venue": "arXiv",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "Magma",
+    "多模态 Agent",
+    "VLA",
+    "Set-of-Mark",
+    "Trace-of-Mark",
+    "机器人操作",
+    "UI 导航"
+  ],
+  "summary": "Magma 是面向数字界面和物理机器人两类场景的多模态 Agent 基座模型。论文用 Set-of-Mark 把可操作视觉对象标成离散编号，用 Trace-of-Mark 把视频和机器人轨迹中的未来运动变成可预测的轨迹监督，从而把图像、视频、UI 与机器人数据统一到语言化的动作预测接口中。实验显示，Magma 在 UI 导航、机器人操作、空间推理、图像理解和视频问答上同时保持较强能力，核心结论是 SoM 与 ToM 能把异构多模态数据转化为可迁移的空间-时间智能训练信号。",
+  "arxivId": "2502.13130",
+  "arxivUrl": "https://arxiv.org/abs/2502.13130",
+  "codeUrl": "https://microsoft.github.io/Magma",
+  "projectUrl": "https://microsoft.github.io/Magma",
+  "sourcePath": "assets/papers/arXiv-2502.13130v1"
+}

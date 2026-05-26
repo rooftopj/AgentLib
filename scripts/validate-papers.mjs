@@ -64,7 +64,11 @@ if (!fs.existsSync(contentDir)) {
     if (!paper.arxivUrl && !paper.pdfPath) errors.push(`${slug}: paper.json 至少需要 arxivUrl 或 pdfPath`);
     if (paper.arxivId && !/^\d{4}\.\d{4,5}$/.test(paper.arxivId)) errors.push(`${slug}: arxivId 应为 2410.10762 这种格式，不包含 arXiv- 前缀或版本号`);
     if (paper.arxivUrl && !/^https:\/\/arxiv\.org\/abs\/\d{4}\.\d{4,5}$/.test(paper.arxivUrl)) errors.push(`${slug}: arxivUrl 应为 https://arxiv.org/abs/2410.10762 这种格式`);
-    if (paper.codeUrl && !/^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/?$/.test(paper.codeUrl)) errors.push(`${slug}: codeUrl 应为 GitHub 仓库链接，例如 https://github.com/org/repo`);
+    if (
+      paper.codeUrl
+      && !/^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/?$/.test(paper.codeUrl)
+      && !/^https:\/\/[^/\s]+\.github\.io\/[^/\s]+\/?$/.test(paper.codeUrl)
+    ) errors.push(`${slug}: codeUrl 应为 GitHub 仓库链接或 GitHub Pages 项目页，例如 https://github.com/org/repo 或 https://org.github.io/project`);
 
     if (fs.existsSync(readingPath)) {
       const reading = JSON.parse(fs.readFileSync(readingPath, "utf8"));
