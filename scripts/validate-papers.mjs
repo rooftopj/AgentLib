@@ -33,6 +33,10 @@ function allowEnglishHeavy(item) {
     || item.kind === "equation";
 }
 
+function stripFencedCodeBlocks(text) {
+  return String(text).replace(/```[\s\S]*?```/g, "");
+}
+
 if (!fs.existsSync(contentDir)) {
   errors.push("缺少 content/papers 目录。");
 } else {
@@ -69,6 +73,13 @@ if (!fs.existsSync(contentDir)) {
       && !/^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/?$/.test(paper.codeUrl)
       && !/^https:\/\/[^/\s]+\.github\.io\/[^/\s]+\/?$/.test(paper.codeUrl)
     ) errors.push(`${slug}: codeUrl 应为 GitHub 仓库链接或 GitHub Pages 项目页，例如 https://github.com/org/repo 或 https://org.github.io/project`);
+
+    if (fs.existsSync(explainerPath)) {
+      const explainer = stripFencedCodeBlocks(fs.readFileSync(explainerPath, "utf8"));
+      if (/<\/?code\b[^>]*>|&lt;\/?code\b[^&]*&gt;/i.test(explainer)) {
+        errors.push(`${slug}: explainer.mdx 不应包含裸 <code> 标签，请使用 Markdown 内联代码反引号`);
+      }
+    }
 
     if (fs.existsSync(readingPath)) {
       const reading = JSON.parse(fs.readFileSync(readingPath, "utf8"));

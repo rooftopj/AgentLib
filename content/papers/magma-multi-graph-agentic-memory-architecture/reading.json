@@ -1,0 +1,327 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "MAGMA: A Multi-Graph based Agentic Memory Architecture for AI Agents",
+    "translation": "MAGMA：面向 AI Agent 的多图式智能体记忆架构",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Authors",
+    "page": 1,
+    "sourceText": "Dongming Jiang, Yi Li, Guanpeng Li, Bingzhe Li",
+    "translation": "Dongming Jiang、Yi Li、Guanpeng Li、Bingzhe Li",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Institutions",
+    "page": 1,
+    "sourceText": "Department of Computer Science, The University of Texas at Dallas; Department of Electrical and Computer Engineering, University of Florida",
+    "translation": "德克萨斯大学达拉斯分校计算机科学系；佛罗里达大学电气与计算机工程系",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Memory-Augmented Generation (MAG) extends Large Language Models with external memory to support long-context reasoning, but existing approaches largely rely on semantic similarity over monolithic memory stores, entangling temporal, causal, and entity information.",
+    "translation": "记忆增强生成通过外部记忆扩展大语言模型，使其支持长上下文推理。但现有方法大多在单体记忆库上依赖语义相似度检索，把时间、因果和实体信息混在一起。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "In this paper, we propose MAGMA, a multi-graph agentic memory architecture that represents each memory item across orthogonal semantic, temporal, causal, and entity graphs.",
+    "translation": "论文提出 MAGMA，一种多图式智能体记忆架构。它把每条记忆同时表示在语义、时间、因果和实体四个相互正交的关系图中。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "MAGMA formulates retrieval as policy-guided traversal over these relational views, enabling query-adaptive selection and structured context construction.",
+    "translation": "MAGMA 把检索表述为在多种关系视图上的策略引导遍历，因此可以根据查询意图选择关系类型，并构造结构化上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Experiments on LoCoMo and LongMemEval demonstrate that MAGMA consistently outperforms state-of-the-art agentic memory systems in long-horizon reasoning tasks. The open-source code is available at: https://github.com/FredJiang0324/MAGMA.",
+    "translation": "在 LoCoMo 和 LongMemEval 上的实验表明，MAGMA 在长程推理任务中稳定优于先进的智能体记忆系统。论文也给出了开源代码链接。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 1,
+    "sourceText": "Large Language Models have demonstrated remarkable capabilities across a wide range of tasks, yet they remain limited in their ability to maintain and reason over long-term context.",
+    "translation": "大语言模型已经在许多任务上表现出强能力，但在维护长期上下文并基于长期上下文推理方面仍然受限。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 1,
+    "sourceText": "Even within a single long sequence, attention effectiveness degrades with distance due to attention dilution, positional encoding limitations, and token interference, leading to the well-known lost-in-the-middle and context-decay phenomena.",
+    "translation": "即使在同一个长序列内部，注意力效果也会随着距离增加而下降，原因包括注意力稀释、位置编码限制和 token 干扰，这会带来中间信息丢失和上下文衰减现象。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Most existing approaches store past interactions in monolithic repositories or minimally structured memory buffers, relying primarily on semantic similarity, recency, or heuristic scoring to retrieve relevant content.",
+    "translation": "多数现有方法把过去交互存入单体仓库或弱结构化记忆缓冲区，并主要依赖语义相似度、新近性或启发式打分来检索相关内容。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "MAGMA represents each memory item across four orthogonal relational graphs (i.e., semantic, temporal, causal, and entity), yielding a disentangled representation of how events, concepts, and participants are related.",
+    "translation": "MAGMA 把每个记忆项映射到四个正交关系图：语义图、时间图、因果图和实体图，从而把事件、概念和参与者之间的关系解耦表示。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Contributions",
+    "page": 2,
+    "sourceText": "We propose MAGMA, a multi-graph agentic memory architecture that explicitly models semantic, temporal, causal, and entity relations essential for long-horizon reasoning.",
+    "translation": "第一项贡献是提出 MAGMA，这是一种多图式智能体记忆架构，显式建模长程推理所需的语义、时间、因果和实体关系。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Contributions",
+    "page": 2,
+    "sourceText": "We introduce an Adaptive Traversal Policy that routes retrieval based on query intent, enabling efficient pruning of irrelevant graph regions and achieving lower latency and reduced token usage.",
+    "translation": "第二项贡献是提出自适应遍历策略，根据查询意图路由检索，剪掉无关图区域，从而降低延迟和 token 使用量。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Figure 1",
+    "page": 2,
+    "sourceText": "High-Level Architecture of Memory-Augmented Generation (MAG).",
+    "translation": "图 1 展示记忆增强生成的高层架构：用户查询结合检索到的记忆形成增强提示，模型输出再写回并更新记忆。",
+    "kind": "figure",
+    "assetPath": "/generated/magma-multi-graph-agentic-memory-architecture/mag_overview2.png"
+  },
+  {
+    "section": "Figure 2",
+    "page": 2,
+    "sourceText": "Architectural Overview of MAGMA. The system is composed of three layers: (1) A Query Process that routes and synthesizes context; (2) A Data Structure Layer organizing memory into Relation Graphs and a Vector Database; and (3) A Write/Update Process utilizing a dual-stream mechanism for fast ingestion and asynchronous consolidation.",
+    "translation": "图 2 展示 MAGMA 的三层架构：查询层负责路由和上下文合成；数据结构层把记忆组织为关系图和向量数据库；写入更新层用双流机制同时支持快速摄入和异步巩固。",
+    "kind": "figure",
+    "assetPath": "/generated/magma-multi-graph-agentic-memory-architecture/f1-1.png"
+  },
+  {
+    "section": "Background",
+    "page": 3,
+    "sourceText": "Formally, unlike static RAG, MAG maintains a time-variant memory M_t that evolves via a feedback loop: o_t = LLM(q_t, Retrieve(q_t, M_t)); M_{t+1} = Update(M_t, q_t, o_t).",
+    "translation": "与静态 RAG 不同，MAG 维护会随时间变化的记忆：先用当前查询和检索结果生成输出，再把查询和输出写回并更新下一时刻的记忆。",
+    "kind": "equation"
+  },
+  {
+    "section": "Background",
+    "page": 3,
+    "sourceText": "Prior work typically organizes memory around associative proximity (e.g., semantic similarity) rather than mechanistic dependency. As a result, such methods can retrieve what occurred but struggle to reason about why.",
+    "translation": "既有方法通常围绕关联近邻来组织记忆，例如语义相似度，而不是围绕机制依赖来组织。因此它们能检索发生了什么，却难以推理为什么会发生。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Data Structure Layer",
+    "page": 4,
+    "sourceText": "MAGMA formalizes the data structure layer as a time-variant directed multigraph G_t = (N_t, E_t), where nodes represent events and edges encode heterogeneous relational structures.",
+    "translation": "MAGMA 把数据结构层形式化为随时间变化的有向多重图，节点表示事件，边编码异质关系结构。",
+    "kind": "equation"
+  },
+  {
+    "section": "Data Structure Layer",
+    "page": 4,
+    "sourceText": "Each Event-Node n_i is defined as n_i = <c_i, tau_i, v_i, A_i>, where c_i denotes event content, tau_i is a discrete timestamp, v_i is a dense representation indexed in the vector database, and A_i captures structured metadata.",
+    "translation": "每个事件节点由事件内容、离散时间戳、向量表示和结构化属性组成。内容负责保留事件本身，时间戳支撑顺序推理，向量进入向量库，属性记录实体、时间线索和上下文描述。",
+    "kind": "equation"
+  },
+  {
+    "section": "Relation Graphs",
+    "page": 4,
+    "sourceText": "The edge set E is partitioned into four semantic subspaces: Temporal Graph, Causal Graph, Semantic Graph, and Entity Graph.",
+    "translation": "边集合被拆分为四个语义子空间：时间图、因果图、语义图和实体图。这是 MAGMA 区别于单一向量记忆库的核心结构。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Figure 3",
+    "page": 5,
+    "sourceText": "Query process with adaptive hybrid retrieval pipeline. Query Analysis detects intent and fuses signals to find Anchors. Adaptive Traversal navigates specific graph views based on the policy weights.",
+    "translation": "图 3 展示查询过程：先分析查询意图并融合多路信号找到锚点，再根据策略权重在特定图视图中自适应遍历。",
+    "kind": "figure",
+    "assetPath": "/generated/magma-multi-graph-agentic-memory-architecture/f2-2.png"
+  },
+  {
+    "section": "Query Process",
+    "page": 5,
+    "sourceText": "The process begins by decomposing the raw user query q into structured control signals, including semantic, lexical, and temporal cues.",
+    "translation": "查询过程从解析原始用户问题开始，把它拆成语义、词法和时间等结构化控制信号。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Query Process",
+    "page": 5,
+    "sourceText": "Intent Classification maps q to a specific intent type T_q in {Why, When, Entity}. This acts as the steering wheel, determining which graph edges will later be prioritized.",
+    "translation": "意图分类把查询映射到为什么、何时、实体等类型。这个意图相当于检索方向盘，决定后续优先走哪些关系边。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Anchor Identification",
+    "page": 5,
+    "sourceText": "We fuse signals from dense semantic retrieval, lexical keyword matching, and temporal filtering using Reciprocal Rank Fusion: S_anchor = Top_K(sum over m in {vec, key, time} 1/(k + r_m(n))).",
+    "translation": "锚点识别阶段同时融合向量语义检索、关键词匹配和时间过滤，并用 RRF 把不同排序信号合成一组入口节点。",
+    "kind": "equation"
+  },
+  {
+    "section": "Adaptive Traversal Policy",
+    "page": 6,
+    "sourceText": "The transition score S(n_j|n_i, q) fuses structural alignment phi(type(e_ij), T_q) with semantic affinity sim(v_j, q), controlled by lambda_1 and lambda_2.",
+    "translation": "自适应遍历策略把结构对齐和语义亲和度合在一个转移分数里。结构项衡量边类型是否符合查询意图，语义项衡量相邻节点与查询是否相似。",
+    "kind": "equation"
+  },
+  {
+    "section": "Algorithm 1",
+    "page": 6,
+    "sourceText": "Algorithm: Adaptive Hybrid Retrieval (Heuristic Beam Search)\nRequire: Query q, Graph G, VectorDB V, Intent T_q\nEnsure: Narrative Context C_out\nS_anchor ← RRF(V.Search(q vector), K.Search(q_key))\nCurrentFrontier, Visited ← S_anchor\nw_Tq ← GetAttentionWeights(T_q)\nfor d ← 1 to MaxDepth:\n  Candidates ← PriorityQueue()\n  for u in CurrentFrontier:\n    for v in G.Neighbors(u):\n      if v notin Visited:\n        s_uv ← exp(lambda_1 (w_Tq^T · 1_euv) + lambda_2 sim(v vector, q vector))\n        score_v ← score_u · gamma + s_uv\n        Candidates.Push(v, score_v)\n  CurrentFrontier ← Candidates.TopK(BeamWidth)\n  Visited.AddAll(CurrentFrontier)\n  if Visited.Size() >= Budget: break\nC_sorted ← TopologicalSort(Visited, T_q)\nreturn Serialize(C_sorted)",
+    "translation": "算法 1 是 MAGMA 的查询时核心：先用混合检索得到锚点，再根据查询意图取关系权重，随后以启发式 beam search 扩展邻居。每条候选边都按结构匹配和语义相似度打分，保留高分前沿，最后按查询意图做拓扑或时间排序并序列化成叙事上下文。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "Graph Linearization",
+    "page": 7,
+    "sourceText": "For temporal queries, nodes are sorted by timestamp. For causal queries, we apply a topological sort on the causal edges to ensure causes precede effects in the prompt context.",
+    "translation": "图线性化阶段会按查询类型整理检索到的子图。时间问题按时间戳排序，因果问题按因果边拓扑排序，让原因先于结果进入提示上下文。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Graph Linearization",
+    "page": 7,
+    "sourceText": "C_prompt is the concatenation of sorted nodes, where each node is serialized as a timestamped content block with an explicit reference ID.",
+    "translation": "最终上下文由排序后的节点拼接而成，每个节点都带有时间戳、内容和引用 ID，使回答能够追溯到具体记忆证据。",
+    "kind": "equation"
+  },
+  {
+    "section": "Memory Evolution",
+    "page": 7,
+    "sourceText": "MAGMA addresses memory evolution through a dual-stream process that decouples latency-sensitive ingestion from compute-intensive consolidation.",
+    "translation": "MAGMA 用双流过程处理记忆演化：一条路径负责低延迟摄入，一条路径负责计算更重的异步结构巩固。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Algorithm 2",
+    "page": 8,
+    "sourceText": "Algorithm: Fast Path: Synaptic Ingestion\nRequire: User Interaction I, Current Graph G_t\nEnsure: Updated Graph G_{t+1}\nn_t ← SegmentEvent(I)\nn_prev ← GetLastNode(G_t)\nG.AddEdge(n_prev, n_t, type=Temp)\nv_t ← Encoder(n_t.c)\nVDB.Add(v_t, n_t.id)\nQueue.Enqueue(n_t.id)\nreturn n_t",
+    "translation": "算法 2 描述快速路径：把当前交互切成事件节点，接到时间主干上，编码进向量库，并把事件 ID 放入队列触发后续慢路径。它不在关键路径上调用重型推理，因此能保持交互响应速度。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "Algorithm 3",
+    "page": 8,
+    "sourceText": "Algorithm: Slow Path: Structural Consolidation\nWorker Process:\nloop:\n  id ← Queue.Dequeue()\n  if id is null: continue\n  n_t ← G.GetNode(id)\n  N_local ← G.GetNeighborhood(n_t, hops=2)\n  Prompt ← Format(N_local)\n  E_new ← Phi_LLM(Prompt)\n  G.AddEdges(E_new)",
+    "translation": "算法 3 描述慢路径：后台工作进程从队列取事件，读取局部邻域，让 LLM 推断潜在的因果和实体关系，再把新边加入图中。这条路径牺牲后台计算时间来换取更深的关系结构。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "Implementation",
+    "page": 8,
+    "sourceText": "The storage layer abstracts over heterogeneous physical backends, providing unified interfaces for managing the typed memory graph, dense vector indices, and sparse keyword indices.",
+    "translation": "实现上，存储层抽象不同物理后端，对类型化记忆图、稠密向量索引和稀疏关键词索引提供统一接口。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiments",
+    "page": 9,
+    "sourceText": "We evaluate long-term conversational capability using two widely adopted benchmarks: LoCoMo, which contains ultra-long conversations with average length of 9K tokens, and LongMemEval, a large-scale stress-test benchmark with an average context length exceeding 100K tokens.",
+    "translation": "实验使用两个长期对话基准：LoCoMo 平均对话长度约 9K token，用于评估长程时间和因果检索；LongMemEval 平均上下文超过 100K token，用于测试扩展性和长期记忆保持。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "LoCoMo Results",
+    "page": 9,
+    "sourceText": "On LoCoMo, MAGMA achieves an overall LLM-as-a-Judge score of 0.700, compared with Full Context 0.481, A-MEM 0.580, MemoryOS 0.553, and Nemori 0.590.",
+    "translation": "在长期对话基准的裁判模型评分中，本文方法总分为 0.700，高于完整上下文输入、A-MEM、MemoryOS 和 Nemori 等基线。这说明显式关系结构比单纯扩展上下文或依赖语义记忆更适合长程推理。",
+    "kind": "table"
+  },
+  {
+    "section": "LongMemEval Results",
+    "page": 10,
+    "sourceText": "On LongMemEval, MAGMA achieves the highest average accuracy (61.2%), outperforming both the Full-context baseline (55.0%) and the Nemori system (56.2%).",
+    "translation": "在 LongMemEval 上，MAGMA 平均准确率为 61.2%，高于 Full-context 的 55.0% 和 Nemori 的 56.2%。",
+    "kind": "table"
+  },
+  {
+    "section": "Efficiency",
+    "page": 10,
+    "sourceText": "MAGMA achieves the lowest query latency (1.47s) about 40% faster than the next best retrieval baseline while maintaining a competitive token cost (3.37k).",
+    "translation": "MAGMA 的平均查询延迟为 1.47 秒，是各检索基线中最低的，同时每次查询 token 成本为 3.37k，保持了较好的效率和推理质量平衡。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation",
+    "page": 11,
+    "sourceText": "Removing the Adaptive Policy results in the largest performance drop, with the Judge score decreasing from 0.700 to 0.637.",
+    "translation": "消融实验显示，去掉自适应策略带来的降幅最大，Judge 分数从 0.700 降到 0.637，说明查询意图驱动的遍历是关键部件。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation",
+    "page": 11,
+    "sourceText": "Among single-graph variants, Causal Only achieves the highest overall score (0.590), Temporal Only performs best on temporal questions (0.620), and Entity Only obtains the lowest overall score (0.531).",
+    "translation": "单图消融进一步显示，只有因果图时总分最高，为 0.590；只有时间图时在时间问题上最好，为 0.620；只有实体图时总分最低，为 0.531。这说明单一关系视图无法替代完整多图结构。",
+    "kind": "table"
+  },
+  {
+    "section": "Limitations",
+    "page": 12,
+    "sourceText": "MAGMA introduces additional system complexity relative to simpler memory architectures, including maintaining multiple relation graphs, vector indices, temporal parsers, and asynchronous consolidation workers.",
+    "translation": "MAGMA 相比简单记忆架构引入了额外系统复杂度，需要维护多个关系图、向量索引、时间解析器和异步巩固工作进程。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations",
+    "page": 12,
+    "sourceText": "Extending MAGMA to other scenarios, such as multimodal agents or environments with heterogeneous observation streams, may require additional adaptation and calibration.",
+    "translation": "论文也指出，若要扩展到多模态智能体或异构观察流环境，MAGMA 可能还需要额外适配和校准。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Prompt Library",
+    "page": 14,
+    "sourceText": "Event Extraction Prompt asks an automated Graph Memory Parser to return only a valid JSON object with entities, topic, relationships, semantic facts, dates mentioned, and summary.",
+    "translation": "附录中的事件抽取提示要求图记忆解析器只返回合法 JSON，其中包含实体、主题、关系、语义事实、提到的日期和摘要。",
+    "kind": "code"
+  },
+  {
+    "section": "Prompt Library",
+    "page": 15,
+    "sourceText": "The Query-Adaptive QA Prompt instructs the assistant to answer using only the provided memory context, return Information not found when evidence is absent, and inject dynamic instructions for multi-hop, temporal, open-domain, or single-hop questions.",
+    "translation": "查询自适应问答提示要求模型只基于提供的记忆上下文回答；如果证据不存在，就返回信息不存在；同时根据多跳、时间、开放域或单跳事实问题注入动态指令。",
+    "kind": "code"
+  },
+  {
+    "section": "Case Study",
+    "page": 16,
+    "sourceText": "For the query What instruments does Melanie play, baselines relying on top-k vector search missed the distant memory of the violin, while MAGMA aggregated clarinet and violin through the entity-centric subgraph around Melanie.",
+    "translation": "案例研究中，对于“梅兰妮会哪些乐器”这个问题，依赖前若干个向量近邻的基线漏掉了较早出现的小提琴记忆，而本文方法围绕梅兰妮的实体中心子图聚合出单簧管和小提琴两条证据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study",
+    "page": 16,
+    "sourceText": "For the query How many children does Melanie have, baselines extracted two children from a photo description, while MAGMA combined son, two children, and brother references into at least three.",
+    "translation": "对于“梅兰妮有几个孩子”这个问题，基线只从照片描述里抽取两个孩子，而本文方法把儿子、两个孩子、兄弟等跨事件指代表达联合起来，推理出至少三个孩子。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Case Study",
+    "page": 16,
+    "sourceText": "For the query When did she hike after the roadtrip, MAGMA resolved yesterday relative to the session date and recovered 19 October 2023.",
+    "translation": "对于公路旅行后什么时候徒步的问题，MAGMA 把 yesterday 相对于会话日期解析为 2023 年 10 月 19 日，避免了基线的时间幻觉。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Conclusion",
+    "page": 12,
+    "sourceText": "By formulating retrieval as a policy-guided graph traversal and decoupling memory ingestion from asynchronous structural consolidation, MAGMA enables effective long-horizon reasoning while maintaining low inference-time latency.",
+    "translation": "结论强调，MAGMA 通过把检索建模为策略引导的图遍历，并把记忆摄入与异步结构巩固解耦，在保持低推理延迟的同时支持有效的长程推理。",
+    "kind": "paragraph"
+  }
+]

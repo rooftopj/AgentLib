@@ -1,0 +1,70 @@
+{
+  "slug": "magma-multi-graph-agentic-memory-architecture",
+  "title": "MAGMA: A Multi-Graph based Agentic Memory Architecture for AI Agents",
+  "authors": [
+    "Dongming Jiang",
+    "Yi Li",
+    "Guanpeng Li",
+    "Bingzhe Li"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Dongming Jiang",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Yi Li",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Guanpeng Li",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Bingzhe Li",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Department of Computer Science, The University of Texas at Dallas",
+      "translation": "德克萨斯大学达拉斯分校计算机科学系"
+    },
+    {
+      "id": 2,
+      "name": "Department of Electrical and Computer Engineering, University of Florida",
+      "translation": "佛罗里达大学电气与计算机工程系"
+    }
+  ],
+  "institutions": [
+    "Department of Computer Science, The University of Texas at Dallas",
+    "Department of Electrical and Computer Engineering, University of Florida"
+  ],
+  "year": 2026,
+  "venue": "arXiv",
+  "category": "memory",
+  "categoryLabel": "记忆系统",
+  "tags": [
+    "Agentic Memory",
+    "Memory-Augmented Generation",
+    "多图记忆",
+    "图遍历检索",
+    "长期上下文",
+    "LoCoMo",
+    "LongMemEval"
+  ],
+  "summary": "MAGMA 面向长期交互中的 agent 记忆问题，指出很多 Memory-Augmented Generation 系统仍把记忆放在扁平向量库或单一叙事结构中，导致语义、时间、因果和实体关系纠缠在一起。论文提出一个多图记忆架构：每个事件节点同时进入语义图、时间图、因果图和实体图，查询时由意图感知路由器选择相关关系视图，再通过自适应启发式 beam search 遍历图结构并线性化为可追溯上下文。系统还用双流写入机制把低延迟事件摄入和异步结构巩固拆开。实验显示 MAGMA 在 LoCoMo 的 LLM-as-a-Judge 总分达到 0.700，在 LongMemEval 平均准确率达到 61.2%，并以 1.47 秒平均查询延迟优于 A-MEM、MemoryOS 和 Nemori 等记忆基线。",
+  "arxivId": "2601.03236",
+  "arxivUrl": "https://arxiv.org/abs/2601.03236",
+  "codeUrl": "https://github.com/FredJiang0324/MAGMA",
+  "sourcePath": "assets/papers/arXiv-2601.03236v2-d"
+}
