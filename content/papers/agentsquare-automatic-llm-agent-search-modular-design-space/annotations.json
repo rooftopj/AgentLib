@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "agentsquare-automatic-llm-agent-search-modular-design-space",
+  "items": [
+    {
+      "id": "agentsquare-module-candidates-001",
+      "sectionTitle": "MoLAS 形式化：把 Agent 架构当作组合优化",
+      "quote": "传统 Agent 设计常常问“我应该使用哪种提示策略”，MoLAS 问的是“我应该选择哪组模块，以及是否需要创造新模块”。",
+      "occurrence": 1,
+      "title": "模块候选到底差在哪？",
+      "body": "MoLAS 里的候选项不是同一个 prompt 的小改写，而是同一接口下的不同实现。\n\n1. **Planning**：接口大致是 `P(task, feedback) -> sub_tasks`。候选之间主要差在如何拆任务、是否分层、是否根据失败反馈重规划。\n2. **Reasoning**：接口大致是 `R(sub_task, feedback) -> result/action`。候选之间差在推理策略，比如单链 CoT、多分支 ToT、结构化思考、反思修正等。\n3. **Tool Use**：接口大致是 `T(problem, tool_pool) -> tool_choice`。候选之间差在如何判断需要工具、如何选工具、如何组织参数和处理工具返回。\n4. **Memory**：接口大致是 `write/read(observation, memory)`。候选之间差在存什么、怎么检索、是否压缩/反思历史、是否把过去失败经验带回当前推理。\n\n论文明确说模块池来自既有 Agent 设计抽取，并且新模块也可以通过演化加入；但论文正文没有逐项展开每一个候选模块的完整代码差异。理解时可以把它看成：四类模块有统一插口，候选项是不同论文或搜索过程产生的可插拔实现。"
+    },
+    {
+      "id": "agentsquare-control-flow-vs-thinking-001",
+      "sectionTitle": "MoLAS 形式化：把 Agent 架构当作组合优化",
+      "quote": "这意味着评估对象不是一段提示词，而是可以完整运行的 Agent 架构。",
+      "occurrence": 1,
+      "title": "控制流程和思考的区别",
+      "body": "控制流程层和“思考”有关，但不是单纯指模型脑子里想什么。\n\n更准确地说，它指 **如何组织多次 LLM 调用、工具调用、反思、选择和重试**。\n\n例如：\n\n1. `CoT` 更像一次线性思考：让模型一步步推理。\n2. `ToT` 不只是“想得更久”，而是生成多条思路、评估分支、选择更好的路径。\n3. `Self-refine` 不只是“再想一下”，而是有初稿、反馈、修改的循环。\n4. 带工具的 agent 还会决定什么时候暂停思考、调用工具、读取结果，再继续推理。\n\n所以“思考”是其中的一部分；“控制流程”说的是这些思考步骤和外部动作如何被安排成一个可运行流程。"
+    },
+    {
+      "id": "agentsquare-modules-not-just-prompts-001",
+      "sectionTitle": "MoLAS 形式化：把 Agent 架构当作组合优化",
+      "quote": "这种形式化也解释了为什么 AgentSquare 需要搜索机制。四个模块维度看似有限，但每个维度都可能包含多个来自不同论文的模块，并且新模块还会不断加入。",
+      "occurrence": 1,
+      "title": "模块是不是只是 prompt？",
+      "body": "不完全是。\n\n很多模块内部确实会包含 prompt，因为 LLM agent 的规划、推理、工具选择常常靠提示词驱动。但 AgentSquare 论文把模块定义成有标准 IO 的功能组件，而不是单纯一段提示词。\n\n可以按三层理解：\n\n1. **prompt 层**：例如 CoT、ToT、Self-refine 的提示方式不同。\n2. **控制流程层**：例如是否多分支搜索、是否反思、是否循环修正、是否调用工具。\n3. **状态/接口层**：例如是否读写 memory、工具返回怎么接入、失败反馈怎么传回 planning。\n\n所以，若某个模块只是简单 LLM 调用，它可能主要差在 prompt；但在论文的 MoLAS 设定里，模块可以是带代码逻辑的可运行组件。论文也明确说模块集合可以包含任何满足标准 IO 的代码。"
+    },
+    {
+      "id": "agentsquare-predictor-only-for-recombination-001",
+      "sectionTitle": "性能预测器：为什么搜索不能每个候选都真跑",
+      "quote": "论文因此只在重组阶段使用预测器，而对新演化模块保留真实测试。这是一个保守设计：让预测器节省成本，但不让它独自决定开放式创新模块的价值。",
+      "occurrence": 1,
+      "title": "为什么新模块要真测？",
+      "body": "这句话是在区分两类候选 Agent：\n\n1. **模块重组候选**：只是把模块池里已有的模块重新搭配。因为这些模块和类似组合已经在经验池里出现过，预测器可以根据历史样例估计它可能好不好。\n2. **模块演化候选**：LLM 新写或新改出来的模块。它以前没在经验池里出现过，预测器缺少可靠参照，直接预测容易误杀真正有潜力的新设计。\n\n所以 AgentSquare 的做法是：\n\n```text\n已有模块的新组合 -> 先用预测器粗筛，省钱\n新生成的新模块 -> 放进真实任务环境测试，确认它到底能不能跑、效果如何\n```\n\n核心原因是：预测器适合判断“我见过类似东西，它大概表现怎样”，不适合判断“一个全新模块到底有没有价值”。"
+    },
+    {
+      "id": "agentsquare-six-benchmarks-001",
+      "sectionTitle": "实验结果怎么读",
+      "quote": "实验覆盖四类场景六个任务。WebShop 使用 task score，ALFWorld 和 M3ToolEval 使用 success rate，ScienceWorld 与 PDDL 使用 progress rate，TravelPlanner 使用 micro pass rate。因为指标含义不同，读表时不能简单横向比较任务之间的数值大小，而应比较同一任务内不同方法的相对表现。",
+      "occurrence": 1,
+      "title": "六个 benchmark 分别测什么？",
+      "body": "论文把六个 benchmark 分到四类场景：web、embodied、tool 和 game。\n\n1. **WebShop**：网页购物任务。agent 根据用户需求浏览商品、比较属性并选择/购买商品。论文使用 `task score`，也就是 episode 平均奖励。\n2. **ALFWorld**：文本形式的具身家务任务。agent 用文本命令在家庭环境里导航并操作物体。论文使用 `success rate`。\n3. **ScienceWorld**：交互式科学实验任务。agent 在房间环境里导航、操作物体并完成科学实验，考察科学常识和实验步骤。论文使用 `progress rate`。\n4. **M3ToolEval**：多工具调用任务。agent 需要通过多轮交互调用多个工具完成复杂任务。论文使用 `success rate`。\n5. **TravelPlanner**：旅行规划任务。agent 使用工具和数据生成详细旅行计划。论文使用 `micro pass rate`。\n6. **PDDL**：游戏/规划任务。agent 用 PDDL 表达式完成战略游戏式任务。论文使用 `progress rate`。\n\n这些任务的指标不同，所以不能直接横向比较数值大小；更应该在同一个任务内比较不同 agent 或搜索方法。"
+    },
+    {
+      "id": "agentsquare-best-agent-modules-001",
+      "sectionTitle": "消融、轨迹与新模块洞察",
+      "quote": "最佳 Agent 表进一步显示 AgentSquare 的可解释性。WebShop 的搜索结果使用 IO 规划、HTSS 推理和 Dilu 记忆；ALFWorld 使用新规划模块 TD、新推理模块 SF-ToT 和 Generative Agents 记忆；M3Tool 使用 CoT-SC 推理和 ToolBF 工具模块；TravelPlanner 使用 DEPS 规划、CoT 推理和 TH 工具模块；PDDL 使用 IR 规划、CASRC 推理和 Generative Agents 记忆。也就是说，搜索结果不是一个黑箱模型权重，而是一组可读模块选择。",
+      "occurrence": 1,
+      "title": "最佳 Agent 里的模块名是什么意思？",
+      "body": "这些名字分两类：已有 Agent 里抽出的模块，以及 AgentSquare 搜出来的新模块。\n\n1. **IO planning**：通常可理解为直接输入输出式规划，把任务输入后直接产出计划/步骤。论文表中只给出 `IO` 名称，没有在该段展开完整实现。\n2. **HTSS reasoning**：WebShop 的新推理模块。图中说明它把 `ToT`、`Self-Consistency` 和 `Self-Refine` 结合起来：生成多条推理路径、投票/选择较好路径，再基于反馈 refine。\n3. **Dilu memory**：来自已有 Dilu agent 的记忆模块。AgentSquare 论文在这里只说明它被作为 memory 模块使用，没有展开内部细节。\n4. **TD planning**：ALFWorld 的新规划模块。图中说明它用 timeline-based decomposition，把任务拆成带显式时间/顺序依赖的子任务。\n5. **SF-ToT reasoning**：ALFWorld 的新推理模块。图中说明它生成多条路径并评估，同时加入 self-reflection 和 self-improvement。\n6. **Generative Agents memory**：来自 Generative Agents 的记忆模块，用来存储、检索和利用历史观察/经验。\n7. **CoT-SC reasoning**：Chain-of-Thought with Self-Consistency。生成多条 CoT 推理结果，再通过一致性/投票选择答案。\n8. **ToolBF tool use**：M3Tool 的新工具模块。图中说明它把工具文档转成向量、检索相关 API，再生成多个候选工具调用并投票选择。\n9. **DEPS planning**：来自已有 DEPS agent 的规划模块。论文表中把它作为 TravelPlanner 的 planning 模块，但这段没有展开 DEPS 内部实现。\n10. **CoT reasoning**：普通 Chain-of-Thought，一条线性逐步推理路径。\n11. **TH tool use**：TravelPlanner 的新工具模块。图中说明它先按任务做层级工具类别选择，再生成多个候选响应并投票。\n12. **IR planning**：PDDL 的新规划模块。图中说明它先生成初始子任务，再根据反馈 refine，检查依赖关系、完整性和冗余。\n13. **CASRC reasoning**：PDDL 的新推理模块。图中代码名是 `REASONING_CONTEXT_AWARE_SELF_REFINE_COT`，可以理解为结合上下文、CoT 和 Self-Refine 的推理模块。\n\n重点不是记住所有缩写，而是看搜索结果如何按任务选择不同能力：WebShop 需要商品比较推理和记忆，M3Tool/TravelPlanner 更依赖工具选择，ALFWorld/PDDL 更依赖规划修正和环境/状态推理。"
+    }
+  ]
+}
