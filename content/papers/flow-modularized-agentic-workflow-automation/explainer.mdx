@@ -74,7 +74,7 @@ Flow 的核心算法可以拆成两个层次：`UpdateGraph` 负责生成和选�
 
 <AlgorithmBlock
   title="UpdateGraph：按并行度与依赖复杂度选择候选 AOV 图"
-  code="Require: current workflow \tilde{G}, task prompt P, workflow prompt P_init or P_update&#10;Ensure: selected workflow \tilde{G}_{optimal}&#10;Generate candidate workflows {\tilde{G}_1, ..., \tilde{G}_K} using LLM&#10;P_max ← -∞; C_min ← +∞; \tilde{G}_{optimal} ← None&#10;for each candidate \tilde{G}_k:&#10;  P_k ← P_avg(\tilde{G}_k)&#10;  C_k ← C_dependency(\tilde{G}_k)&#10;  if P_k > P_max or (P_k == P_max and C_k < C_min):&#10;    P_max ← P_k; C_min ← C_k; \tilde{G}_{optimal} ← \tilde{G}_k&#10;return \tilde{G}_{optimal}"
+  code="Require: current workflow $\\tilde{G}$, task prompt $P$, workflow prompt $P_{init}$ or $P_{update}$&#10;Ensure: selected workflow $\\tilde{G}_{optimal}$&#10;Generate candidate workflows $\\{\\tilde{G}_1, ..., \\tilde{G}_K\\}$ using LLM&#10;$P_{max} \\leftarrow -\\infty$; $C_{min} \\leftarrow +\\infty$; $\\tilde{G}_{optimal} \\leftarrow None$&#10;for each candidate $\\tilde{G}_k$:&#10;  $P_k \\leftarrow P_{avg}(\\tilde{G}_k)$&#10;  $C_k \\leftarrow C_{dependency}(\\tilde{G}_k)$&#10;  if $P_k > P_{max}$ or ($P_k = P_{max}$ and $C_k < C_{min}$):&#10;    $P_{max} \\leftarrow P_k$; $C_{min} \\leftarrow C_k$; $\\tilde{G}_{optimal} \\leftarrow \\tilde{G}_k$&#10;return $\\tilde{G}_{optimal}$"
   explanation="这段算法把 Flow 的模块化偏好写成选择规则：先比较候选图能并行多少，再比较依赖是否更分散。它既用于初始 workflow，也用于运行时更新。"
 />
 

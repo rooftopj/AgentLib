@@ -95,7 +95,7 @@ AgentSquare 的整体搜索可以分成初始化、模块演化、真实评估�
 
 <AlgorithmBlock
   title="Algorithm of AgentSquare"
-  code="Require: initial agent A0, task description d, max episode K, population size N, module pools P/R/T/M, experience pool E&#10;Ensure: evolved agent A*&#10;t <- 1&#10;Ae0 <- A0&#10;while t <= K:&#10;  {Ae1...AeN} <- module_evolution(Ae0, d, N, module_pools, E)&#10;  Ar0 <- best_by_real_eval({Ae0...AeN})&#10;  {Ar1...ArN} <- module_recombination(Ar0, d, N, module_pools, E)&#10;  Ae0 <- best_by_predicted_or_evaluated_score({Ar0...ArN})&#10;  t <- t + 1&#10;return Ae0 as A*"
+  code="Require: initial agent $A_0$, task description $d$, max episode $K$, population size $N$, module pools $P/R/T/M$, experience pool $E$&#10;Ensure: evolved agent $A^*$&#10;$t \\leftarrow 1$&#10;$A^e_0 \\leftarrow A_0$&#10;while $t \\leq K$:&#10;  $\\{A^e_1...A^e_N\\} \\leftarrow module\\_evolution(A^e_0, d, N, module\\_pools, E)$&#10;  $A^r_0 \\leftarrow best\\_by\\_real\\_eval(\\{A^e_0...A^e_N\\})$&#10;  $\\{A^r_1...A^r_N\\} \\leftarrow module\\_recombination(A^r_0, d, N, module\\_pools, E)$&#10;  $A^e_0 \\leftarrow best\\_by\\_predicted\\_or\\_evaluated\\_score(\\{A^r_0...A^r_N\\})$&#10;  $t \\leftarrow t + 1$&#10;return $A^e_0$ as $A^*$"
   explanation="这段算法把 AgentSquare 压缩成一个交替循环：先演化新模块并真实评估，再重组已有模块并借助经验选择候选，直到达到最大轮数或搜索停止条件。"
 />
 
@@ -226,7 +226,7 @@ AgentSquare 的可解释性来自“模块级输出”。相比一个端到端�
 
 <FigureBlock
   src="/generated/agentsquare-automatic-llm-agent-search-modular-design-space/agentsquare_visual_abstract.png"
-  caption="AI 生成示意图：AgentSquare 的实践闭环。任务进入规划、推理、工具和记忆模块池，搜索过程通过演化、重组和预测筛选候选 Agent，真实评估结果再回流为经验账本。"
+  caption="AgentSquare 的实践闭环示意：任务进入规划、推理、工具和记忆模块池，搜索过程通过演化、重组和预测筛选候选 Agent，真实评估结果再回流为经验账本。"
 />
 
 如果只带走一个工程动作，就是先建立自己的 Agent 实验账本：记录任务、模块组合、输入输出、分数、成本、错误和人工判断。没有账本，搜索器只能从零猜；有了账本，团队过去的失败和成功都会变成下一轮搜索的燃料。

@@ -60,7 +60,7 @@ AutoSkill 的核心不是一次性生成技能，而是完整生命周期。系�
 
 <AlgorithmBlock
   title="AutoSkill 技能自进化闭环"
-  code="Require: interaction trace T, skill repository R, current query q&#10;Ensure: response y and updated repository R'&#10;C ← ExtractCandidateSkills(T)&#10;for each candidate c in C:&#10;  S ← RetrieveSimilarSkills(c, R)&#10;  if S contains reusable skill:&#10;    s' ← MergeAndRefine(S, c)&#10;    IncrementVersion(s')&#10;  else:&#10;    s' ← CreateSkillArtifact(c)&#10;  Save s' into R&#10;K ← RetrieveRelevantSkills(q, R)&#10;y ← GenerateResponse(q, K)&#10;return y, R"
+  code="Require: interaction trace $T$, skill repository $R$, current query $q$&#10;Ensure: response $y$ and updated repository $R'$&#10;$C \\leftarrow ExtractCandidateSkills(T)$&#10;for each candidate $c$ in $C$:&#10;  $S \\leftarrow RetrieveSimilarSkills(c, R)$&#10;  if $S$ contains reusable skill:&#10;    $s' \\leftarrow MergeAndRefine(S, c)$&#10;    IncrementVersion($s'$)&#10;  else:&#10;    $s' \\leftarrow CreateSkillArtifact(c)$&#10;  Save $s'$ into $R$&#10;$K \\leftarrow RetrieveRelevantSkills(q, R)$&#10;$y \\leftarrow GenerateResponse(q, K)$&#10;return $y, R$"
   explanation="论文没有给出单独算法环境，但方法可以概括为这个闭环：从交互中抽取候选技能，与已有技能检索匹配，决定合并或创建，再在未来请求中检索并注入相关技能。"
 />
 

@@ -90,7 +90,7 @@ SkillRouter 并没有发明新的模型架构。作者的选择很务实：用�
 
 <AlgorithmBlock
   title="SkillRouter 推理流程"
-  code="Require: query q, full-text skill pool S, trained encoder E, trained reranker R&#10;Ensure: ranked skill shortlist L&#10;Offline: embed every skill body s in S with E and build ANN index&#10;Online: z_q ← E(q)&#10;C ← ANN_Search(z_q, topK = 20)&#10;for each skill s in C:&#10;  score_s ← R(q, full_text(s))&#10;L ← sort C by score_s descending&#10;return L"
+  code="Require: query $q$, full-text skill pool $S$, trained encoder $E$, trained reranker $R$&#10;Ensure: ranked skill shortlist $L$&#10;Offline: embed every skill body $s \\in S$ with $E$ and build ANN index&#10;Online: $z_q \\leftarrow E(q)$&#10;$C \\leftarrow ANN\\_Search(z_q, topK = 20)$&#10;for each skill $s$ in $C$:&#10;  $score_s \\leftarrow R(q, full\\_text(s))$&#10;$L \\leftarrow sort(C)$ by $score_s$ descending&#10;return $L$"
   explanation="这段流程把 SkillRouter 的运行压缩成四步：离线建立全文 skill 索引，在线召回 top-20，用 cross-encoder 读完整正文重排，再把短名单交给 Agent。Encoder 解决规模，reranker 解决相似候选之间的精细判别。"
 />
 

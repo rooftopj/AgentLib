@@ -71,7 +71,7 @@ grow-and-refine 则解决另一个问题：如果只增长，playbook 会越来�
 
 <AlgorithmBlock
   title="ACE context adaptation loop"
-  code="Require: initial playbook C0, task stream Q, feedback function F&#10;Ensure: evolved playbook C and task outputs Y&#10;for each query q_t in Q:&#10;  y_t, tau_t <- Generator(q_t, C_t)&#10;  f_t <- F(y_t, tau_t)&#10;  Delta_t <- Reflector(tau_t, f_t, C_t)&#10;  C_{t+1} <- Curator.merge(C_t, Delta_t)&#10;  if length(C_{t+1}) > threshold or duplicates are detected:&#10;    C_{t+1} <- Curator.refine(C_{t+1})&#10;return C_T, Y"
+  code="Require: initial playbook $C_0$, task stream $Q$, feedback function $F$&#10;Ensure: evolved playbook $C$ and task outputs $Y$&#10;for each query $q_t$ in $Q$:&#10;  $y_t, \\tau_t \\leftarrow Generator(q_t, C_t)$&#10;  $f_t \\leftarrow F(y_t, \\tau_t)$&#10;  $\\Delta_t \\leftarrow Reflector(\\tau_t, f_t, C_t)$&#10;  $C_{t+1} \\leftarrow Curator.merge(C_t, \\Delta_t)$&#10;  if $length(C_{t+1}) > threshold$ or duplicates are detected:&#10;    $C_{t+1} \\leftarrow Curator.refine(C_{t+1})$&#10;return $C_T, Y$"
   explanation="这段伪代码概括论文方法：Generator 执行任务，Reflector 从轨迹和反馈中抽取增量经验，Curator 合并并在必要时去重剪枝。注意更新对象是 playbook 的局部 delta，而不是完整上下文。"
 />
 

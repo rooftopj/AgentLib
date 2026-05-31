@@ -54,8 +54,8 @@ MAGMA 的数据结构层把记忆形式化为随时间变化的有向多重图�
 正交关系的好处是可控。若所有信息都混在一个相似度分数里，系统很难解释为什么某条记忆被召回，也很难根据问题类型调整检索路径。拆成多图之后，查询层可以说：这个问题是“为什么”，所以因果边权重要更高；这个问题是“什么时候”，所以时间边和时间解析要更重要；这个问题围绕人物，所以实体邻域要更重要。
 
 <ConceptTabs
-  tabs="时间图|因果图|实体图"
-  panels="时间图把事件放到严格顺序里，适合处理先后、持续时间和相对日期。|因果图表达原因、后果和依赖，适合回答为什么、由什么导致、哪个事件触发了后续变化。|实体图把同一人物、地点或对象的多次提及连起来，适合做多跳聚合和指代消解。"
+  tabs="语义图|时间图|因果图|实体图"
+  panels="语义图连接主题、活动和概念相近的事件，适合从语义相关内容中找到初始线索和补充背景。|时间图把事件放到严格顺序里，适合处理先后、持续时间和相对日期。|因果图表达原因、后果和依赖，适合回答为什么、由什么导致、哪个事件触发了后续变化。|实体图把同一人物、地点或对象的多次提及连起来，适合做多跳聚合和指代消解。"
 />
 
 这套结构也解释了为什么 MAGMA 仍然保留向量数据库。论文不是要否定 embedding，而是把 embedding 放回它擅长的位置：帮助找到初始锚点和语义相近候选，而不是独自承担全部推理。向量库负责“从哪里开始找”，关系图负责“接下来往哪里走”。
@@ -95,7 +95,7 @@ MAGMA 的查询过程可以拆成四步：查询分析、锚点识别、自适�
 
 <AlgorithmBlock
   title="Adaptive Hybrid Retrieval (Heuristic Beam Search)"
-  code="Require: Query q, Graph G, VectorDB V, Intent T_q&#10;Ensure: Narrative Context C_out&#10;S_anchor ← RRF(V.Search(q_vec), K.Search(q_key))&#10;CurrentFrontier, Visited ← S_anchor&#10;w_Tq ← GetAttentionWeights(T_q)&#10;for d ← 1 to MaxDepth:&#10;  Candidates ← PriorityQueue()&#10;  for u in CurrentFrontier:&#10;    for v in G.Neighbors(u):&#10;      if v notin Visited:&#10;        s_uv ← exp(lambda_1 * (w_Tq^T · onehot(e_uv)) + lambda_2 * sim(v_vec, q_vec))&#10;        score_v ← score_u * gamma + s_uv&#10;        Candidates.Push(v, score_v)&#10;  CurrentFrontier ← Candidates.TopK(BeamWidth)&#10;  Visited.AddAll(CurrentFrontier)&#10;  if Visited.Size() >= Budget: break&#10;C_sorted ← TopologicalSort(Visited, T_q)&#10;return Serialize(C_sorted)"
+  code="Require: Query $q$, Graph $G$, VectorDB $V$, Intent $T_q$&#10;Ensure: Narrative Context $C_{out}$&#10;$S_{anchor}$ ← RRF($V.Search(\\vec{q})$, $K.Search(q_{key})$)&#10;CurrentFrontier, Visited ← $S_{anchor}$&#10;$\\mathbf{w}_{T_q}$ ← GetAttentionWeights($T_q$)&#10;for $d ← 1$ to MaxDepth:&#10;  Candidates ← PriorityQueue()&#10;  for $u$ in CurrentFrontier:&#10;    for $v$ in $G.Neighbors(u)$:&#10;      if $v \\notin$ Visited:&#10;        $s_{uv}$ ← $\\exp(\\lambda_1(\\mathbf{w}_{T_q}^{\\top}\\cdot\\mathbf{1}_{e_{uv}})+\\lambda_2\\operatorname{sim}(\\vec{v},\\vec{q}))$&#10;        $score_v$ ← $score_u \\cdot \\gamma + s_{uv}$&#10;        Candidates.Push($v$, $score_v$)&#10;  CurrentFrontier ← Candidates.TopK(BeamWidth)&#10;  Visited.AddAll(CurrentFrontier)&#10;  if Visited.Size() ≥ Budget: break&#10;$C_{sorted}$ ← TopologicalSort(Visited, $T_q$)&#10;return Serialize($C_{sorted}$)"
   explanation="这段算法把 MAGMA 的检索从一次性 top-k 变成多步图搜索。每一步都同时看边类型和节点语义，并用 beam width、最大深度和预算限制控制搜索范围。"
 />
 
@@ -130,7 +130,7 @@ Fast Path 只做必要工作。它把用户交互切成事件节点，把新节�
 
 <AlgorithmBlock
   title="Fast Path: Synaptic Ingestion"
-  code="Require: User Interaction I, Current Graph G_t&#10;Ensure: Updated Graph G_{t+1}&#10;n_t ← SegmentEvent(I)&#10;n_prev ← GetLastNode(G_t)&#10;G.AddEdge(n_prev, n_t, type=TEMP)&#10;v_t ← Encoder(n_t.c)&#10;VDB.Add(v_t, n_t.id)&#10;Queue.Enqueue(n_t.id)&#10;return n_t"
+  code="Require: User Interaction $I$, Current Graph $G_t$&#10;Ensure: Updated Graph $G_{t+1}$&#10;$n_t \\leftarrow SegmentEvent(I)$&#10;$n_{prev} \\leftarrow GetLastNode(G_t)$&#10;$G.AddEdge(n_{prev}, n_t, type=TEMP)$&#10;$\\mathbf{v}_t \\leftarrow Encoder(n_t.c)$&#10;$VDB.Add(\\mathbf{v}_t, n_t.id)$&#10;$Queue.Enqueue(n_t.id)$&#10;return $n_t$"
   explanation="快速路径把新交互变成事件节点，并保证它至少进入时间图和向量库。更复杂的因果和实体连接被推迟到后台处理。"
 />
 
@@ -138,7 +138,7 @@ Slow Path 则像一个后台巩固器。它从队列取出事件 ID，读取该�
 
 <AlgorithmBlock
   title="Slow Path: Structural Consolidation"
-  code="Worker Process:&#10;loop:&#10;  id ← Queue.Dequeue()&#10;  if id is null: continue&#10;  n_t ← G.GetNode(id)&#10;  N_local ← G.GetNeighborhood(n_t, hops=2)&#10;  Prompt ← Format(N_local)&#10;  E_new ← Phi_LLM(Prompt)&#10;  G.AddEdges(E_new)"
+  code="Worker Process:&#10;loop:&#10;  $id \\leftarrow Queue.Dequeue()$&#10;  if $id$ is null: continue&#10;  $n_t \\leftarrow G.GetNode(id)$&#10;  $\\mathcal{N}_{local} \\leftarrow G.GetNeighborhood(n_t, hops=2)$&#10;  $Prompt \\leftarrow Format(\\mathcal{N}_{local})$&#10;  $\\mathcal{E}_{new} \\leftarrow \\Phi_{LLM}(Prompt)$&#10;  $G.AddEdges(\\mathcal{E}_{new})$"
   explanation="慢路径负责把新事件放进更丰富的关系结构中。它读取局部图上下文，让 LLM 判断是否存在新的因果或实体连接。"
 />
 

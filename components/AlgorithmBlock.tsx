@@ -33,7 +33,7 @@ export default function AlgorithmBlock({ title, code, explanation }: AlgorithmBl
           {lines.map((line, index) => (
             <span className="algorithm-line" key={`${index}-${line}`}>
               <span className="line-number">{index + 1}</span>
-              <span>{line || " "}</span>
+              <span className="algorithm-text">{line ? renderInlineText(line) : " "}</span>
             </span>
           ))}
         </code>

@@ -595,11 +595,15 @@ mark {
   position: sticky;
   top: 84px;
   align-self: start;
+  min-width: 0;
 }
 
 .annotation-panel {
   max-height: calc(100vh - 120px);
+  min-width: 0;
+  max-width: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   border-left: 1px solid var(--line);
   padding-left: 18px;
 }
@@ -614,12 +618,14 @@ mark {
 .annotation-list {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .annotation-card {
   display: grid;
   gap: 7px;
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
@@ -663,6 +669,7 @@ mark {
 .annotation-body {
   display: grid;
   gap: 7px;
+  min-width: 0;
 }
 
 .annotation-body p,
@@ -695,6 +702,7 @@ mark {
 }
 
 .annotation-body code {
+  max-width: 100%;
   border: 1px solid color-mix(in oklch, var(--accent) 18%, var(--line));
   border-radius: 5px;
   padding: 0.05em 0.3em;
@@ -702,6 +710,9 @@ mark {
   color: var(--ink);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.92em;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .annotation-code-block {
@@ -1176,11 +1187,20 @@ mark {
   overflow-x: auto;
   margin: 0;
   padding: 16px 0;
-  background: var(--code-bg);
-  color: var(--code-line);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 14px;
-  line-height: 1.75;
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--accent) 7%, transparent), transparent 42%),
+    var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.85;
+}
+
+.mdx-content pre.algorithm-code {
+  padding: 16px 0;
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--accent) 7%, transparent), transparent 42%),
+    var(--surface);
+  color: var(--ink);
 }
 
 .algorithm-code code,
@@ -1193,6 +1213,24 @@ mark {
   min-width: max-content;
   grid-template-columns: 72px minmax(0, 1fr);
   padding: 0 24px 0 0;
+}
+
+.algorithm-text {
+  white-space: pre-wrap;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.algorithm-text .inline-math {
+  vertical-align: -0.1em;
+}
+
+.algorithm-text .inline-math .katex {
+  font-size: 1.04em;
+}
+
+.algorithm-line .line-number {
+  border-right-color: color-mix(in oklch, var(--ink) 14%, transparent);
+  color: color-mix(in oklch, var(--ink) 45%, transparent);
 }
 
 .algorithm-block > p {

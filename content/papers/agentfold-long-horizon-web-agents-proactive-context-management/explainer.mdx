@@ -65,7 +65,7 @@ folding 指令是 AgentFold 和普通 tool-use agent 的分水岭。普通 agent
 
 <AlgorithmBlock
   title="AgentFold interaction loop"
-  code="Require: question Q, tools T, initial summaries S, latest interaction I&#10;for step t = 1...T_max:&#10;  C_t <- (Q, T, S_{t-2}, I_{t-1})&#10;  (th_t, f_t, e_t, a_t) <- AgentFold(C_t)&#10;  S_{t-1} <- apply_folding(S_{t-2}, I_{t-1}, f_t)&#10;  o_t <- execute_tool(a_t)&#10;  I_t <- (e_t, a_t, o_t)&#10;return final answer"
+  code="Require: question $Q$, tools $T$, initial summaries $S$, latest interaction $I$&#10;for step $t = 1...T_{max}$:&#10;  $C_t \leftarrow (Q, T, S_{t-2}, I_{t-1})$&#10;  $(th_t, f_t, e_t, a_t) \leftarrow AgentFold(C_t)$&#10;  $S_{t-1} \leftarrow apply\\_folding(S_{t-2}, I_{t-1}, f_t)$&#10;  $o_t \leftarrow execute\\_tool(a_t)$&#10;  $I_t \leftarrow (e_t, a_t, o_t)$&#10;return final answer"
   explanation="AgentFold 每步先读取结构化上下文，再同时生成行动和折叠指令。折叠更新长期摘要，工具调用产生新的最近交互，二者共同进入下一轮。"
 />
 

@@ -25,7 +25,6 @@ function decodeMdxAttr(value: string) {
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")
     .replace(/&#10;/g, "\n")
-    .replace(/\\n/g, "\n")
     .replace(/\\\\/g, "\\");
 }
 
