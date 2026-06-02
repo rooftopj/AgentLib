@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import SearchDialog from "@/components/SearchDialog";
 import { publicPath } from "@/lib/public-path";
 import "katex/dist/katex.min.css";
@@ -33,6 +34,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </header>
         <main>{children}</main>
+        <Script
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token":"21b8544c2cbd452f89f14a9ac6363c0a"}'
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
