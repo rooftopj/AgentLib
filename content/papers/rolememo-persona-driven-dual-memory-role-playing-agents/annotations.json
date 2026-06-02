@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "rolememo-persona-driven-dual-memory-role-playing-agents",
+  "items": [
+    {
+      "id": "rolememo-persona-to-insight-001",
+      "sectionTitle": "RoleMemo 数据集怎么构造",
+      "quote": "RoleMemo 的构造从 persona 开始。作者创建 2052 个 persona，覆盖 23 个社会主题领域，并为每个 persona 生成具体 insight。论文强调，身份简介本身不能直接暴露角色判断，所以每个 persona 会被实例化为一组具体 insight。这一步得到 26636 条 insight。",
+      "occurrence": 1,
+      "title": "persona 怎么变成 insight？",
+      "body": "RoleMemo 这一步可以理解成：先造**角色底色**，再造这个角色会形成的**具体判断**。\n\n`persona` 不是一条记忆，也不是最终答案。它更像角色设定，例如职业背景、兴趣、价值倾向、生活领域。论文说 2052 个 persona 覆盖 23 个社会主题领域，就是为了让角色类型足够多样。\n\n但如果 persona 直接写成：\n\n```text\n这个角色总会认为家庭偏爱会伤害自立的孩子。\n```\n\n那后面的问答就太容易了，因为角色判断已经明牌写在身份简介里。论文想测的是：模型能不能从事实里推回角色视角下的解释，而不是复制 persona 里的答案。\n\n所以作者会把一个 persona 实例化成多条 `insight`。`insight` 是更具体的角色内判断，例如：\n\n1. 某类家庭分配不公会让自立者感到被利用。\n2. 某类社交回避可能来自污名化恐惧，而不只是身体不适。\n3. 某个价值观会影响角色在新情境里的建议。\n\n接下来才会给每条 insight 配中性事实片段。事实单独看不直接暴露 insight，但组合起来能支持它。也就是说：\n\n```text\npersona -> 多条 insight -> 支撑 insight 的事实片段 -> 长对话 -> 查询答案\n```\n\n这里 26636 条 insight 的意思是：2052 个 persona 平均会派生出多条具体角色判断。RoleMemo 后面真正要考的，就是系统能不能在长对话里找回事实，并把事实解释成这些 persona-conditioned insights。"
+    },
+    {
+      "id": "rolememo-fact-insight-weaving-001",
+      "sectionTitle": "RoleMemo 数据集怎么构造",
+      "quote": "下一步是给 insight 配事实。事实片段单独看是中性的，但合在一起会支持某个角色解释。比如“靠加班自筹学费”和“家庭给兄弟姐妹提供资产”这两个事实，放在家庭公平倡导者 persona 下，才会变成“自立孩子被偏爱结构利用”的 insight。\n\n然后作者围绕这些 fact-insight pair 生成查询和答案。查询分为解释性归因、矛盾揭示、价值判断和决策指导四类。每类查询都不能只靠单一事实回答，而要把事实放到 persona 背景中综合解释。\n\n最后是 dense conversational weaving。作者先选择与 persona 背景对齐的话题，再生成 24 轮对话块；为了增加难度，还会引入多实体干扰。事实片段被自然嵌入对话中，不作为显眼线索出现。随后把富含证据的对话块和闲聊块交织起来，把历史扩展到 32k 到 256k token。",
+      "occurrence": 1,
+      "title": "fact-insight pair 怎么变成任务？",
+      "body": "这三步是在把一个抽象 insight 变成可训练、可评测的长历史任务。\n\n可以沿用“家庭公平倡导者”这个例子：\n\n```text\npersona: 家庭公平倡导者\ninsight: 自立孩子可能被偏爱结构利用。\n```\n\n第一步，给 insight 配事实。事实要**单独看中性，组合后有解释力**：\n\n1. 角色大学时一直靠加班付学费。\n2. 父母称赞他说“你一直很独立”。\n3. 父母后来给弟弟妹妹买房或提供资产。\n4. 角色提出需要帮助时，家人说“你自己能解决”。\n\n这些事实单独看都不等于“被结构利用”。但放在家庭公平倡导者 persona 下，它们能支持那个 insight：家庭把“独立”变成不给资源的理由，却把资源给了其他孩子。\n\n第二步，围绕 `fact-insight pair` 生成查询和答案。四类查询可以这样理解：\n\n1. **解释性归因**：为什么这个角色对家人的安排反应强烈？\n2. **矛盾揭示**：家人说“公平”，但哪些行为和公平价值冲突？\n3. **价值判断**：这个角色会如何评价父母给其他孩子资产、却让他自筹学费？\n4. **决策指导**：如果朋友遇到类似处境，这个角色会建议怎么沟通边界？\n\n这些问题都不能只靠单个事实回答。模型要把多条事实和 persona 价值观合起来，才会得到角色内答案。\n\n第三步，dense conversational weaving 是把证据藏进长对话。论文不是把事实列成清单，而是把它们自然编进 24 轮对话块，再混入闲聊和多实体干扰。\n\n例如长历史里可能分散出现：\n\n```text\n第 3 轮：聊到大学时做夜班攒学费。\n第 9 轮：提到弟弟最近准备买房，父母帮了首付。\n第 15 轮：朋友夸他独立，他说家人也总这么说。\n第 21 轮：谈到自己想求助但又怕被说矫情。\n```\n\n查询出现在最后时，模型不能只检索最近一句，也不能被其他家庭闲聊干扰。它需要从长历史里捞出相关事实，再通过 persona 解释成 insight。\n\n所以 RoleMemo 的构造不是简单生成 QA，而是故意让答案依赖一条中间链：\n\n```text\n分散事实 -> persona 视角 -> insight -> 角色内回答\n```"
+    },
+    {
+      "id": "rolememo-recall10-retrieval-001",
+      "sectionTitle": "实验怎么读",
+      "quote": "实验先评估记忆构建质量。Fact Recall@10 看检索出来的前 10 条记忆是否包含回答所需事实；Insight Recall@10 看是否包含正确洞察。这个拆分很重要，因为许多基线事实召回还不错，但洞察召回很差。",
+      "occurrence": 1,
+      "title": "Recall@10 怎么算？",
+      "body": "这里要分清两件事：**怎么取出 top-10**，以及 **top-10 怎么判定命中**。\n\n论文的 DualMem 伪代码把检索写成抽象函数：\n\n```text\nR_q <- Retrieve(M, q)\n```\n\n也就是用查询 `q` 到统一 memory bank `M` 里取相关记忆。DualMem 的 memory bank 里同时有两类条目：\n\n1. `factual cognition`：事实认知。\n2. `insight cognition`：人设洞察。\n\n查询时，系统可以匹配事实，也可以匹配洞察；如果命中 insight，还会把它链接的 facts 一起带回上下文。\n\n但论文在正文沉淀里没有展开 `Retrieve(M, q)` 的具体工程实现，例如具体用哪个 embedding 模型、向量库、reranker 或检索超参。它明确给出的，是 Recall@10 的**命中判定方式**：不是字符串完全相同才算命中，而是语义匹配。\n\n附录说：如果 ground-truth 条目和检索出来的 top-10 条目之间，最大余弦相似度至少达到 `τ = 0.7`，就算这条 ground-truth 被召回。\n\n可以理解成：\n\n```text\n检索器返回 top-10 记忆\n-> 把每条结果和标准事实/标准 insight 做语义相似度比较\n-> max cosine similarity >= 0.7 就算 recall 成功\n```\n\n所以 Fact Recall@10 和 Insight Recall@10 不是问“字面有没有完全一样”，而是问：前 10 条检索结果里，语义上有没有覆盖答案所需事实或正确洞察。"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "inside-out-personatree-long-term-personalized-dialogue-systems",
+  "items": [
+    {
+      "id": "inside-out-tree-vs-list-001",
+      "sectionTitle": "方法总览：Inside Out 的三段流水线",
+      "quote": "第一段是 **Dynamic PersonaTree Evolution**。系统启动时先有一个初始树，这棵树由生物、心理、社会三个维度的 schema 约束。随着对话历史进入系统，每个 dialogue chunk 都会触发一次树更新：模型读取当前 chunk、上一版本树状态和规则约束，输出一组原子操作；安全门验证操作合法性；执行后保存新版本树。",
+      "occurrence": 1,
+      "title": "PersonaTree 是树还是链表？",
+      "body": "PersonaTree 本体是**树**，不是链表。它的节点按 schema 分层组织：树干是生物、心理、社会三类主干，下面再挂具体属性路径，叶节点保存用户当前核心属性的描述性字符串。\n\n容易混淆的是，论文还会保存每次更新后的树版本：\n\n```text\nT_0 -> T_1 -> T_2 -> ... -> T_N\n```\n\n这条时间上的版本序列看起来像链表，但它串起来的是一棵棵树的快照。每个 `T_t` 仍然是一棵 PersonaTree。\n\n用户的理解基本准确：生物、心理、社会三个维度下面会有多个可写子维度或叶节点。每个 dialogue chunk 进来时，MemListener 会根据当前 chunk、上一版本树状态和规则约束，生成一组操作，对相关路径做更新。\n\n需要补两点：\n\n1. 一个 chunk **不一定只操作一个子维度**。它输出的是操作列表，可能同时更新多个路径。\n2. `NO_OP` 通常表示这个 chunk 没有稳定核心信息可写，不一定是“对某个子维度执行 NO_OP”。\n\n可以把一次更新理解成：\n\n```text\nT_{t-1}\n+ [\n  UPDATE(psychological.preferences.communication_style, \"偏好简洁解释\"),\n  ADD(social.work.role, \"产品经理\"),\n  NO_OP()  // 如果没有任何应写信息，则可能只有这一项\n]\n-> T_t\n```\n\n对于被操作到的叶节点，系统会得到一个最新值；没有被操作到的路径保持上一版本不变。`UPDATE` 不是简单覆盖一句新话，而是要把仍然有效的旧信息和新信息整合成更准确的当前状态。\n\n所以结构可以这样理解：\n\n```text\n树：表达用户画像内部结构\n叶节点：保存某个属性的当前综合值\n操作列表：表达本轮 chunk 对哪些路径产生变化\n版本序列：表达整棵树随对话如何演化\n```\n\nPersonaTree 的特点有四个：\n\n1. **层级 schema 约束**：字段不是模型随便发明的，而是被生物-心理-社会 schema 限定。\n2. **叶节点保存当前状态**：叶子不是无限日志，而是对某个属性的压缩描述，例如长期偏好、习惯、状态。\n3. **用原子操作更新**：新对话不会直接追加到末尾，而是生成 `ADD`、`UPDATE`、`DELETE`、`NO_OP` 来修改指定路径。\n4. **版本化持久化**：每次执行操作后保存新树版本，方便审计、回滚和解释“这个字段为什么变了”。\n\n和链表的区别在于：链表主要表达线性时间顺序，适合追加历史；PersonaTree 主要表达结构化用户状态，适合维护“当前这个用户是什么样”。Inside Out 不是要保存每一句历史，而是把重要长期信息压缩进可写、可校验、可演化的树状态。"
+    },
+    {
+      "id": "inside-out-agentic-recall-evidence-001",
+      "sectionTitle": "方法总览：Inside Out 的三段流水线",
+      "quote": "第三段是 **Adaptive Response Generation**。当用户问题只需要稳定画像时，系统进入快模式，直接把 PersonaTree 的非空叶节点作为个性化先验拼进上下文，一次生成回复。当问题需要更多长尾细节时，系统进入 agentic recall 模式，基于 PersonaTree 扩展多个查询、并行检索历史证据、重排融合，再生成回答。",
+      "occurrence": 1,
+      "title": "历史证据是什么？",
+      "body": "历史证据不是 PersonaTree 里的父节点或叶节点本身，而是系统从原始对话历史中重新检索出来的**具体片段**。\n\nPersonaTree 保存的是压缩后的当前用户状态，例如：\n\n```text\n用户近期倾向减少高压力社交活动。\n```\n\n但用户如果问“上次我为什么不想参加那个活动？”，只看这条树叶可能不够。系统需要回到历史中找更具体的证据，例如某段对话里用户曾说：\n\n```text\n那个活动人太多，而且我最近工作压力很大，怕去了更累。\n```\n\n这类原始或近原始的历史片段，就是论文说的历史证据。它的作用是补足树状态没有保存的细节：时间、人物、原因、事件经过、用户当时的表达方式等。\n\nagentic recall 的流程可以理解成：\n\n1. 先用 PersonaTree 判断问题大概属于哪个用户状态范围。\n2. 基于这个树状态扩展多个查询。\n3. 用这些查询去历史对话库里检索候选片段。\n4. 重排、融合成上下文 `C`。\n5. 最后让回复模型基于 `[q, T_N, C]` 生成回答。\n\n所以树状态负责“往哪里找”，历史证据负责“找到具体凭据”。这也是 Inside Out 不把 PersonaTree 当成完整历史替代品的原因：树适合保存稳定核心画像，证据层适合在需要细节时补回上下文。"
+    },
+    {
+      "id": "inside-out-agentic-recall-parent-nodes-001",
+      "sectionTitle": "方法总览：Inside Out 的三段流水线",
+      "quote": "第三段是 **Adaptive Response Generation**。当用户问题只需要稳定画像时，系统进入快模式，直接把 PersonaTree 的非空叶节点作为个性化先验拼进上下文，一次生成回复。当问题需要更多长尾细节时，系统进入 agentic recall 模式，基于 PersonaTree 扩展多个查询、并行检索历史证据、重排融合，再生成回答。",
+      "occurrence": 1,
+      "title": "agentic recall 为什么还需要父节点？",
+      "body": "叶节点通常保存某个属性的**当前综合值**，但父节点不是“老旧历史值”。父节点更像路径和类别语义，例如 `psychological.preferences`、`social.relationships`、`biological.health`。它的作用不是提供最新事实，而是告诉系统：这个叶子属于哪类用户状态，应该往哪个方向扩展查询或组织上下文。\n\n快模式下，如果问题只需要稳定画像，读非空叶节点就够了。例如用户问“按我的偏好推荐周末计划”，系统直接使用偏好、作息、兴趣等叶子值即可。\n\n但长尾细节问题经常需要回到历史证据。比如用户问：\n\n```text\n上次我说不想参加那个活动，是因为什么？\n```\n\n叶节点可能只保存当前状态：\n\n```text\nsocial.activities.preference = \"近期倾向减少高压力社交活动。\"\n```\n\n这个值能说明当前倾向，但不一定包含“上次那件活动”的具体原因、时间、人物和上下文。此时 agentic recall 要回历史里找证据。\n\n父节点/路径在这里有三类作用：\n\n1. **约束召回方向**：看到路径属于 `social.activities`，检索就更该找社交活动、压力、人际互动相关历史，而不是泛泛搜“活动”。\n2. **生成扩展查询**：树状态可以展开成多个查询，例如“用户最近拒绝社交活动的原因”“用户对高压力活动的长期态度”“用户上次提到活动压力的对话”。\n3. **提供语义范围**：父节点告诉模型这个叶值属于社会关系、心理偏好还是身体状态，避免把不同类别的记忆混在一起。\n\n所以父节点不是为了保存旧信息，而是为了保存**结构语义和检索导航**。叶节点回答“当前状态是什么”；父节点/路径回答“这个状态属于哪类问题、该去哪里找证据”。\n\n论文里也把二者分开：PersonaTree 负责结构化长期记忆和查询扩展，历史证据由 agentic recall 并行检索、重排和融合。也就是说，树不是替代历史，而是指导系统更有方向地回到历史。"
+    },
+    {
+      "id": "inside-out-personatree-compression-loss-001",
+      "sectionTitle": "PersonaTree：把用户画像变成可演化树",
+      "quote": "当然，树结构也带来取舍。它适合保存稳定或半稳定的个性化属性，比如偏好、习惯、风格、身份背景、长期状态；它不一定适合保存所有短期事件。论文的做法是让 PersonaTree 承担核心用户状态，而不是替代完整历史。需要细节时，系统仍会通过 agentic recall 回到历史中找证据。",
+      "occurrence": 1,
+      "title": "树越深会不会丢信息？",
+      "body": "PersonaTree 的确会带来**信息压缩损失**。它不是把完整对话搬进树里，而是把长期有用的信息压缩到固定 schema 下的叶节点。\n\n树越深，字段语义越窄，优点是更可控：\n\n1. 记忆写到哪里更明确。\n2. 生成时更容易只读取相关属性。\n3. 安全门更容易检查路径和格式。\n\n但代价也很明显：叶节点通常只保存某个属性的当前综合描述，容易丢掉短期细节、事件过程、语气、原因链和时间变化。\n\n例如一个叶节点可能只剩下：\n\n```text\n用户近期倾向低压力社交活动。\n```\n\n它不一定保留完整历史：是哪次活动、和谁有关、当时为什么拒绝、这个偏好从什么时候开始变化。\n\n论文的解决思路不是让叶节点保存所有东西，而是把记忆分成两层：\n\n1. **PersonaTree**：保存稳定或半稳定的核心状态。\n2. **历史证据层**：需要细节时，通过 agentic recall 回到原始历史里检索证据。\n\n所以 PersonaTree 更像“当前画像索引 + 压缩状态”，不是完整记忆库。论文也承认它适合核心属性，不适合覆盖所有短期事件。\n\n论文未完整展开每个叶节点是否绑定来源指针、时间戳或多版本证据。如果真实系统担心信息丢失，通常需要给叶节点补充 `source pointer`、时间、置信度或版本记录，让压缩状态能够追溯回具体历史。"
+    },
+    {
+      "id": "inside-out-memlistener-operation-role-001",
+      "sectionTitle": "MemListener 训练：让小模型负责记忆维护",
+      "quote": "如果每次树更新都依赖大模型，Inside Out 的部署价值会打折。所以论文训练了 MemListener：一个轻量级模型，专门把对话块和旧树状态转换成树操作。训练数据来自 HaluMem 和 PersonaMem 中与用户特征有关的子集，并使用 DeepSeek-R1-0528 按 PersonaTree 更新流程生成监督信号，再进行人工校验。",
+      "occurrence": 1,
+      "title": "MemListener 具体负责什么？",
+      "body": "MemListener 的任务不只是从 `ADD / UPDATE / DELETE / NO_OP` 里选一个标签，而是输出一组**可执行的树操作序列**。\n\n每个 dialogue chunk 进来时，它会读三类输入：\n\n1. 当前对话块 `D_t`。\n2. 上一版本树状态 `T_{t-1}`。\n3. 规则集合 `R`，包括可写路径、值格式、长度预算等约束。\n\n然后它要决定：\n\n1. 这段对话有没有稳定用户记忆值得写入；没有就输出 `NO_OP()`。\n2. 如果要写，应该写到哪个树路径。\n3. 使用 `ADD`、`UPDATE` 还是 `DELETE`。\n4. `ADD/UPDATE` 的值具体是什么；`DELETE` 通常不需要新值。\n5. 如果是 `UPDATE`，如何把旧值和新信息合成更准确的当前状态。\n\n例如用户说：\n\n```text\n我以前爱跑步，但最近膝盖不舒服，改成游泳。\n```\n\nMemListener 可能输出：\n\n```text\nUPDATE(psychological.preferences.exercise, \"过去喜欢跑步；近期因膝盖不适，运动偏好转向游泳。\")\n```\n\n安全门后续会检查路径、操作类型、值字符串和长度预算是否合法；它更像执行前校验，不负责把语义重新写一遍。\n\n所以 MemListener 是**记忆维护模型**，不是最终聊天模型。回复模型后面才会使用当前 PersonaTree 和必要证据生成回答。SFT 让它学会合法格式和基本决策，过程奖励 RL 则进一步优化操作类型、路径、值语义和冗余程度。"
+    },
+    {
+      "id": "inside-out-fast-mode-history-query-001",
+      "sectionTitle": "推理：快模式与 agentic recall",
+      "quote": "第一种是 **PersonaTree-Augmented Generation**，也就是快模式。系统直接读出树结构和非空叶节点，把它们作为个性化先验与用户查询拼接，然后一次生成回答。这个模式适合用户问题主要依赖稳定画像的场景，比如偏好推荐、风格适配、长期习惯相关的简单回应。它的优势是低延迟、低成本、上下文短。",
+      "occurrence": 1,
+      "title": "快模式会查历史吗？",
+      "body": "快模式基本**不查询历史对话**。它的设计目标就是低延迟、低成本：直接读出当前 PersonaTree 的结构和非空叶节点，把这些压缩后的用户状态拼到用户问题里，然后一次生成回答。\n\n可以把两种模式区分成：\n\n1. **快模式**：读 `T_N` 的非空叶节点，不额外检索历史证据。\n2. **agentic recall**：基于 `T_N` 扩展 query，再去历史对话库检索证据、重排、融合。\n\n快模式的输入更像：\n\n```text\n用户问题 q\n+ PersonaTree 当前非空叶节点\n-> 一次生成回答\n```\n\n它适合问题主要依赖稳定画像的场景，例如：\n\n```text\n帮我按我的偏好推荐一个周末计划。\n```\n\n这类问题通常只需要树里的偏好、作息、兴趣、约束，不一定需要回到某一段具体历史对话。\n\n如果问题问的是具体历史原因，例如：\n\n```text\n上次我为什么不想参加那个活动？\n```\n\n快模式就可能不够，因为原因可能没有完整保存在叶节点里。这时才需要 agentic recall 回到历史证据层检索。论文的部署判断就是：默认快模式；复杂、长尾、需要细节的问题再触发深召回。"
+    },
+    {
+      "id": "inside-out-agentic-recall-query-expansion-001",
+      "sectionTitle": "推理：快模式与 agentic recall",
+      "quote": "第二种是 **Agentic Recall and Fusion**。当用户明确要求更多细节，或者查询更长尾、更复杂时，系统基于 PersonaTree 生成多个扩展查询。每个扩展查询强调不同属性维度或潜在缺失信息；系统并行检索历史证据，再重排候选，融合成上下文 $C$，最后用 $[q,\\mathcal{T}_N,C]$ 生成回答。",
+      "occurrence": 1,
+      "title": "扩展查询是怎么来的？",
+      "body": "agentic recall 里的扩展查询，可以理解成把原始问题 `q` 和当前 PersonaTree `T_N` 一起作为条件，让系统生成几条更适合检索历史的 query。\n\n更精确地说，论文写的是 expanded queries **conditioned on** `T_N`，也就是“由树状态条件化”。这不等于论文明确说“一定把整棵树完整塞进 prompt”，也不等于一定遍历所有叶节点。论文未提及具体的树节点选择策略、prompt 模板和扩展条数。\n\n论文明确说明的流程是：\n\n1. 输入当前用户问题 `q` 和最终树状态 `T_N`。\n2. 生成多个 conditioned on `T_N` 的扩展查询。\n3. 用这些查询并行检索历史证据。\n4. 对候选证据 rerank。\n5. 融合成上下文 `C`，再用 `[q, T_N, C]` 生成回复。\n\n直觉上，系统会利用 PersonaTree 里的相关用户状态，把短问题改写成更容易命中历史片段的检索语句。原始问题可能是：\n\n```text\n那件事后来我为什么不想去了？\n```\n\nPersonaTree 里如果有这些状态：\n\n```text\nsocial.activities = \"近期减少高压力社交活动\"\npsychological.stress = \"工作压力较高时倾向回避额外安排\"\n```\n\n系统就可以扩展出几条更具体的检索 query：\n\n1. `用户最近提到不想参加活动的原因`\n2. `用户关于高压力社交活动的对话`\n3. `用户工作压力影响活动安排的历史片段`\n4. `用户拒绝某个活动时提到的人物、时间或原因`\n\n这些 query 不是最终答案，而是为了从历史里找证据。不同 query 覆盖不同属性维度：社交活动、压力状态、时间事件、缺失原因。\n\n所以可以说：agentic recall 是“基于整棵 PersonaTree 的当前状态来引导查询扩展”，但论文没有证明它在实现上会无差别读取整棵树。更稳妥的理解是：`T_N` 提供结构化记忆条件，系统据此生成多条历史检索 query。检索器使用 BGE-M3，重排器使用 BGE-Reranker-Large。"
+    },
+    {
+      "id": "inside-out-overall-accuracy-001",
+      "sectionTitle": "实验怎么读",
+      "quote": "主结果最核心的数字是三组 Overall。DeepSeek-V3.1 作为回复模型时，最佳 PersonaTree-ALL 达到 71.31，比 Only LLM 高 18.68，比 ALL Dialogue 高 7.47，比 MemoryOS 高 8.83。Longcat-Flash-Chat 下，PersonaTree-ALL + Qwen3-8B-RL 达到 75.38，比 ALL Dialogue 高 13.58，比 MemoryOS 高 10.35。DeepSeek-R1-0528 下，PersonaTree-ALL + Qwen3-8B-RL 达到 76.06，比 ALL Dialogue 高 11.20，比 MemoryOS 高 13.41。",
+      "occurrence": 1,
+      "title": "Overall 是什么指标？",
+      "body": "这里的 `Overall` 不是 precision，也不是检索里的精确率。论文在 PersonaMem 主实验里使用的是 **accuracy**：回答是否被判定为正确。\n\n可以把它理解成：测试集中有很多个性化问答样本，系统根据长期历史和当前问题生成答案；评测器判断答案是否答对。`Overall` 就是所有类别合在一起后的总体准确率。\n\n论文还报告七类细分能力：\n\n1. `Recall-Facts`：回忆用户事实。\n2. `Pref-Rec`：基于偏好推荐。\n3. `New-Ideas`：生成符合用户状态的新想法。\n4. `Recall-Reason`：回忆原因或动机。\n5. `Pref-Evol`：理解偏好演化。\n6. `Gen-New`：生成新的个性化内容。\n7. `Recall-User`：回忆用户相关信息。\n\n三组 `Overall` 对应三种不同回复模型，不是三种指标：\n\n```text\nDeepSeek-V3.1        -> Overall 71.31\nLongcat-Flash-Chat   -> Overall 75.38\nDeepSeek-R1-0528     -> Overall 76.06\n```\n\n所以这组实验想说明的是：换不同的最终回复模型，PersonaTree-ALL 的总体准确率仍然高于 Only LLM、ALL Dialogue、MemoryOS 等基线。它评的是最终个性化回答质量，不是单独评检索命中率，也不是评 MemListener 生成树操作的 precision。"
+    }
+  ]
+}
