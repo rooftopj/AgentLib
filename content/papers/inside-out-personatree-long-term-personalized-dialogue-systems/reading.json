@@ -1,0 +1,412 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "Inside Out: Evolving User-Centric Core Memory Trees for Long-Term Personalized Dialogue Systems",
+    "translation": "Inside Out：为长期个性化对话系统演化以用户为中心的核心记忆树",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Authors",
+    "page": 1,
+    "sourceText": "Jihao Zhao, Ding Chen, Zhaoxin Fan, Kerun Xu, Mengting Hu, Bo Tang, Feiyu Xiong, Zhiyu Li",
+    "translation": "Jihao Zhao、Ding Chen、Zhaoxin Fan、Kerun Xu、Mengting Hu、Bo Tang、Feiyu Xiong、Zhiyu Li",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Institutions",
+    "page": 1,
+    "sourceText": "School of Information, Renmin University of China; MemTensor (Shanghai) Technology Co., Ltd.; Institute for Advanced Algorithms Research, Shanghai; China Telecom Research Institute; Beijing University of Aeronautics and Astronautics; Nankai University",
+    "translation": "中国人民大学信息学院；忆象量子（上海）科技有限公司；上海高级算法研究院；中国电信研究院；北京航空航天大学；南开大学。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Existing long-term personalized dialogue systems struggle to reconcile unbounded interaction streams with finite context constraints, often succumbing to memory noise accumulation, reasoning degradation, and persona inconsistency.",
+    "translation": "现有长期个性化对话系统很难协调无限增长的交互流和有限上下文窗口之间的矛盾，常常会出现记忆噪声累积、推理能力下降以及人设一致性受损等问题。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "To address these challenges, this paper proposes Inside Out, a framework that utilizes a globally maintained PersonaTree as the carrier of long-term user profiling.",
+    "translation": "为解决这些挑战，论文提出 Inside Out 框架，用一个全局维护的 PersonaTree 作为长期用户画像的载体。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "By constraining the trunk with an initial schema and updating the branches and leaves, PersonaTree enables controllable growth, achieving memory compression while preserving consistency.",
+    "translation": "PersonaTree 用初始 schema 约束树干，并动态更新枝叶，从而让用户记忆能够可控生长，在保持一致性的同时实现记忆压缩。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Moreover, we train a lightweight MemListener via reinforcement learning with process-based rewards to produce structured, executable, and interpretable {ADD, UPDATE, DELETE, NO_OP} operations, thereby supporting the dynamic evolution of the personalized tree.",
+    "translation": "此外，作者通过带过程奖励的强化学习训练轻量级 MemListener，使其生成结构化、可执行、可解释的 ADD、UPDATE、DELETE、NO_OP 操作，从而支持个性化树的动态演化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "During response generation, PersonaTree is directly leveraged to enhance outputs in latency-sensitive scenarios; when users require more details, the agentic mode is triggered to introduce details on-demand under the constraints of the PersonaTree.",
+    "translation": "在回复生成阶段，低延迟场景会直接利用 PersonaTree 增强输出；当用户需要更多细节时，系统触发 agentic 模式，在 PersonaTree 约束下按需引入额外细节。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Experiments show that PersonaTree outperforms full-text concatenation and various personalized memory systems in suppressing contextual noise and maintaining persona consistency. Notably, the small MemListener model achieves memory-operation decision performance comparable to, or even surpassing, powerful reasoning models such as DeepSeek-R1-0528 and Gemini-3-Pro.",
+    "translation": "实验表明，PersonaTree 在抑制上下文噪声和维持人设一致性方面优于全文拼接以及多种个性化记忆系统。尤其值得注意的是，小型 MemListener 模型在记忆操作决策上的表现接近甚至超过 DeepSeek-R1-0528、Gemini-3-Pro 等强推理模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Dialogue-based agents have demonstrated substantial potential in applications such as personal assistants, affective companionship, and long-term question answering. However, within personalized dialogue systems aimed at fostering long-term human-machine trust and emotional connection, a fundamental contradiction exists between the finite context window and the unbounded growth of interaction history.",
+    "translation": "对话式智能体已经在个人助手、情感陪伴和长期问答等应用中展现出很大潜力。然而，对于希望建立长期人机信任和情感连接的个性化对话系统来说，有限上下文窗口和无限增长交互历史之间存在根本矛盾。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Indiscriminate aggregation of massive historical information not only drives computational costs sharply upward, but also introduces substantial irrelevant noise, markedly degrading the signal-to-noise ratio.",
+    "translation": "不加区分地聚合海量历史信息，不仅会显著推高计算成本，还会引入大量无关噪声，使上下文的信噪比明显下降。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Existing studies have primarily explored routes such as explicit profile augmentation and vector-based retrieval, yet neither directly confronts the central bottleneck of personalized memory evolution.",
+    "translation": "已有研究主要探索显式画像增强和基于向量的检索等路线，但二者都没有直接面对个性化记忆演化的核心瓶颈。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Profile-based approaches rely on predefined, static attributes; memory-augmented agents based on vector retrieval still essentially treat memory as text fragments or simple lists of facts.",
+    "translation": "基于画像的方法依赖预定义的静态属性，难以及时捕捉长期互动中隐含的语言风格、价值取向和情感偏好；基于向量检索的记忆增强智能体，本质上仍把记忆当作文本片段或简单事实列表。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Inspired by the film Inside Out and Self-Schema theory, the paper argues that identity does not stem from stacking all experiences, but from core memories that are filtered and hierarchically organized.",
+    "translation": "受电影《头脑特工队》和自我图式理论启发，论文认为个体身份并不来自所有经历的简单堆叠，而是来自经过筛选并层级组织的核心记忆。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "The primary contributions include PersonaTree grounded in the biopsychosocial schema, RL with process rewards for training MemListener, and a collaborative paradigm where small models maintain memory while LLMs handle generation.",
+    "translation": "论文的主要贡献包括：提出基于生物-心理-社会 schema 的 PersonaTree；用过程奖励强化学习训练 MemListener；并展示“小模型维护记忆、大模型负责生成”的协作范式。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Framework Figure",
+    "page": 3,
+    "sourceText": "Overview of the entire process of our Inside Out framework.",
+    "translation": "该图展示 Inside Out 框架的完整流程：先从对话历史构造个性化树的操作数据，再训练记忆监听模型，最后在推理阶段使用个性化树和按需深度召回生成回复。",
+    "kind": "figure",
+    "assetPath": "/generated/inside-out-personatree-long-term-personalized-dialogue-systems/human-kuangjia.jpg"
+  },
+  {
+    "section": "Related Works",
+    "page": 3,
+    "sourceText": "Personalization aims to adapt a dialogue system's linguistic style and interaction policy to a specific user's stable traits and evolving state. In interactive settings, personalization is inherently coupled with memory.",
+    "translation": "个性化的目标是让对话系统的语言风格和交互策略适配特定用户的稳定特征与演化状态。在交互场景中，个性化天然和记忆绑定在一起。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related Works",
+    "page": 3,
+    "sourceText": "To overcome the limitations of LLMs' finite context windows and endow them with capabilities for continuous learning and long-term interaction, constructing memory systems has emerged as a pivotal research direction.",
+    "translation": "为了克服大语言模型有限上下文窗口的限制，并赋予其持续学习和长期交互能力，构建记忆系统已经成为一个关键研究方向。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "The Inside Out Framework",
+    "page": 4,
+    "sourceText": "The framework consists of three key modules: Dynamic PersonaTree Evolution, MemListener Training, and Adaptive Response Generation.",
+    "translation": "Inside Out 框架由三个关键模块组成：动态 PersonaTree 演化、MemListener 训练和自适应回复生成。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "The Inside Out Framework",
+    "page": 4,
+    "sourceText": "PersonaTree and dataset construction initializes a persona tree based on the Biopsychosocial Model, segments the user's dialogue history into consecutive dialogue chunks, and generates operations on the PersonaTree, thereby constructing a memory evolution dataset.",
+    "translation": "PersonaTree 与数据集构造阶段会基于生物-心理-社会模型初始化个性化树，将用户对话历史切成连续对话块，并生成作用于 PersonaTree 的操作，从而构造记忆演化数据集。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "The Inside Out Framework",
+    "page": 4,
+    "sourceText": "MemListener training leverages the resulting high-quality dataset to update the parameters of MemListener via supervised fine-tuning and reinforcement learning with a dynamic reward mechanism.",
+    "translation": "MemListener 训练阶段利用构造出的高质量数据集，通过监督微调和带动态奖励机制的强化学习更新 MemListener 参数，使其能从非结构化对话中抽取结构化记忆。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "The Inside Out Framework",
+    "page": 4,
+    "sourceText": "PersonaTree inference freezes the MemListener parameters at application time, reconstructs the attribute tree from the dialogue history, uses this structured memory to enhance user queries, and ultimately generates personalized responses through an LLM.",
+    "translation": "PersonaTree 推理阶段会冻结 MemListener 参数，根据对话历史重建属性树，使用结构化记忆增强用户查询，并最终通过大语言模型生成个性化回复。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Problem Formulation",
+    "page": 4,
+    "sourceText": "T_t = f_update(T_{t-1}, D_t); y_t = f_gen(x_t, T_t, f_recall(T_t,H)).",
+    "translation": "个性化对话被形式化为显式用户状态跟踪和状态条件生成：当前对话块更新 PersonaTree，回复生成则同时依赖用户输入、当前树状态以及由树状态引导召回的历史证据。",
+    "kind": "equation"
+  },
+  {
+    "section": "Dynamic PersonaTree Evolution",
+    "page": 5,
+    "sourceText": "At system startup, we construct an initial PersonaTree to serve as the starting point of the user's long-term structured state.",
+    "translation": "系统启动时，框架会构建初始 PersonaTree，作为用户长期结构化状态的起点。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dynamic PersonaTree Evolution",
+    "page": 5,
+    "sourceText": "We first determine the set of writable trunk and leaf fields according to a predefined unified schema, and constrain the storage type of each leaf node to a descriptive string.",
+    "translation": "作者首先根据预定义统一 schema 确定可写入的树干和叶节点字段，并把每个叶节点的存储类型约束为描述性字符串，用来保存用户核心个性化属性的压缩摘要。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dynamic PersonaTree Evolution",
+    "page": 5,
+    "sourceText": "Any input modality is normalized into a dialogue-chunk sequence, and for each D_t we execute a closed-loop update of operation-list generation, safe parsing and execution, versioned persistence.",
+    "translation": "任意输入形式都会被归一化为对话块序列；对于每个对话块，系统执行一个闭环更新流程，包括操作列表生成、安全解析与执行、版本化持久化。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dynamic PersonaTree Evolution",
+    "page": 5,
+    "sourceText": "The operation types are limited to ADD(path, value), UPDATE(path, value), DELETE(path, value), and NO_OP().",
+    "translation": "操作类型被限制为四类：ADD 用于写入新属性，UPDATE 用于重写目标叶节点，DELETE 用于清空或标记删除目标信息，NO_OP 表示当前对话块没有应写入长期记忆的稳定核心信息。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dynamic PersonaTree Evolution",
+    "page": 5,
+    "sourceText": "Potential conflicts between new and old information are resolved by LLM during the generation of O_t, while parsing and execution only enforce structural and capacity constraints.",
+    "translation": "新旧信息的潜在冲突由大语言模型在生成操作列表时解决；解析与执行模块只负责结构和容量约束，不做二次语义改写。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MemListener Training",
+    "page": 6,
+    "sourceText": "During training data construction, we select subsets from HaluMem and PersonaMem that are relevant to implicitly characterizing user-specific attributes as the raw corpus sources.",
+    "translation": "训练数据构造时，作者从 HaluMem 和 PersonaMem 中选择与隐式刻画用户特征相关的子集作为原始语料来源。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MemListener Training",
+    "page": 6,
+    "sourceText": "L_SFT(theta) = -1/tau sum_t log P_theta(o_t | o_<t, s).",
+    "translation": "监督微调目标是标准自回归交叉熵：给定包含对话块、前一树状态和规则约束的输入，让模型稳定生成目标操作序列。",
+    "kind": "equation"
+  },
+  {
+    "section": "MemListener Training",
+    "page": 6,
+    "sourceText": "After the SFT warm-up, we continue alignment with the remaining data using RL driven by process-based rewards. We set the model's maximum context length to 11K tokens, with the input length capped at 10K.",
+    "translation": "在 SFT 预热后，作者继续使用过程奖励驱动的强化学习对齐模型。模型最大上下文长度设为 11K tokens，输入长度上限为 10K，属于超长序列优化场景。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "MemListener Training",
+    "page": 6,
+    "sourceText": "J_RL(theta) is a DAPO objective over groups of sampled candidate outputs; advantages are standardized within group and the clipping range is asymmetric with epsilon_low = 0.2 and epsilon_high = 0.28.",
+    "translation": "强化学习目标采用 DAPO：对同一输入采样一组候选操作序列，使用过程奖励评分并在组内标准化 advantage；裁剪范围采用非对称设置，低端为 0.2，高端为 0.28，以给低概率探索 token 更大的上调空间。",
+    "kind": "equation"
+  },
+  {
+    "section": "MemListener Algorithm",
+    "page": 6,
+    "sourceText": "Algorithm: PersonaTree evolution with MemListener\nRequire: dialogue chunks D_1...D_N, initial tree T_0, rule set R, MemListener pi_theta\nEnsure: updated PersonaTree T_N\nfor t = 1 to N:\n  Input_t <- (D_t, T_{t-1}, R)\n  O_t <- pi_theta(Input_t)\n  validate paths, operation types, value strings, and length budgets\n  execute ADD / UPDATE / DELETE / NO_OP on T_{t-1}\n  persist T_t as a new version\nreturn T_N",
+    "translation": "这段算法概括 PersonaTree 的演化流程：系统按时间顺序处理对话块，把当前块、旧树状态和规则约束交给 MemListener，生成可执行操作列表；安全门检查路径、操作类型、值格式和长度预算；执行树编辑并保存新版本，最终得到压缩后的长期用户记忆。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "Adaptive Response Generation",
+    "page": 7,
+    "sourceText": "During inference, we treat the final tree state T_N as structured long-term memory and adopt an adaptive response strategy to satisfy both low-latency and high-coverage requirements.",
+    "translation": "推理时，系统把最终树状态视为结构化长期记忆，并采用自适应回复策略，同时满足低延迟和高覆盖需求。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adaptive Response Generation",
+    "page": 7,
+    "sourceText": "For latency-sensitive interaction, the system directly reads out the structure of T_N and non-empty leaf texts as a personalized prior, concatenates them with the user query, and generates an answer in a single pass.",
+    "translation": "在延迟敏感交互中，系统直接读出 PersonaTree 结构和非空叶节点文本作为个性化先验，将其与用户查询拼接，并单次生成回答。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Adaptive Response Generation",
+    "page": 7,
+    "sourceText": "When the query requires more details, the system switches to agentic recall mode: it generates expanded queries conditioned on T_N, retrieves evidence in parallel, reranks the candidates, fuses context C, and generates the final answer conditioned on [q, T_N, C].",
+    "translation": "当查询需要更多细节时，系统切换到 agentic recall 模式：基于 PersonaTree 生成多个扩展查询，并行检索证据、重排候选、融合上下文，最后在用户查询、PersonaTree 和融合证据共同条件下生成最终回答。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiments",
+    "page": 8,
+    "sourceText": "We conduct experiments on the PersonaMem benchmark. Each history consists of approximately 10 multi-turn conversations concatenated in chronological order, resulting in about 32k tokens and covering 15 categories of real-world tasks requiring personalization.",
+    "translation": "实验在 PersonaMem 基准上进行。每条历史由约 10 段多轮对话按时间顺序拼接，整体长度约 32K tokens，覆盖 15 类需要个性化的真实任务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiments",
+    "page": 8,
+    "sourceText": "We use accuracy as the primary metric, reporting overall accuracy and per-skill accuracies across seven query-skill categories.",
+    "translation": "评测使用准确率作为主要指标，同时报告总体准确率和七类查询技能上的细分准确率。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiments",
+    "page": 8,
+    "sourceText": "Baselines include Only LLM, Full Context, LangMem, Mem0, A-Mem, and MemoryOS. BGE-M3 is used as the retriever and BGE-Reranker-Large as the reranking model.",
+    "translation": "基线包括不提供历史的纯模型设置、拼接全历史的全文上下文设置，以及四种代表性记忆管理框架。检索组件统一使用同一个多语义向量检索器，重排阶段统一使用同一个大型重排模型。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Main Results",
+    "page": 9,
+    "sourceText": "On DeepSeek-V3.1, our best configuration achieves Overall = 71.31, improving by +18.68 over Only LLM, +7.47 over ALL Dialogue, and +8.83 over MemoryOS.",
+    "translation": "在第一种强对话模型作为回复模型时，最佳配置总体准确率达到 71.31，比纯模型设置高 18.68，比全文拼接高 7.47，比最强的对比记忆系统高 8.83。",
+    "kind": "table"
+  },
+  {
+    "section": "Main Results",
+    "page": 9,
+    "sourceText": "On Longcat-Flash-Chat, PersonaTree-ALL with Qwen3-8B-RL attains Overall = 75.38, improving by +13.58 over ALL Dialogue and +10.35 over MemoryOS.",
+    "translation": "在第二种聊天模型作为回复模型时，使用强化学习训练过的八十亿参数树操作模型，总体准确率达到 75.38，比全文拼接高 13.58，比最强对比记忆系统高 10.35。",
+    "kind": "table"
+  },
+  {
+    "section": "Main Results",
+    "page": 9,
+    "sourceText": "When using DeepSeek-R1-0528 as the response model, PersonaTree-ALL with Qwen3-8B-RL reaches Overall = 76.06, outperforming ALL Dialogue by +11.20 and MemoryOS by +13.41.",
+    "translation": "当强推理模型作为回复模型时，使用强化学习训练过的八十亿参数树操作模型，总体准确率达到 76.06，比全文拼接高 11.20，比最强对比记忆系统高 13.41。",
+    "kind": "table"
+  },
+  {
+    "section": "Model Comparison",
+    "page": 10,
+    "sourceText": "The trained PersonaTree introduces only about 2.2K--2.6K tokens of memory context on average, yet can match or exceed the ALL Dialogue baseline that requires approximately 32K context.",
+    "translation": "训练后的 PersonaTree 平均只引入约 2.2K 到 2.6K tokens 的记忆上下文，却能匹配甚至超过需要约 32K 上下文的全文拼接基线。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation Study",
+    "page": 10,
+    "sourceText": "PersonaTree alone yields robust gains, but agentic recall and fusion is critical for achieving the best performance, while the routing mechanism can closely match full-mode performance while substantially reducing additional retrieval overhead.",
+    "translation": "消融实验显示，单独使用 PersonaTree 已能带来稳健增益，但 agentic recall 和融合是达到最佳性能的关键；路由机制则能在显著降低额外检索开销的同时接近完整模式表现。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation Study",
+    "page": 10,
+    "sourceText": "Direct generation achieves consistent advantages over extract-then-transform, with improvements ranging from approximately +0.34 to +3.06.",
+    "translation": "在生成 PersonaTree 操作时，直接生成操作序列持续优于“先抽取信息再转换操作”的两阶段方案，提升幅度约为 0.34 到 3.06。",
+    "kind": "table"
+  },
+  {
+    "section": "Hyperparameter Analysis",
+    "page": 11,
+    "sourceText": "For dialogue chunking window size, w = 3 yields the most stable and overall best performance. w = 1 is overly fragmented, while w >= 10 increases cross-topic mixing and timeline collapsing.",
+    "translation": "对话分块窗口大小分析显示，$w=3$ 最稳定且总体表现最好。$w=1$ 过于碎片化，容易引入噪声写入；$w \\ge 10$ 会增加跨话题混合和时间线压缩，使关键线索更容易被稀释或遗漏。",
+    "kind": "table"
+  },
+  {
+    "section": "Conclusion",
+    "page": 11,
+    "sourceText": "This paper studies memory evolution for long-term personalized dialogue and proposes Inside Out, which uses an explicit, structured PersonaTree as long-term memory to maintain personalized states under unbounded interactions.",
+    "translation": "论文研究长期个性化对话中的记忆演化问题，并提出 Inside Out，用显式结构化的 PersonaTree 作为长期记忆，在无限交互下维护个性化状态。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations",
+    "page": 12,
+    "sourceText": "For finer-grained domain knowledge, task-skill profiles, or cross-domain user states, the schema can be further extended into composable subtrees or plugin-style modules.",
+    "translation": "对于更细粒度的领域知识、任务技能画像或跨领域用户状态，schema 还可以扩展为可组合子树或插件式模块。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations",
+    "page": 12,
+    "sourceText": "For memory forms requiring stronger temporal constraints, evidence provenance, or multi-version coexistence, additional metadata such as explicit timestamps, confidence scores, and source pointers can be incorporated.",
+    "translation": "对于需要更强时间约束、证据来源或多版本共存的记忆形式，可以加入显式时间戳、置信度分数和来源指针等额外元数据，以提升可追溯性和可控性。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Limitations",
+    "page": 12,
+    "sourceText": "As an explicit long-term memory carrier, PersonaTree naturally supports access control, interpretable edits, and revocability.",
+    "translation": "作为显式长期记忆载体，PersonaTree 天然支持访问控制、可解释编辑和可撤销性；真实部署中还需要用户可见的记忆管理、敏感字段分层和数据最小化存储策略。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Appendix: Rethinking Personalization",
+    "page": 13,
+    "sourceText": "How can a model, relying solely on a long personalized dialogue history, learn and emulate one participant's implicit persona to generate responses that remain consistent in style, content, and relational stance?",
+    "translation": "附录重新界定个性化问题：模型如何仅依靠长期个性化对话历史，学习并模拟某个参与者的隐式 persona，从而生成在风格、内容和关系立场上保持一致的回复？",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Appendix: Training Hyperparameters",
+    "page": 14,
+    "sourceText": "Key hyperparameters for DAPO training include full fine-tuning, bfloat16, learning rate 1e-6, max sequence length 11264, max generation length 512, number of generations 8, temperature 1.0, top-p 0.9, top-k 50, clipping epsilon 0.2 / 0.28, beta 0.001, and dynamic sampling enabled.",
+    "translation": "DAPO 训练关键超参数包括：全量微调、bfloat16 精度、学习率 $1\\times10^{-6}$、最大序列长度 11264、最大生成长度 512、每个输入采样 8 个候选、温度 1.0、top-p 0.9、top-k 50、裁剪参数 0.2/0.28、KL 控制系数 0.001，并启用动态采样。",
+    "kind": "table"
+  },
+  {
+    "section": "Appendix: Extra Experiments",
+    "page": 15,
+    "sourceText": "Even when replacing the extraction model DeepSeek-R1-0528 with DeepSeek-V3.1, PersonaTree-ALL still achieves the best Overall scores under all three response models, reaching 70.80, 73.34, and 74.53.",
+    "translation": "附录补充实验显示，即使更换记忆抽取模型，完整个性化树方案仍在三种回复模型下取得最高总体分，分别达到 70.80、73.34 和 74.53。",
+    "kind": "table"
+  },
+  {
+    "section": "Appendix: Visualization",
+    "page": 16,
+    "sourceText": "Radar-chart comparison of PersonaTree and baselines across multi-dimensional capability metrics under two memory-extraction settings and three response models.",
+    "translation": "雷达图比较了 PersonaTree 与各基线在多维能力指标上的表现，覆盖两种记忆抽取设置和三种回复模型；PersonaTree 的多边形整体更向外扩张，说明提升不集中在单一指标上。",
+    "kind": "figure",
+    "assetPath": "/generated/inside-out-personatree-long-term-personalized-dialogue-systems/leidatu.jpg"
+  },
+  {
+    "section": "Appendix: Visualization",
+    "page": 16,
+    "sourceText": "Overall performance of memory-operation models across three response models.",
+    "translation": "柱状图展示了不同记忆操作模型在三种回复模型下的总体表现。未训练抽取器通常落后于训练后的模型，而 SFT+RL 两阶段训练带来更稳定、可迁移的提升。",
+    "kind": "figure",
+    "assetPath": "/generated/inside-out-personatree-long-term-personalized-dialogue-systems/zhuzhuang.jpg"
+  },
+  {
+    "section": "Appendix: Visualization",
+    "page": 16,
+    "sourceText": "Effect of dialogue chunking window size on performance across three response models.",
+    "translation": "折线图展示对话分块窗口大小对性能的影响。总体趋势表明，中等窗口最优，尤其是 $w=3$ 在三种回复模型下更稳定。",
+    "kind": "figure",
+    "assetPath": "/generated/inside-out-personatree-long-term-personalized-dialogue-systems/zhexian.jpg"
+  },
+  {
+    "section": "Appendix: Prompt",
+    "page": 17,
+    "sourceText": "Prompt for operational generation in PersonaTree: You are a Memory-Tree Operation Generator. You will be given an initial persona schema and a dialogue history. Transform the dialogue history into a sequence of operations for updating the persona schema. Use only ADD(path, value), UPDATE(path, value), DELETE(path, None), NO_OP(). Output only operations, one operation per line.",
+    "translation": "PersonaTree 操作生成提示要求模型扮演记忆树操作生成器：给定初始 persona schema 和对话历史后，把对话历史转换为更新 schema 的操作序列。模型只能使用 ADD、UPDATE、DELETE、NO_OP 四类操作，并且只输出操作本身，每行一个操作。",
+    "kind": "code"
+  },
+  {
+    "section": "Appendix: Prompt",
+    "page": 18,
+    "sourceText": "Reward-function prompt: assign an overall quality score in [-1, 1] to the model-predicted operation sequence given the ground-truth annotated operation sequence. Output only a single JSON object: {\"score\": <float>}.",
+    "translation": "奖励函数提示要求评审模型比较预测操作序列与人工标注真值操作序列，并给出 $[-1,1]$ 范围内的整体质量分。输出必须是单个 JSON 对象，只包含 score 字段，不允许附加解释。",
+    "kind": "code"
+  }
+]

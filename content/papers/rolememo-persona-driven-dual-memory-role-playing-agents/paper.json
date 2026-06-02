@@ -1,0 +1,115 @@
+{
+  "slug": "rolememo-persona-driven-dual-memory-role-playing-agents",
+  "title": "From Facts to Insights: A Persona-Driven Dual Memory Framework and Dataset for Role-Playing Agents",
+  "authors": [
+    "Rongsheng Zhang",
+    "Ruofan Hu",
+    "Weijie Chen",
+    "Jiji Tang",
+    "Junnan Ren",
+    "Wanying Wu",
+    "Xunuoyan Chen",
+    "Tangjie Lv",
+    "Tao Jin",
+    "Zhou Zhao"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Rongsheng Zhang",
+      "institutionIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Ruofan Hu",
+      "institutionIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Weijie Chen",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Jiji Tang",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Junnan Ren",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Wanying Wu",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Xunuoyan Chen",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Tangjie Lv",
+      "institutionIds": [
+        2
+      ]
+    },
+    {
+      "name": "Tao Jin",
+      "institutionIds": [
+        1
+      ]
+    },
+    {
+      "name": "Zhou Zhao",
+      "institutionIds": [
+        1
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "Zhejiang University",
+      "translation": "浙江大学"
+    },
+    {
+      "id": 2,
+      "name": "Fuxi AI Lab, Netease Inc.",
+      "translation": "网易伏羲 AI Lab"
+    }
+  ],
+  "institutions": [
+    "Zhejiang University",
+    "Fuxi AI Lab, Netease Inc."
+  ],
+  "year": 2026,
+  "venue": "arXiv",
+  "category": "memory",
+  "categoryLabel": "记忆系统",
+  "tags": [
+    "RoleMemo",
+    "DualMem",
+    "角色扮演 Agent",
+    "Persona Memory",
+    "长期记忆",
+    "Insight Cognition",
+    "SFT",
+    "RL"
+  ],
+  "summary": "这篇论文指出，角色扮演 agent 的长期记忆不能只保存中性的事实摘要；高保真人设对话需要把分散事实解释成人设视角下的 insight。作者提出 RoleMemo 数据集，覆盖 2052 个 persona、1702 个话题、最长 256k token 对话历史和 20244 个查询，任务要求 agent 跨会话整合事实并做 persona-driven interpretation。基于 RoleMemo，论文提出 DualMem：把记忆解耦为 factual cognition 和 insight cognition，两者共同存入统一 memory bank，并通过 SFT 与多轮轨迹 RL 训练 4B 记忆构建模型。实验显示 DualMem-RL 在 Fact Recall@10、Insight Recall@10 和角色扮演质量上均超过 persona-agnostic memory baselines，并在 32k 到 256k 上下文长度下保持更稳定表现。",
+  "arxivId": "2605.25693",
+  "arxivUrl": "https://arxiv.org/abs/2605.25693",
+  "codeUrl": "https://github.com/role2026/rolememo",
+  "sourcePath": "assets/papers/arXiv-2605.25693v1-d"
+}

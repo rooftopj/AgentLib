@@ -1,0 +1,131 @@
+{
+  "slug": "inside-out-personatree-long-term-personalized-dialogue-systems",
+  "title": "Inside Out: Evolving User-Centric Core Memory Trees for Long-Term Personalized Dialogue Systems",
+  "authors": [
+    "Jihao Zhao",
+    "Ding Chen",
+    "Zhaoxin Fan",
+    "Kerun Xu",
+    "Mengting Hu",
+    "Bo Tang",
+    "Feiyu Xiong",
+    "Zhiyu Li"
+  ],
+  "authorAffiliations": [
+    {
+      "name": "Jihao Zhao",
+      "institutionIds": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "Ding Chen",
+      "institutionIds": [
+        4
+      ]
+    },
+    {
+      "name": "Zhaoxin Fan",
+      "institutionIds": [
+        2,
+        5
+      ]
+    },
+    {
+      "name": "Kerun Xu",
+      "institutionIds": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "Mengting Hu",
+      "institutionIds": [
+        2,
+        6
+      ]
+    },
+    {
+      "name": "Bo Tang",
+      "institutionIds": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "Feiyu Xiong",
+      "institutionIds": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "Zhiyu Li",
+      "institutionIds": [
+        2,
+        3
+      ]
+    }
+  ],
+  "institutionDetails": [
+    {
+      "id": 1,
+      "name": "School of Information, Renmin University of China",
+      "translation": "中国人民大学信息学院"
+    },
+    {
+      "id": 2,
+      "name": "MemTensor (Shanghai) Technology Co., Ltd.",
+      "translation": "忆象量子（上海）科技有限公司"
+    },
+    {
+      "id": 3,
+      "name": "Institute for Advanced Algorithms Research, Shanghai",
+      "translation": "上海高级算法研究院"
+    },
+    {
+      "id": 4,
+      "name": "China Telecom Research Institute",
+      "translation": "中国电信研究院"
+    },
+    {
+      "id": 5,
+      "name": "Beijing University of Aeronautics and Astronautics",
+      "translation": "北京航空航天大学"
+    },
+    {
+      "id": 6,
+      "name": "Nankai University",
+      "translation": "南开大学"
+    }
+  ],
+  "institutions": [
+    "School of Information, Renmin University of China",
+    "MemTensor (Shanghai) Technology Co., Ltd.",
+    "Institute for Advanced Algorithms Research, Shanghai",
+    "China Telecom Research Institute",
+    "Beijing University of Aeronautics and Astronautics",
+    "Nankai University"
+  ],
+  "year": 2026,
+  "venue": "arXiv",
+  "category": "memory",
+  "categoryLabel": "记忆系统",
+  "tags": [
+    "PersonaTree",
+    "MemListener",
+    "长期个性化对话",
+    "用户画像",
+    "过程奖励",
+    "DAPO",
+    "结构化记忆",
+    "自适应召回"
+  ],
+  "summary": "这篇论文研究长期个性化对话系统中的记忆演化问题。作者提出 Inside Out 框架，用一个全局维护的 PersonaTree 作为长期用户画像载体：树干由生物-心理-社会模型约束，枝叶通过 ADD、UPDATE、DELETE、NO_OP 等原子操作随对话动态演化。为了让小模型也能维护记忆，论文用 28k 指令数据训练 MemListener，并通过过程奖励强化学习让它生成结构化、可执行、可解释的树操作。推理阶段，系统在低延迟场景直接读取 PersonaTree；遇到长尾细节需求时，再触发 agentic recall 进行查询扩展、并行检索和融合生成。实验显示，PersonaTree 在 PersonaMem 上跨三种响应模型稳定超过全文拼接和 LangMem、Mem0、A-Mem、MemoryOS 等记忆系统；训练后的 Qwen 系列小模型在记忆操作决策上能接近甚至超过强推理模型，同时把平均记忆上下文压缩到约 2.2K 到 2.6K tokens。",
+  "arxivId": "2601.05171",
+  "arxivUrl": "https://arxiv.org/abs/2601.05171",
+  "codeUrl": "https://github.com/MemTensor/InsideOut",
+  "sourcePath": "assets/papers/arXiv-2601.05171v2-d"
+}

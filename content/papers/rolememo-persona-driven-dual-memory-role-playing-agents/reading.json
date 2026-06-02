@@ -1,0 +1,292 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "From Facts to Insights: A Persona-Driven Dual Memory Framework and Dataset for Role-Playing Agents",
+    "translation": "从事实到洞察：面向角色扮演智能体的人设驱动双记忆框架与数据集",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Authors",
+    "page": 1,
+    "sourceText": "Rongsheng Zhang, Ruofan Hu, Weijie Chen, Jiji Tang, Junnan Ren, Wanying Wu, Xunuoyan Chen, Tangjie Lv, Tao Jin, Zhou Zhao",
+    "translation": "Rongsheng Zhang、Ruofan Hu、Weijie Chen、Jiji Tang、Junnan Ren、Wanying Wu、Xunuoyan Chen、Tangjie Lv、Tao Jin、Zhou Zhao",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Institutions",
+    "page": 1,
+    "sourceText": "Zhejiang University; Fuxi AI Lab, Netease Inc.",
+    "translation": "浙江大学；网易伏羲 AI Lab",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "While role-playing agents excel in short-term interactions, long-term conversations overwhelm context windows, motivating external memory frameworks.",
+    "translation": "角色扮演智能体在短期互动中表现较好，但长期对话会超过上下文窗口，因此需要外部记忆框架支持。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Current systems typically rely on persona-agnostic summarization, which records facts without persona-specific interpretation, yielding generic responses that compromise persona fidelity.",
+    "translation": "现有系统通常依赖与人设无关的摘要，只记录事实而不做人设特定解释，导致回复泛化，损害角色一致性。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "We introduce RoleMemo, a dataset featuring four reasoning tasks where the factual fragments must be interpreted through the persona to reach the correct answer.",
+    "translation": "论文提出 RoleMemo 数据集，其中四类推理任务都要求把事实碎片放在人设视角下解释，才能得到正确答案。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "We thus propose DualMem, which decouples memory into two streams: factual cognition and persona-conditioned insight.",
+    "translation": "为此，作者提出 DualMem，把记忆拆成两条流：事实认知和人设条件化洞察。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "Trained through Supervised Fine-Tuning (SFT) and Reinforcement Learning (RL), our framework with a 4B-parameter model outperforms zero-shot persona-agnostic frameworks powered by DeepSeek-V3.2 for sustained persona fidelity.",
+    "translation": "通过监督微调和强化学习训练后，论文中的 4B 参数框架在持续人设一致性上超过由 DeepSeek-V3.2 驱动的零样本人设无关记忆框架。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "Persona-agnostic memory stores the neutral fact, forcing the agent to reinterpret it at inference time and fall back to a generic reply. Persona-driven memory stores a persona-conditioned interpretation grounded in the fact, enabling an in-character response.",
+    "translation": "图示中的关键对比是：人设无关记忆只保存中性事实，迫使智能体在推理时临时重新解释，容易退回普通回复；人设驱动记忆保存基于事实的人设条件化解释，因此更容易生成符合角色的回应。",
+    "kind": "figure",
+    "assetPath": "/generated/rolememo-persona-driven-dual-memory-role-playing-agents/intro_fig_new.png"
+  },
+  {
+    "section": "Introduction",
+    "page": 2,
+    "sourceText": "A character's response is shaped not merely by what happened, but by how the character interprets what happened.",
+    "translation": "角色回复不只取决于发生了什么，还取决于这个角色如何解释发生的事情。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Related Work",
+    "page": 3,
+    "sourceText": "Current memory benchmarks evaluate agentic memory frameworks primarily through explicit fact retrieval. They prioritize literal matching between queries and keys, failing to evaluate how memory informs persona-conditioned responses.",
+    "translation": "现有记忆基准主要通过显式事实检索评估智能体记忆，偏向查询和 key 的字面匹配，难以评价记忆如何支撑人设条件化回复。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset",
+    "page": 4,
+    "sourceText": "We introduce RoleMemo, a dataset in which queries require reconstructing scattered facts into insights through persona-driven interpretation.",
+    "translation": "RoleMemo 的设定是：查询要求智能体把分散事实重构成人设驱动的洞察，而不是只找一条事实。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset",
+    "page": 4,
+    "sourceText": "We instantiate 2,052 personas across 23 domains, each defined by professional backgrounds and hobbies. This process yields 26,636 insights.",
+    "translation": "数据集构造了 2052 个 persona，覆盖 23 个领域，每个 persona 由职业背景和兴趣等信息定义，并生成 26636 条 insight。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset",
+    "page": 4,
+    "sourceText": "To ground these insights, we generate discrete factual fragments that remain neutral in isolation but reveal meaning through persona-driven interpretation.",
+    "translation": "为了给 insight 提供依据，作者生成离散事实片段。这些事实单独看是中性的，但放在人设视角下会显现特定含义。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset",
+    "page": 4,
+    "sourceText": "The query types are Interpretive Attribution, Contradiction Revelation, Value Judgment, and Decision Guidance.",
+    "translation": "RoleMemo 的查询类型包括解释性归因、矛盾揭示、价值判断和决策指导四类。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset",
+    "page": 5,
+    "sourceText": "We scale histories from 32k to 256k tokens, with multiple queries per persona.",
+    "translation": "论文把对话历史扩展到 32k 到 256k token，并为每个 persona 构造多个查询，用来测试长上下文记忆的稳定性。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset",
+    "page": 5,
+    "sourceText": "By applying these checks to the entire dataset, we retain 20,244 queries along with the corresponding conversation histories.",
+    "translation": "经过 insight 特异性、记忆必要性、难度控制和安全过滤等质量检查后，最终保留 20244 个查询及对应对话历史。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Dataset Comparison",
+    "page": 5,
+    "sourceText": "RoleMemo features Cross-Session Reasoning, Deep Persona Interpretation, In-Character Evaluation, and LLM Fine-Tuning data. RoleMemo has 2,052 personas, 1,702 topics, 256k maximum context length, and 20,244 total queries.",
+    "translation": "与既有长期记忆和人设记忆基准相比，本文数据集同时覆盖跨会话推理、深层人设解释、角色内评测和面向模型微调的训练数据；规模包括 2052 个角色画像、1702 个话题、最长 256k 词元上下文和 20244 个查询。",
+    "kind": "table"
+  },
+  {
+    "section": "Method",
+    "page": 6,
+    "sourceText": "DualMem is designed around two complementary cognition types: factual cognition captures objective events and semantic details, while insight cognition derives persona-driven interpretations from factual cognition.",
+    "translation": "DualMem 围绕两类互补认知设计：事实认知捕捉客观事件和语义细节，洞察认知则从事实认知中推导人设驱动解释。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Method Figure",
+    "page": 6,
+    "sourceText": "The RoleMemo dataset and DualMem framework. Left: the four-phase dataset construction pipeline. Right: DualMem maintains a unified Memory Bank that decouples factual and insight cognition while preserving their links.",
+    "translation": "图中左侧展示 RoleMemo 四阶段数据构造流程，右侧展示 DualMem 框架：统一记忆库中同时保存事实认知和洞察认知，并保留二者链接。",
+    "kind": "figure",
+    "assetPath": "/generated/rolememo-persona-driven-dual-memory-role-playing-agents/mainfig.png"
+  },
+  {
+    "section": "Method",
+    "page": 6,
+    "sourceText": "M_i = {F_i, I_i} = f_theta(C_i, M_{<i}, p); y_hat = f_phi(p, q, R(M, q)).",
+    "translation": "每一步记忆由事实认知和洞察认知组成，由记忆构建模型根据当前对话块、此前记忆和 persona 生成；最终角色扮演模型基于 persona、查询和检索到的记忆生成回答。",
+    "kind": "equation"
+  },
+  {
+    "section": "Method",
+    "page": 6,
+    "sourceText": "When an insight cognition is retrieved, its linked factual cognitions are also included to provide grounding evidence.",
+    "translation": "当检索到 insight cognition 时，系统也会一并纳入它链接的 factual cognition，以提供可追溯事实依据。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training",
+    "page": 7,
+    "sourceText": "Under SFT, we train f_theta for dual memory operations through instruction tuning. The model extracts factual cognition F_i from C_i and p, then generates insight cognition I_i through persona p.",
+    "translation": "在监督微调阶段，模型学习双记忆操作：先从对话块和 persona 抽取事实认知，再通过 persona 生成洞察认知。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training",
+    "page": 7,
+    "sourceText": "L_SFT(theta) = sum_i log P_theta(F_i | C_i, p) + log P_theta(I_i | F_i, M_{<i}, p).",
+    "translation": "SFT 目标由两部分组成：学习生成事实认知，以及在事实、历史记忆和 persona 条件下生成洞察认知。",
+    "kind": "equation"
+  },
+  {
+    "section": "Training",
+    "page": 7,
+    "sourceText": "Under RL, the memory construction model autonomously executes multiple rounds of cognition construction without intermediate supervision, generating a complete memory trajectory tau.",
+    "translation": "在强化学习阶段，记忆构建模型不再依赖中间监督，而是自主执行多轮认知构建，生成完整记忆轨迹。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training",
+    "page": 7,
+    "sourceText": "GPT-5.1 evaluates responses using two reward functions: Format Compliance and In-Character Quality, yielding a combined scalar reward R(y_hat_tau).",
+    "translation": "训练时 GPT-5.1 根据格式合规和角色内质量两个奖励函数评价回复，得到轨迹级标量奖励。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Training Algorithm",
+    "page": 7,
+    "sourceText": "Algorithm: DualMem memory construction and response generation\nRequire: persona p, chunks C_1...C_T, prior memory M, query q\nEnsure: response y_hat and updated memory M\nfor i = 1 to T:\n  F_i <- ExtractFacts(C_i, p)\n  I_i <- BuildInsights(F_i, M_{<i}, p)\n  M_i <- {F_i, I_i}\n  M <- M union M_i\nR_q <- Retrieve(M, q)\nif retrieved insight I_j exists:\n  include linked facts F_j\nreturn f_phi(p, q, R_q)",
+    "translation": "这段伪代码概括 DualMem 的流程：顺序处理对话块，生成事实认知和洞察认知，写入统一记忆库；查询时检索相关认知，若命中 insight，则把链接事实一并纳入，再让角色扮演 agent 生成回答。",
+    "kind": "algorithm"
+  },
+  {
+    "section": "Experiments",
+    "page": 8,
+    "sourceText": "For SFT, we train on 8 NVIDIA A800 GPUs using Qwen3-4B, learning rate 1e-5 over 1000 steps. For RL training, learning rate is 1e-6, with 8 rollouts per batch for 500 steps.",
+    "translation": "实验使用 Qwen3-4B 作为记忆构建模型，在 8 张 A800 上训练。SFT 学习率为 1e-5，训练 1000 步；RL 学习率为 1e-6，每批 8 个 rollout，训练 500 步。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Experiments",
+    "page": 8,
+    "sourceText": "Nine baselines are compared, including NoMem and eight persona-agnostic memory frameworks: HiMem, O-Mem, Mirix, LightMem, SimpleMem, Mem0, PreMem, and Memalpha.",
+    "translation": "实验比较九种基线：一种是不使用外部记忆、只依赖上下文的设置，另外八种是人设无关的智能体记忆框架，包括层级记忆、操作式记忆、轻量记忆、简单记忆、预记忆和若干已有开源记忆系统。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Memory Results",
+    "page": 9,
+    "sourceText": "DualMem-RL and DualMem-SFT reach 0.77 and 0.76 average Fact Recall@10, exceeding all DeepSeek-V3.2-driven baselines. DualMem-RL reaches 0.73 average Insight Recall@10 and DualMem-SFT reaches 0.65, while the best baseline reaches only 0.41.",
+    "translation": "在记忆构建质量上，强化学习版和监督微调版双记忆框架的平均事实召回率分别为 0.77 和 0.76，超过所有强模型驱动的基线；洞察召回率方面，强化学习版达到 0.73，监督微调版达到 0.65，而最佳基线只有 0.41。",
+    "kind": "table"
+  },
+  {
+    "section": "Role-playing Results",
+    "page": 10,
+    "sourceText": "DualMem-RL achieves 4.22 information richness, 3.78 logical quality, 4.37 character consistency, 4.27 conversational attractiveness, and 4.16 overall average, surpassing the 3.94 to 4.01 range of persona-agnostic frameworks.",
+    "translation": "角色扮演质量上，DualMem-RL 在信息丰富度、逻辑质量、角色一致性、对话吸引力和总体平均分上分别达到 4.22、3.78、4.37、4.27 和 4.16，超过人设无关框架 3.94 到 4.01 的总体范围。",
+    "kind": "table"
+  },
+  {
+    "section": "Ablation",
+    "page": 10,
+    "sourceText": "Removing insight cognition drops logical quality from 3.78 to 3.57. Removing fact cognition reduces information richness from 4.22 to 3.98. Removing RoleMemo training yields only 4.02 on average.",
+    "translation": "消融表明，去掉洞察认知会把逻辑质量从 3.78 降到 3.57；去掉事实认知会把信息丰富度从 4.22 降到 3.98；去掉 RoleMemo 训练后总体平均只有 4.02。",
+    "kind": "table"
+  },
+  {
+    "section": "Reliability",
+    "page": 11,
+    "sourceText": "Human-human agreement is r = 0.88, and correlations between each annotator and the LLM judge are r = 0.82 and 0.84.",
+    "translation": "评测可靠性方面，两位人工标注者相关系数为 0.88，人工标注者与 GPT-5.1 judge 的相关系数为 0.82 和 0.84，说明自动评测与人工判断较一致。",
+    "kind": "table"
+  },
+  {
+    "section": "Transferability",
+    "page": 11,
+    "sourceText": "Incorporating insights yields 0.09 improvement for O-Mem and 0.05 for PreMem, yet these gains are smaller than those of the 4B model trained on RoleMemo.",
+    "translation": "把 insight 生成提示加到 O-Mem 和 PreMem 上只能带来 0.09 和 0.05 的提升，幅度仍小于在 RoleMemo 上训练的 4B 模型，说明单靠提示工程不足以替代结构化训练。",
+    "kind": "table"
+  },
+  {
+    "section": "Robustness",
+    "page": 12,
+    "sourceText": "Performance across conversation lengths from 32k to 256k tokens. DualMem-RL maintains stability while baselines degrade with increasing context.",
+    "translation": "随着上下文从 32k 扩展到 256k，DualMem-RL 仍保持较高稳定性，而人设无关基线会随上下文增长明显退化。",
+    "kind": "figure",
+    "assetPath": "/generated/rolememo-persona-driven-dual-memory-role-playing-agents/plot_trends_manual.png"
+  },
+  {
+    "section": "Case Study",
+    "page": 12,
+    "sourceText": "In a psychological counseling scenario, O-Mem retrieves relevant factual evidence but lacks persona-driven insight, while DualMem-RL recognizes social avoidance patterns and applies anticipated stigma insights.",
+    "translation": "心理咨询案例中，某个操作式记忆框架能检索相关事实，却缺少人设驱动的解释层；强化学习版双记忆框架则能识别社交回避模式，并用“担心被污名化”的洞察解释人物行为。",
+    "kind": "table"
+  },
+  {
+    "section": "Limitations",
+    "page": 13,
+    "sourceText": "Real-world applications may involve multi-million token histories requiring more efficient incremental processing. Generalization to unbounded real-world persona diversity remains untested. RL training via DAPO is computationally intensive.",
+    "translation": "局限包括：真实应用可能有百万级 token 历史，需要更高效的增量处理；对无限多真实 persona 的泛化尚未验证；基于 DAPO 的强化学习训练计算成本较高。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Ethics",
+    "page": 13,
+    "sourceText": "RoleMemo uses entirely synthetic data generated by DeepSeek-V3.2 without real user information, with automated safety filtering. Systems trained on this dataset should not replace professional services in sensitive domains such as mental health counseling.",
+    "translation": "伦理声明指出，RoleMemo 使用完全合成数据，不含真实用户信息，并经过自动安全过滤。但基于该数据训练的系统不应替代心理健康咨询等敏感领域的专业服务。",
+    "kind": "paragraph"
+  },
+  {
+    "section": "Appendix",
+    "page": 14,
+    "sourceText": "The appendix details generation hyperparameters, cognitive insight generation prompts, fact-insight pair and query generation prompts, conversational block generation prompts, persona domains and schema, training hyperparameters, and evaluation metrics.",
+    "translation": "附录给出了生成超参数、认知洞察生成提示、事实-洞察对与查询生成提示、对话块生成提示、persona 领域与 schema、训练超参数和评测指标等细节。",
+    "kind": "code"
+  },
+  {
+    "section": "Appendix",
+    "page": 15,
+    "sourceText": "Recall@10 is computed with semantic rather than exact matching. A ground-truth entry is recalled if its maximum cosine similarity against retrieved entries is at least tau = 0.7.",
+    "translation": "Recall@10 使用语义匹配而非精确匹配。如果 ground-truth 条目与检索条目的最大余弦相似度至少为 0.7，就视为被召回。",
+    "kind": "equation"
+  },
+  {
+    "section": "Conclusion",
+    "page": 13,
+    "sourceText": "Existing agentic memory frameworks adopt persona-agnostic summarization, failing to provide the interpretive insight necessary for effective role-playing. We introduce RoleMemo and a dual memory framework constructing factual and insight cognition through specialized training.",
+    "translation": "结论强调，现有智能体记忆框架使用人设无关摘要，缺少有效角色扮演所需的解释性 insight。RoleMemo 和 DualMem 通过专门训练构造事实认知和洞察认知，补上了这个缺口。",
+    "kind": "paragraph"
+  }
+]
