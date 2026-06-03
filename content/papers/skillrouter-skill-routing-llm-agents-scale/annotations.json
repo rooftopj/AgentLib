@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "skillrouter-skill-routing-llm-agents-scale",
+  "items": [
+    {
+      "id": "skillrouter-negative-mining-001",
+      "sectionTitle": "训练细节：困难负样本、假负例过滤和 listwise reranking",
+      "quote": "SkillRouter 的训练难点来自 skill 池同质性。随机负样本太容易，模型很快学会区分类别，却学不会区分“很像但不对”的候选。因此 encoder 训练为每个 query 构造 10 个负样本，混合四种来源：语义近邻、BM25 词面匹配、同 taxonomy 干扰和随机负样本。",
+      "occurrence": 1,
+      "title": "SkillRouter 怎么训练？",
+      "body": "SkillRouter 训练分成两个阶段，对应线上 pipeline 的两个模型：**bi-encoder 负责大池召回，cross-encoder reranker 负责 top-20 精排**。\n\n第一阶段训练 `SR-Emb-0.6B`，也就是 bi-encoder。流程是：\n\n1. 从约 8 万个 community skill 中按类别分层采样，保证训练 skill 覆盖不同类别。\n2. 对每个 sampled skill，用 GPT-4o-mini 根据 `metadata + body` 生成一个自然用户 query。\n3. 形成 37,979 个 synthetic `(query, positive skill)` 训练对。\n4. 每个 query 再挖 10 个负样本：4 个语义近邻、3 个 BM25 词面匹配、2 个同 taxonomy 干扰、1 个随机负样本。\n5. 过滤假负例，避免把等价 skill 当负样本。\n6. 用 full skill text 做 in-batch InfoNCE 对比学习，让 query embedding 靠近正例 skill，远离负例 skill。\n\n输入格式上，query 侧使用 Qwen3-Emb 的 instruction-prefixed encoding；skill 侧是：\n\n```text\n<name> | <description> | <body>\n```\n\n论文还写了截断规则：query 原文截到 1,500 字符；description 截到 300 字符；body 截到 2,500 字符；encoder 训练时每个 query / positive / negative 最大 2,048 tokens。\n\n第二阶段训练 `SR-Rank-0.6B`，也就是 cross-encoder reranker。流程是：\n\n1. 先用训练好的 `SR-Emb-0.6B` 对训练 query 做召回。\n2. 每个 query 取 top-20 候选 skill。\n3. 形成 32,283 个 candidate lists，每个 list 有 20 个 skill 和 binary relevance label。\n4. 同样做三层假负例过滤。\n5. 用 **listwise cross-entropy** 训练 reranker，让它在一组候选里把正确 skill 排到前面。\n\n这里的重点是：reranker 不是单独判断“这个 query-skill pair 是否相关”，而是比较一整组 top-20 候选。因为 top-20 里很多 skill 都看起来相关，pointwise 二分类很容易给一堆候选相近分数；listwise 目标更符合实际排序任务。\n\n所以整体训练链路是：\n\n```text\n生成 query-skill 正例\n-> 挖困难负样本\n-> 过滤假负例\n-> 训练 bi-encoder 召回\n-> 用 trained encoder 召回 top-20\n-> 训练 cross-encoder listwise reranker\n```\n\n论文在现有沉淀里没有展开更底层的优化超参，例如 learning rate、batch size、epoch 数或具体 ANN 索引实现。它强调的是训练数据构造、负样本质量、假负例过滤和 listwise reranking 这几个决定性设计。"
+    },
+    {
+      "id": "skillrouter-multiskill-shortlist-001",
+      "sectionTitle": "从论文到产品系统的设计清单",
+      "quote": "第三个设计点是多技能任务。很多真实请求不是一个技能就能解决，而是需要组合：先读取文件，再分析内容，再生成报告，再提交仓库。对于这类任务，只优化首位命中不够。系统还需要关注前十是否覆盖完整技能集合，或者让规划器能够基于初始技能继续召回后续技能。论文报告完整集合覆盖率，正是因为它意识到多技能任务的短名单质量不能只由第一名决定。",
+      "occurrence": 1,
+      "title": "多技能任务是一次召回还是迭代召回？",
+      "body": "论文的主评测设置更接近**一次 query 召回一个排序列表**，不是在线过程中多轮迭代召回。\n\n给定一个任务 query，SkillRouter 会：\n\n```text\nquery -> encoder 召回 top-20 -> reranker 重排 -> 输出 ranked shortlist\n```\n\n评估时再看这个 shortlist 的不同位置：\n\n1. `Hit@1`：第一名是不是任一所需 skill。\n2. `Recall@10`：前 10 里覆盖了多少所需 skill。\n3. `FC@10`：前 10 是否包含这个任务的**完整 ground-truth skill set**。\n\n所以多技能任务里的 `FC@10` 问的是：一次路由得到的前 10 个结果，能不能把所有需要的技能都放进去。例如任务需要：\n\n```text\nread-file -> analyze-content -> generate-report -> commit-to-repo\n```\n\n那么 `FC@10 = 1` 的条件是，这几个 gold skills 全部出现在同一次 query 返回的 top-10 里。\n\n正文里说“让规划器能够基于初始技能继续召回后续技能”，这是一个工程扩展方向，不是论文主实验已经实现的在线迭代流程。论文的端到端 coding agent 实验也是把不同 router 产出的 `top-1` 或 `top-10` skill shortlist 交给 agent，看任务成功率是否提升。\n\n更稳妥的读法是：\n\n1. **论文评测**：一次 query -> 一个 bounded shortlist，报告 `Hit@1 / Recall@K / FC@10`。\n2. **产品系统可扩展**：规划器执行到中途发现缺技能时，可以再次调用 router 做迭代召回。\n3. **这段正文的提醒**：多技能任务不能只看第一名，因为第一名正确也可能缺少后续步骤所需技能。"
+    }
+  ]
+}
