@@ -2,6 +2,7 @@ import Link from "next/link";
 import ContentTypeBadge from "@/components/ContentTypeBadge";
 import { blogs } from "@/lib/blogs";
 import { categories, papers } from "@/lib/papers";
+import { projects } from "@/lib/projects";
 import { publicPath } from "@/lib/public-path";
 import { notFound } from "next/navigation";
 
@@ -16,6 +17,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
 
   const scopedPapers = papers.filter((paper) => paper.category === categorySlug);
   const scopedBlogs = blogs.filter((blog) => blog.category === categorySlug);
+  const scopedProjects = projects.filter((project) => project.category === categorySlug);
   const resources = [
     ...scopedPapers.map((paper) => ({
       type: "paper" as const,
@@ -36,6 +38,16 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
       coverImageUrl: blog.insightImageUrl || blog.coverImageUrl,
       meta: `${blog.publisher} · ${blog.publishedDate}`,
       tags: blog.tags
+    })),
+    ...scopedProjects.map((project) => ({
+      type: "project" as const,
+      href: `/projects/${project.slug}/`,
+      key: `project-${project.slug}`,
+      title: project.title,
+      summary: project.summary,
+      coverImageUrl: publicPath(project.coverImagePath),
+      meta: `${project.projectName} · ${project.analyzedDate}`,
+      tags: project.tags
     }))
   ];
 
@@ -44,7 +56,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
       <div className="page-title">
         <p className="eyebrow">主题</p>
         <h1>{category.label}</h1>
-        <p>{category.description} 当前包含 {scopedPapers.length} 篇论文、{scopedBlogs.length} 篇博客。</p>
+        <p>{category.description} 当前包含 {scopedPapers.length} 篇论文、{scopedBlogs.length} 篇博客、{scopedProjects.length} 个项目。</p>
       </div>
       <div className="paper-list">
         {resources.map((item) => (

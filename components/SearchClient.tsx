@@ -7,10 +7,11 @@ import { useMemo, useState } from "react";
 import ContentTypeBadge from "@/components/ContentTypeBadge";
 import { blogs } from "@/lib/blogs";
 import { categories, papers } from "@/lib/papers";
+import { projects } from "@/lib/projects";
 import { publicPath } from "@/lib/public-path";
 
 type SearchItem = {
-  type: "paper" | "blog";
+  type: "paper" | "blog" | "project";
   slug: string;
   href: string;
   title: string;
@@ -74,6 +75,18 @@ export default function SearchClient() {
       tags: blog.tags,
       sections: blog.sections,
       coverImageUrl: blog.insightImageUrl || blog.coverImageUrl
+    })),
+    ...projects.map((project) => ({
+      type: "project" as const,
+      slug: project.slug,
+      href: `/projects/${project.slug}/`,
+      title: project.title,
+      meta: `开源项目 · ${project.projectName} · ${project.categoryLabel}`,
+      summary: project.summary,
+      category: project.category,
+      tags: project.tags,
+      sections: project.sections,
+      coverImageUrl: publicPath(project.coverImagePath)
     }))
   ], []);
 
@@ -121,7 +134,7 @@ export default function SearchClient() {
               <img className="blog-row-cover" src={item.coverImageUrl} alt="" aria-hidden="true" />
             ) : null}
             <div>
-              <p className="paper-meta"><ContentTypeBadge type={item.type} />{item.meta.replace(/^(论文|博客)\s+·\s+/, "")}</p>
+              <p className="paper-meta"><ContentTypeBadge type={item.type} />{item.meta.replace(/^(论文|博客|开源项目)\s+·\s+/, "")}</p>
               <h2><Highlight text={item.title} query={query} /></h2>
               <p><Highlight text={item.summary} query={query} /></p>
               <div className="tag-row">

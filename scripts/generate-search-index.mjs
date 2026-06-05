@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const papersDir = path.join(root, "content", "papers");
 const blogsDir = path.join(root, "content", "blogs");
+const projectsDir = path.join(root, "content", "projects");
 const outputPath = path.join(root, "public", "search-index.json");
 const index = [];
 
@@ -54,6 +55,32 @@ if (fs.existsSync(blogsDir)) {
       summary: blog.summary,
       publisher: blog.publisher,
       sourceUrl: blog.sourceUrl,
+      headings
+    });
+  }
+}
+
+if (fs.existsSync(projectsDir)) {
+  for (const slug of fs.readdirSync(projectsDir)) {
+    const projectDir = path.join(projectsDir, slug);
+    if (!fs.statSync(projectDir).isDirectory()) continue;
+
+    const project = JSON.parse(fs.readFileSync(path.join(projectDir, "project.json"), "utf8"));
+    const explainer = fs.existsSync(path.join(projectDir, "explainer.mdx"))
+      ? fs.readFileSync(path.join(projectDir, "explainer.mdx"), "utf8")
+      : "";
+    const headings = [...explainer.matchAll(/^#{2,3}\s+(.+)$/gm)].map((match) => match[1]);
+
+    index.push({
+      type: "project",
+      slug: project.slug,
+      href: `/projects/${project.slug}/`,
+      title: project.title,
+      category: project.categoryLabel,
+      tags: project.tags,
+      summary: project.summary,
+      projectName: project.projectName,
+      repoUrl: project.repoUrl,
       headings
     });
   }

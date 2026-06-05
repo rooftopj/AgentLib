@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-label="soul-protocol observe flow">
+  <defs>
+    <style>
+      .bg{fill:#fbfaf5}.step{fill:#fff;stroke:#d8d0bf;stroke-width:2}.write{fill:#e8f6ef;stroke:#2f8f6b}.skip{fill:#f7f1e6;stroke:#b9ad99}.text{font:700 22px system-ui,Segoe UI,Arial,sans-serif;fill:#2e2a23}.small{font:500 16px system-ui,Segoe UI,Arial,sans-serif;fill:#625a4d}.edge{stroke:#5e766d;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10 Z" fill="#5e766d"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="620"/>
+  <text class="text" x="58" y="58">Observe pipeline: not every exchange becomes the same kind of memory</text>
+  <rect class="step" x="58" y="124" width="170" height="96" rx="8"/><text class="text" x="82" y="162">Interaction</text><text class="small" x="82" y="190">user + agent text</text>
+  <rect class="step" x="278" y="124" width="170" height="96" rx="8"/><text class="text" x="302" y="162">Sentiment</text><text class="small" x="302" y="190">somatic marker</text>
+  <rect class="step" x="498" y="124" width="170" height="96" rx="8"/><text class="text" x="522" y="162">Significance</text><text class="small" x="522" y="190">attention gate</text>
+  <rect class="write" x="748" y="76" width="218" height="100" rx="8"/><text class="text" x="772" y="114">Write episodic</text><text class="small" x="772" y="142">only if significant</text>
+  <rect class="write" x="748" y="236" width="218" height="118" rx="8"/><text class="text" x="772" y="274">Extract facts</text><text class="small" x="772" y="302">dedup, merge, create</text><text class="small" x="772" y="328">promote episodic if facts exist</text>
+  <rect class="write" x="748" y="414" width="218" height="100" rx="8"/><text class="text" x="772" y="452">Deep updates</text><text class="small" x="772" y="480">entities + self model</text>
+  <rect class="skip" x="1010" y="414" width="142" height="100" rx="8"/><text class="text" x="1034" y="452">Skip</text><text class="small" x="1034" y="480">low-value turns</text>
+  <path class="edge" d="M228 172 H278"/><path class="edge" d="M448 172 H498"/><path class="edge" d="M668 158 C700 132 718 126 748 126"/><path class="edge" d="M668 180 C708 242 718 296 748 296"/><path class="edge" d="M857 354 V414"/><path class="edge" d="M966 464 H1010"/>
+</svg>

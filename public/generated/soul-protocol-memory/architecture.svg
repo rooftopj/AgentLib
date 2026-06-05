@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-label="soul-protocol memory architecture">
+  <defs>
+    <style>
+      .bg{fill:#fbfaf5}.box{fill:#fff;stroke:#d8d0bf;stroke-width:2}.core{fill:#e8f6ef;stroke:#2f8f6b}.warn{fill:#fff3d7;stroke:#b58a2b}.store{fill:#eef4ff;stroke:#5577b8}.text{font:600 24px system-ui,Segoe UI,Arial,sans-serif;fill:#2e2a23}.small{font:500 17px system-ui,Segoe UI,Arial,sans-serif;fill:#625a4d}.edge{stroke:#5e766d;stroke-width:3;fill:none;marker-end:url(#arrow)}.muted{stroke:#b9ad99;stroke-width:2;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#5e766d"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text class="text" x="58" y="58">soul-protocol memory design: observe writes, recall ranks</text>
+  <text class="small" x="58" y="88">Default path is in-memory layered stores persisted to .soul/local files; vector search is a pluggable strategy, not the default database.</text>
+
+  <rect class="box" x="58" y="138" width="220" height="112" rx="8"/>
+  <text class="text" x="82" y="178">Soul.observe()</text>
+  <text class="small" x="82" y="209">called after a user-agent exchange</text>
+
+  <rect class="core" x="338" y="118" width="252" height="152" rx="8"/>
+  <text class="text" x="362" y="158">MemoryManager.observe()</text>
+  <text class="small" x="362" y="190">sentiment</text>
+  <text class="small" x="362" y="218">significance gate</text>
+  <text class="small" x="362" y="246">fact/entity extraction</text>
+
+  <rect class="store" x="690" y="84" width="230" height="96" rx="8"/>
+  <text class="text" x="716" y="124">EpisodicStore</text>
+  <text class="small" x="716" y="152">important interactions only</text>
+
+  <rect class="store" x="690" y="208" width="230" height="118" rx="8"/>
+  <text class="text" x="716" y="248">SemanticStore</text>
+  <text class="small" x="716" y="278">extracted facts</text>
+  <text class="small" x="716" y="302">dedup + supersede</text>
+
+  <rect class="store" x="690" y="354" width="230" height="96" rx="8"/>
+  <text class="text" x="716" y="394">KnowledgeGraph</text>
+  <text class="small" x="716" y="422">entity relationships</text>
+
+  <rect class="store" x="690" y="478" width="230" height="96" rx="8"/>
+  <text class="text" x="716" y="518">Self model</text>
+  <text class="small" x="716" y="546">longer-lived profile updates</text>
+
+  <path class="edge" d="M278 194 H338"/>
+  <path class="edge" d="M590 168 C630 138 646 132 690 132"/>
+  <path class="edge" d="M590 214 C630 242 646 266 690 266"/>
+  <path class="edge" d="M590 248 C634 326 646 400 690 402"/>
+  <path class="edge" d="M590 258 C632 420 650 526 690 526"/>
+
+  <rect class="box" x="58" y="470" width="220" height="112" rx="8"/>
+  <text class="text" x="82" y="510">Soul.recall()</text>
+  <text class="small" x="82" y="540">called when context needs memories</text>
+
+  <rect class="core" x="338" y="450" width="252" height="152" rx="8"/>
+  <text class="text" x="362" y="490">RecallEngine</text>
+  <text class="small" x="362" y="522">search stores</text>
+  <text class="small" x="362" y="550">graph augmentation</text>
+  <text class="small" x="362" y="578">ACT-R activation rank</text>
+
+  <rect class="warn" x="980" y="188" width="144" height="204" rx="8"/>
+  <text class="text" x="1008" y="230">Optional</text>
+  <text class="small" x="1008" y="268">vector strategy</text>
+  <text class="small" x="1008" y="300">LLM rerank</text>
+  <text class="small" x="1008" y="332">eternal archive</text>
+  <text class="small" x="1008" y="364">custom layers</text>
+
+  <path class="edge" d="M278 526 H338"/>
+  <path class="edge" d="M590 512 C636 454 648 402 690 402"/>
+  <path class="edge" d="M590 526 C628 284 646 266 690 266"/>
+  <path class="edge" d="M590 540 C632 140 646 132 690 132"/>
+  <path class="muted" d="M920 266 H980"/>
+
+  <rect class="box" x="338" y="650" width="582" height="58" rx="8"/>
+  <text class="small" x="362" y="686">Persisted by MemoryManager.to_dict() -> memory/*.json or memory/&lt;layer&gt;/&lt;domain&gt;/entries.json</text>
+</svg>

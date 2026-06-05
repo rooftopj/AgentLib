@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "contentType": "project",
+  "slug": "soul-protocol-memory",
+  "items": [
+    {
+      "id": "soul-memory-types-five-tiers-001",
+      "sectionTitle": "宏观架构",
+      "quote": "从宏观看，soul-protocol 把“记忆”拆成几类不同生命周期的东西，而不是统一塞进一个 memory 表。`MemoryType` 里有 `core`、`episodic`、`semantic`、`procedural`、`social` 五类，`MemoryEntry` 又补了 `importance`、`somatic`、`significance`、`access_timestamps`、`superseded_by`、`abstract`、`salience`、`visibility`、`scope`、`user_id`、`layer`、`domain` 等字段。",
+      "occurrence": 1,
+      "title": "五类 MemoryType 各存什么？",
+      "body": "这五类不是五个随便命名的 bucket，而是五种不同生命周期和召回语义的记忆。\n\n- `core`：常驻核心记忆。源码里的 `CoreMemory` 只有 `persona` 和 `human` 两块，表示 soul 自己是谁、 bonded human 是谁。例子：`persona: 我是一个谨慎、鼓励式的编程伙伴`，`human: 用户偏好中文解释和源码级分析`。它不是普通 `soul_remember` 可写的类型，而是通过 core memory edit/update 管理。\n- `episodic`：情节记忆，记录发生过的一轮交互或事件。例子：`User: 今天我们一起读 soul-protocol 的 memory 设计\\nAgent: 解释了 dedup 和 contradiction detector`。它像自传片段，有时间、显著性、情绪/躯体标记，后续可归档。\n- `semantic`：语义事实，记录从交互中抽出的稳定事实。例子：`User lives in Shanghai`、`User prefers TypeScript examples`、`User is learning memory systems`。它会参与去重、冲突更新和 supersede 过滤。\n- `procedural`：程序性/方法记忆，记录怎么做某件事或偏好的流程。例子：`To deploy this app, run npm run build then publish out/`，或者 `User prefers reviewing source before summarizing`。它回答的是 how-to，而不是事实本身。\n- `social`：关系记忆，记录某个 user/bond 的互动偏好、信任信号、沟通方式。例子：`This user likes step-by-step explanations before final conclusions`，或 `Trust increased after successful debugging sessions`。它和 semantic 的区别是：semantic 更像一般事实，social 更像关系层状态。\n\n简化记法：`core` 是常驻档案，`episodic` 是发生了什么，`semantic` 是抽出了什么事实，`procedural` 是学会了什么做法，`social` 是和这个人如何相处。"
+    },
+    {
+      "id": "soul-dedup-jaccard-containment-001",
+      "sectionTitle": "冲突怎么更新",
+      "quote": "第一层是去重。`dedup.py` 用 Jaccard 加 containment 系数判断新事实是 `SKIP`、`MERGE` 还是 `CREATE`。",
+      "occurrence": 1,
+      "title": "Jaccard 和 containment 怎么判重？",
+      "body": "这里的 **Jaccard** 和 **containment** 都是在比较两个 fact 的 token 重叠程度。\n\nJaccard 看的是：两个事实共同出现的词，占两个事实所有词的比例。公式可以理解为 `$|A \\cap B| / |A \\cup B|$`。如果新旧 fact 大部分词都一样，分数就高。\n\nContainment 看的是：较短的那个 fact 有多少被较长 fact 包含。公式可以理解为 `$|A \\cap B| / min(|A|, |B|)$`。它专门处理“新 fact 是旧 fact 的补充版”这种情况。\n\n是的，`reconcile_fact()` 会对传入的 `existing_facts` 做线性遍历。它会跳过已经有 `superseded_by` 的旧 fact，然后把新 fact 和每个仍有效的旧 fact 算一次相似度，记录 `best_similarity` 和 `best_match`。遍历结束后，它只拿最高分那个旧 fact 来决定动作。\n\n例如旧事实是 `User likes Python`，新事实是 `User likes Python for backend automation`。纯 Jaccard 会因为新事实多了很多词而被拉低，但 containment 会发现短事实里的核心词几乎都被包含，于是把它推到 `MERGE` 区间，而不是误判成全新的 `CREATE`。\n\n在源码里，分数大于 `0.85` 是 `SKIP`，表示几乎重复；`0.6` 到 `0.85` 是 `MERGE`，表示应该更新已有事实；低于 `0.6` 才是 `CREATE`。"
+    },
+    {
+      "id": "soul-fact-prefixes-conflict-001",
+      "sectionTitle": "冲突怎么更新",
+      "quote": "第二层是事实冲突。`MemoryManager._resolve_fact_conflicts()` 会按事实前缀找同类旧事实，例如 “User lives in ...” 和新的 “User lives in ...” 不同，就把旧 fact 的 `superseded_by` 指向新 fact。",
+      "occurrence": 1,
+      "title": "哪些 fact 前缀会触发冲突？",
+      "body": "`_FACT_PREFIXES` 不是手写数组，而是从 `FACT_PATTERNS` 的模板字符串里自动截出来的：`template.split(\"{\")[0].strip()`。\n\n也就是说，模板 `User lives in {0}` 会变成前缀 `User lives in`；模板 `User works at {0}` 会变成前缀 `User works at`。冲突检测时，如果新 fact 和旧 fact 都以同一个前缀开头，但内容不同，就认为它们描述同一类用户属性的更新。\n\n源码中能生成的部分前缀包括：\n\n- `User's name is`\n- `User is`\n- `User prefers`\n- `User dislikes`\n- `User uses`\n- `User is building`\n- `User works at`\n- `User lives in`\n- `User is from`\n- `User's favorite`\n- `User asked about`\n- `Recommendation: use`\n- `Advised:`\n- `Comparison discussed:`\n- `User encountered`\n- `User wants to`\n- `User is trying to`\n- `User is learning`\n\n这个设计很启发式：它适合处理姓名、地点、公司、偏好、正在学习什么这类“单槽位或近似单槽位”的用户事实更新，但不等于通用逻辑推理。复杂事实仍需要 contradiction detector 或更结构化的事实模型。"
+    },
+    {
+      "id": "soul-contradiction-raw-text-fallback-001",
+      "sectionTitle": "冲突怎么更新",
+      "quote": "第三层是 contradiction detector。它处理否定、实体属性冲突、以及 location/employer/role 这类动词事实冲突。尤其是 raw-text fallback 很关键：如果抽取器没有抽出新 fact，系统仍会拿原始用户输入去扫旧语义事实，捕捉 “I moved to Amsterdam” 这种更新。",
+      "occurrence": 1,
+      "title": "raw-text fallback 为什么重要？",
+      "body": "这里要分清三件事：**去重**、**冲突**、**raw-text fallback**。\n\n去重关心的是“像不像同一条事实”，比如 `User likes Python` 和 `User likes Python for backend automation`。contradiction detector 关心的是“是不是同一类事实但值变了，或者语义上互相否定”，比如旧事实 `User lives in NYC`，新输入 `I moved to Amsterdam`。\n\n问题在于，`I moved to Amsterdam` 不一定会被前面的 fact extractor 成功抽成一条标准 fact。如果没有抽出新 fact，后面的 stored-facts contradiction 检查就没有新 fact 可比较，旧的 `User lives in NYC` 可能就不会被标记为过期。\n\n所以源码加了 raw-text fallback：即使没有新 semantic fact 写入，也把原始用户输入 `interaction.user_input` 拿去和已有 semantic facts 做一次启发式冲突检测。`contradiction.py` 里专门有 verb fact patterns，能识别 location、employer、role 这类更新动词：\n\n- `live in` / `moved to` / `relocated to` -> `location`\n- `work at` / `joined` / `started at` -> `employer`\n- `is a ... at ...` -> `role`\n\n这样，`User lives in NYC` 和 `I moved to Amsterdam` 即使 token 重叠很低，也会被识别为 location 从 `nyc` 变成 `amsterdam`，于是旧 fact 会被标记 `superseded=True`，`superseded_by=\"raw-text-contradiction\"`。这不是创建新事实，而是至少避免旧事实继续被正常召回。"
+    }
+  ]
+}

@@ -30,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <nav className="site-nav" aria-label="主导航">
             <Link href="/papers/">论文库</Link>
             <Link href="/blogs/">博客</Link>
+            <Link href="/projects/">开源项目</Link>
             <SearchDialog />
           </nav>
         </header>

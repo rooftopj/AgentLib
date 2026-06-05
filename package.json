@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run paper:registry && npm run blog:registry && npm run paper:validate && npm run blog:validate && npm run annotations:validate && npm run content:index && next build",
+    "build": "npm run paper:registry && npm run blog:registry && npm run project:registry && npm run paper:validate && npm run blog:validate && npm run project:validate && npm run project:quality && npm run project:review && npm run annotations:validate && npm run content:index && next build",
     "start": "next start",
     "paper:new": "node scripts/new-paper.mjs",
     "paper:registry": "node scripts/generate-paper-registry.mjs",
@@ -12,6 +12,10 @@
     "paper:index": "node scripts/generate-search-index.mjs",
     "blog:registry": "node scripts/generate-blog-registry.mjs",
     "blog:validate": "node scripts/validate-blogs.mjs",
+    "project:registry": "node scripts/generate-project-registry.mjs",
+    "project:validate": "node scripts/validate-projects.mjs",
+    "project:quality": "node scripts/check-project-explainer-quality.mjs",
+    "project:review": "node scripts/check-project-review.mjs",
     "annotations:export": "node .agents/skills/annotation-to-site/scripts/export-annotations.mjs",
     "annotations:validate": "node scripts/validate-annotations.mjs",
     "content:index": "node scripts/generate-search-index.mjs"

@@ -2,23 +2,19 @@ import Link from "next/link";
 import ContentTypeBadge from "@/components/ContentTypeBadge";
 import { blogs } from "@/lib/blogs";
 import { categories, papers } from "@/lib/papers";
+import { projects } from "@/lib/projects";
 import { publicPath } from "@/lib/public-path";
 
 export default function HomePage() {
   const recentPapers = papers.slice(0, 2);
   const recentBlogs = blogs.slice(0, 2);
-  const projectTeasers = [
-    {
-      title: "下一步：读懂知名 agent 项目的设计取舍。",
-      summary: "这一类会聚焦仓库结构、关键模块、运行路径、工程边界和适合复用的实现片段。",
-      tags: ["项目结构", "核心模块", "实现路线"]
-    }
-  ].slice(0, 2);
+  const recentProjects = projects.slice(0, 2);
   const categorySummaries = categories.map((category) => {
     const paperCount = papers.filter((paper) => paper.category === category.slug).length;
     const blogCount = blogs.filter((blog) => blog.category === category.slug).length;
+    const projectCount = projects.filter((project) => project.category === category.slug).length;
 
-    return { ...category, paperCount, blogCount, totalCount: paperCount + blogCount };
+    return { ...category, paperCount, blogCount, projectCount, totalCount: paperCount + blogCount + projectCount };
   });
 
   return (
@@ -30,6 +26,7 @@ export default function HomePage() {
         <div className="library-stats" aria-label="资料统计">
           <span>{papers.length} 篇论文</span>
           <span>{blogs.length} 篇博客</span>
+          <span>{projects.length} 个项目</span>
           <span>{categories.length} 个主题</span>
         </div>
       </section>
@@ -45,12 +42,11 @@ export default function HomePage() {
           <h2>想借鉴一线团队的做法，先看可复用的工程 insight。</h2>
           <p>把实践经验、架构取舍和迁移提醒提炼出来，保留原文入口方便回看。</p>
         </Link>
-        <article className="content-lane">
+        <Link className="content-lane card-link" href="/projects/">
           <p className="paper-meta">开源项目分析</p>
           <h2>想复用一个项目，先拆清结构、模块和实现路径。</h2>
-          <p>后续会从仓库入口、核心代码、运行方式和设计取舍里整理可借鉴部分。</p>
-          <span className="availability-note">即将上线</span>
-        </article>
+          <p>从仓库入口、核心代码、运行方式和设计取舍里整理可借鉴部分。</p>
+        </Link>
       </section>
 
       <section className="focus-paper latest-section">
@@ -97,20 +93,20 @@ export default function HomePage() {
             </Link>
           ))}
 
-          {projectTeasers.map((project) => (
-            <article className="latest-card" key={project.title}>
+          {recentProjects.map((project) => (
+            <Link className="latest-card latest-card-with-media card-link" href={`/projects/${project.slug}/`} key={project.slug}>
+              <img className="blog-row-cover" src={publicPath(project.coverImagePath)} alt="" aria-hidden="true" />
               <div>
-                <p className="paper-meta"><ContentTypeBadge type="project" />即将上线</p>
+                <p className="paper-meta"><ContentTypeBadge type="project" />{project.projectName} · {project.analyzedDate}</p>
                 <h3>{project.title}</h3>
                 <p>{project.summary}</p>
                 <div className="tag-row">
-                  {project.tags.map((tag) => (
+                  {project.tags.slice(0, 4).map((tag) => (
                     <span className="tag" key={tag}>{tag}</span>
                   ))}
                 </div>
               </div>
-              <span className="availability-note">即将上线</span>
-            </article>
+            </Link>
           ))}
         </div>
       </section>
@@ -124,7 +120,7 @@ export default function HomePage() {
             <Link className="category-tile card-link" key={category.slug} href={`/categories/${category.slug}/`}>
               <span>{category.label}</span>
               <small>{category.description}</small>
-              <em>{category.totalCount} 篇资料 · {category.paperCount} 论文 · {category.blogCount} 博客</em>
+              <em>{category.totalCount} 篇资料 · {category.paperCount} 论文 · {category.blogCount} 博客 · {category.projectCount} 项目</em>
             </Link>
           ))}
         </div>

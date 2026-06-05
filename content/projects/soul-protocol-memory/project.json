@@ -1,0 +1,21 @@
+{
+  "slug": "soul-protocol-memory",
+  "title": "soul-protocol 的记忆设计：不是把聊天塞进向量库，而是一条分层的认知管线",
+  "repoUrl": "https://github.com/qbtrix/soul-protocol",
+  "localSourcePath": "assets/projects/soul-protocol",
+  "projectName": "soul-protocol",
+  "focus": "记忆写入、存储、冲突更新、召回与检索机制",
+  "analyzedDate": "2026-06-05",
+  "category": "memory",
+  "categoryLabel": "记忆系统",
+  "tags": [
+    "开源项目",
+    "记忆系统",
+    "源码解读",
+    "召回",
+    "冲突更新"
+  ],
+  "summary": "这篇项目讲解基于本地 soul-protocol 源码，拆解它的记忆系统如何从 observe 触发写入、按显著性和事实抽取分层存储、用去重与 supersede 处理冲突，再通过 BM25/ACT-R、图谱增强和可选 LLM rerank 完成召回。",
+  "coverImagePath": "/generated/soul-protocol-memory/architecture.svg",
+  "coverImageAlt": "soul-protocol 记忆系统架构图。"
+}
