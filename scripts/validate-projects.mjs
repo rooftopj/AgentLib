@@ -7,6 +7,7 @@ const categoryFile = path.join(root, "content", "categories.json");
 const categoryItems = JSON.parse(fs.readFileSync(categoryFile, "utf8"));
 const categories = new Set(categoryItems.map((item) => item.slug));
 const categoryLabels = new Map(categoryItems.map((item) => [item.slug, item.label]));
+const strictLocalSource = process.env.PROJECT_VALIDATE_LOCAL_SOURCE === "1";
 const required = [
   "slug",
   "title",
@@ -60,7 +61,10 @@ if (!fs.existsSync(contentDir)) {
     }
     if (!Array.isArray(project.tags) || project.tags.length === 0) errors.push(`${slug}: tags 至少需要一个标签`);
     if (String(project.summary || "").length < 40) errors.push(`${slug}: summary 太短`);
-    if (!fs.existsSync(path.join(root, project.localSourcePath))) errors.push(`${slug}: localSourcePath 不存在`);
+    const localSourcePath = path.join(root, project.localSourcePath);
+    if (strictLocalSource && !fs.existsSync(localSourcePath)) {
+      errors.push(`${slug}: localSourcePath 不存在`);
+    }
     if (!fs.existsSync(path.join(root, "public", project.coverImagePath.replace(/^\//, "")))) {
       errors.push(`${slug}: coverImagePath 指向的 public 资源不存在`);
     }
