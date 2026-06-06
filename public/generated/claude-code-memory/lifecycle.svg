@@ -1,0 +1,72 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code memory lifecycle</title>
+  <desc id="desc">Lifecycle diagram showing write triggers, storage, consolidation, recall and compaction in Claude Code memory.</desc>
+  <defs>
+    <style>
+      .bg{fill:#fbfaf7}
+      .title{font:700 30px Arial,"Microsoft YaHei",sans-serif;fill:#1f2937}
+      .sub{font:400 15px Arial,"Microsoft YaHei",sans-serif;fill:#52606d}
+      .step{fill:#ffffff;stroke:#315c72;stroke-width:2;rx:12}
+      .store{fill:#f1fbf5;stroke:#3c7c59;stroke-width:2;rx:12}
+      .guard{fill:#fff7ed;stroke:#b7791f;stroke-width:2;rx:12}
+      .head{font:700 17px Arial,"Microsoft YaHei",sans-serif;fill:#111827}
+      .body{font:400 14px Arial,"Microsoft YaHei",sans-serif;fill:#374151}
+      .small{font:400 12px Arial,"Microsoft YaHei",sans-serif;fill:#64748b}
+      .arrow{stroke:#334155;stroke-width:2.3;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:2;fill:none;stroke-dasharray:7 6;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="720"/>
+  <text class="title" x="56" y="58">Memory Lifecycle: 写入、整理、召回、压缩</text>
+  <text class="sub" x="56" y="86">四条写入路径汇入文件存储；召回靠提示词和文本搜索；session memory 在 compact 时接管长上下文。</text>
+
+  <rect class="step" x="60" y="150" width="230" height="118"/>
+  <text class="head" x="82" y="184">1. Trigger</text>
+  <text class="body" x="82" y="212">/memory 或显式 remember</text>
+  <text class="body" x="82" y="238">stop hook 后台抽取</text>
+
+  <rect class="guard" x="360" y="150" width="230" height="118"/>
+  <text class="head" x="382" y="184">2. Gate & Permission</text>
+  <text class="body" x="382" y="212">feature/settings/env gate</text>
+  <text class="body" x="382" y="238">工具只写 memory dir</text>
+
+  <rect class="store" x="660" y="150" width="230" height="118"/>
+  <text class="head" x="682" y="184">3. Store</text>
+  <text class="body" x="682" y="212">MEMORY.md 短索引</text>
+  <text class="body" x="682" y="238">typed topic markdown</text>
+
+  <rect class="step" x="960" y="150" width="180" height="118"/>
+  <text class="head" x="982" y="184">4. Recall</text>
+  <text class="body" x="982" y="212">读索引</text>
+  <text class="body" x="982" y="238">Grep/search 文件</text>
+
+  <path class="arrow" d="M290 209 L360 209"/>
+  <path class="arrow" d="M590 209 L660 209"/>
+  <path class="arrow" d="M890 209 L960 209"/>
+
+  <rect class="step" x="60" y="410" width="250" height="140"/>
+  <text class="head" x="82" y="444">Session Memory</text>
+  <text class="body" x="82" y="474">post-sampling 更新 summary.md</text>
+  <text class="body" x="82" y="500">触发由 token 和 tool-call 门槛决定</text>
+  <text class="small" x="82" y="526">用于同一 session 的 compaction</text>
+
+  <rect class="guard" x="430" y="410" width="300" height="140"/>
+  <text class="head" x="452" y="444">Conflict / Dedup</text>
+  <text class="body" x="452" y="474">没有结构化 supersede 表</text>
+  <text class="body" x="452" y="500">靠 prompt 先查旧文件再改写</text>
+  <text class="small" x="452" y="526">autoDream 定期合并、删除过时内容</text>
+
+  <rect class="step" x="850" y="410" width="290" height="140"/>
+  <text class="head" x="872" y="444">autoDream Consolidation</text>
+  <text class="body" x="872" y="474">24h + 5 sessions 默认门槛</text>
+  <text class="body" x="872" y="500">扫描 transcripts 和 memory files</text>
+  <text class="small" x="872" y="526">整理 topic files 与 MEMORY.md</text>
+
+  <path class="dash" d="M185 410 C200 340 305 286 430 250"/>
+  <path class="dash" d="M580 410 C620 340 680 286 760 268"/>
+  <path class="dash" d="M995 410 C960 340 905 292 840 268"/>
+  <text class="small" x="60" y="635">读图方式：上半是主长期记忆闭环；下半是两个后台机制。它们共同解决“何时写、写到哪、怎么更新、何时召回”。</text>
+</svg>

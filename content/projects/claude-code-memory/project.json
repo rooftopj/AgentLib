@@ -1,0 +1,22 @@
+{
+  "slug": "claude-code-memory",
+  "title": "Claude Code 源码解析（01）Memory：文件化长期记忆、会话压缩与后台整理",
+  "repoUrl": "https://github.com/jarmuine/claude-code",
+  "localSourcePath": "assets/projects/claude-code",
+  "projectName": "claude-code",
+  "focus": "Memory 设计：自动记忆写入、MEMORY.md 索引、session memory、auto dream、team/agent memory 与召回边界",
+  "analyzedCommit": "4b9d30f",
+  "analyzedDate": "2026-06-06",
+  "category": "memory",
+  "categoryLabel": "记忆系统",
+  "tags": [
+    "开源项目",
+    "源码解读",
+    "记忆系统",
+    "Claude Code",
+    "会话压缩"
+  ],
+  "summary": "这篇源码解析基于本地 Claude Code 源码，拆解 Memory 如何被默认启用、何时通过主 agent、extractMemories、session memory 和 autoDream 写入，为什么它默认不是向量库，而是用 Markdown 文件、MEMORY.md 索引、文本检索和后台整理组成长期记忆系统。",
+  "coverImagePath": "/generated/claude-code-memory/architecture.svg",
+  "coverImageAlt": "Claude Code Memory 架构图。"
+}

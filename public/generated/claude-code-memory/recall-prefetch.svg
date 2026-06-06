@@ -1,0 +1,29 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code relevant memory prefetch</title>
+  <desc id="desc">Recall flow showing MEMORY.md injection and relevant memory prefetch attachment.</desc>
+  <defs>
+    <style>
+      .bg{fill:#fbfbff}.title{font:700 30px Arial,"Microsoft YaHei",sans-serif;fill:#17202a}.sub{font:400 15px Arial,"Microsoft YaHei",sans-serif;fill:#4b5563}
+      .box{fill:#fff;stroke:#315c72;stroke-width:2;rx:12}.llm{fill:#fff7ed;stroke:#b7791f;stroke-width:2;rx:12}.att{fill:#f0fdf4;stroke:#3b7f5f;stroke-width:2;rx:12}
+      .head{font:700 18px Arial,"Microsoft YaHei",sans-serif;fill:#111827}.body{font:400 14px Arial,"Microsoft YaHei",sans-serif;fill:#374151}.small{font:400 12px Arial,"Microsoft YaHei",sans-serif;fill:#64748b}
+      .arrow{stroke:#334155;stroke-width:2.2;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-width:2;fill:none;stroke-dasharray:7 6;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="720"/>
+  <text class="title" x="56" y="58">Recall: 两层召回，不是默认向量检索</text>
+  <text class="sub" x="56" y="86">第一层把 MEMORY.md 注入上下文；第二层每个用户 turn 异步挑选相关 topic files，作为 attachment 注入。</text>
+
+  <rect class="box" x="60" y="140" width="240" height="120"/><text class="head" x="82" y="174">getUserContext</text><text class="body" x="82" y="206">getMemoryFiles()</text><text class="body" x="82" y="232">getClaudeMds(...)</text>
+  <rect class="att" x="410" y="140" width="240" height="120"/><text class="head" x="432" y="174">Memory Index</text><text class="body" x="432" y="206">MEMORY.md</text><text class="body" x="432" y="232">短索引进入上下文</text>
+  <rect class="box" x="760" y="140" width="260" height="120"/><text class="head" x="782" y="174">Main Query</text><text class="body" x="782" y="206">模型先看到索引</text><text class="body" x="782" y="232">必要时读具体文件</text>
+  <path class="arrow" d="M300 200 L410 200"/><path class="arrow" d="M650 200 L760 200"/>
+
+  <rect class="box" x="60" y="410" width="240" height="132"/><text class="head" x="82" y="444">User Turn</text><text class="body" x="82" y="474">startRelevantMemoryPrefetch</text><text class="small" x="82" y="502">非阻塞，随主模型并行</text>
+  <rect class="llm" x="370" y="410" width="250" height="132"/><text class="head" x="392" y="444">sideQuery Selector</text><text class="body" x="392" y="474">scanMemoryFiles manifest</text><text class="body" x="392" y="500">最多选 5 个 topic files</text>
+  <rect class="att" x="700" y="410" width="255" height="132"/><text class="head" x="722" y="444">Attachment</text><text class="body" x="722" y="474">relevant_memories</text><text class="body" x="722" y="500">每文件 200 行 / 4KB</text>
+  <rect class="box" x="1010" y="410" width="130" height="132"/><text class="head" x="1030" y="444">Filter</text><text class="body" x="1030" y="474">去重</text><text class="body" x="1030" y="500">60KB/session</text>
+  <path class="arrow" d="M300 476 L370 476"/><path class="arrow" d="M620 476 L700 476"/><path class="arrow" d="M955 476 L1010 476"/>
+  <path class="dash" d="M840 410 C835 330 850 288 890 260"/>
+  <text class="body" x="60" y="640">关键区别：这不是 embedding 相似度搜索。候选来自 frontmatter manifest，选择由 sideQuery 读名称和 description 完成。</text>
+</svg>

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4000",
     "build": "npm run paper:registry && npm run blog:registry && npm run project:registry && npm run paper:validate && npm run blog:validate && npm run project:validate && npm run project:quality && npm run project:review && npm run annotations:validate && npm run content:index && next build",
     "start": "next start",
     "paper:new": "node scripts/new-paper.mjs",

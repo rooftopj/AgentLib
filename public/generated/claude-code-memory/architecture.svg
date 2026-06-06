@@ -1,0 +1,74 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code memory architecture</title>
+  <desc id="desc">Architecture diagram for Claude Code memory: prompt loading, file-based persistent memory, extraction, auto dream, session memory, team and agent memory.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f7fbff"/>
+      <stop offset="1" stop-color="#eef6f1"/>
+    </linearGradient>
+    <style>
+      .title{font:700 30px Arial,"Microsoft YaHei",sans-serif;fill:#17202a}
+      .sub{font:400 15px Arial,"Microsoft YaHei",sans-serif;fill:#4b5563}
+      .box{fill:#fff;stroke:#2d5f73;stroke-width:2;rx:12}
+      .box2{fill:#fffdf7;stroke:#9a6b2f;stroke-width:2;rx:12}
+      .box3{fill:#f7fff9;stroke:#3b7f5f;stroke-width:2;rx:12}
+      .head{font:700 18px Arial,"Microsoft YaHei",sans-serif;fill:#17202a}
+      .body{font:400 14px Arial,"Microsoft YaHei",sans-serif;fill:#374151}
+      .note{font:700 13px Arial,"Microsoft YaHei",sans-serif;fill:#3b5b75}
+      .arrow{stroke:#334155;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#64748b;stroke-width:2;fill:none;stroke-dasharray:7 6;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <text class="title" x="56" y="58">Claude Code Memory: 文件化长期记忆 + 会话压缩 + 后台整理</text>
+  <text class="sub" x="56" y="86">默认不是向量库。记忆以 Markdown 文件、MEMORY.md 索引、session summary 和工具权限边界组织。</text>
+
+  <rect class="box" x="56" y="140" width="250" height="140"/>
+  <text class="head" x="78" y="174">System Prompt</text>
+  <text class="body" x="78" y="204">loadMemoryPrompt()</text>
+  <text class="body" x="78" y="230">读取 MEMORY.md</text>
+  <text class="body" x="78" y="256">注入写入与召回规则</text>
+
+  <rect class="box3" x="470" y="112" width="285" height="180"/>
+  <text class="head" x="492" y="146">Persistent Memdir</text>
+  <text class="body" x="492" y="176">~/.claude/projects/&lt;project&gt;/memory/</text>
+  <text class="body" x="492" y="204">MEMORY.md: 短索引</text>
+  <text class="body" x="492" y="232">topic files: typed memory</text>
+  <text class="body" x="492" y="260">logs/YYYY/MM/YYYY-MM-DD.md</text>
+
+  <rect class="box2" x="885" y="140" width="250" height="140"/>
+  <text class="head" x="907" y="174">Main Agent</text>
+  <text class="body" x="907" y="204">显式 remember / forget</text>
+  <text class="body" x="907" y="230">Read / Grep / Edit / Write</text>
+  <text class="body" x="907" y="256">按提示词更新文件</text>
+
+  <rect class="box2" x="56" y="380" width="280" height="156"/>
+  <text class="head" x="78" y="414">extractMemories</text>
+  <text class="body" x="78" y="444">stop hooks 后台 fork</text>
+  <text class="body" x="78" y="470">manifest 防重复扫描</text>
+  <text class="body" x="78" y="496">只允许记忆目录写入</text>
+
+  <rect class="box3" x="460" y="390" width="300" height="150"/>
+  <text class="head" x="482" y="424">Session Memory</text>
+  <text class="body" x="482" y="454">summary.md</text>
+  <text class="body" x="482" y="480">post-sampling 更新</text>
+  <text class="body" x="482" y="506">compaction 时替代长上下文</text>
+
+  <rect class="box2" x="885" y="380" width="250" height="156"/>
+  <text class="head" x="907" y="414">autoDream / Team / Agent</text>
+  <text class="body" x="907" y="444">autoDream 合并与修剪</text>
+  <text class="body" x="907" y="470">team sync 共享记忆</text>
+  <text class="body" x="907" y="496">agent scoped memory</text>
+
+  <path class="arrow" d="M306 210 C360 200 405 200 470 202"/>
+  <path class="arrow" d="M755 202 C805 198 842 202 885 212"/>
+  <path class="dash" d="M885 240 C810 318 765 342 718 390"/>
+  <path class="arrow" d="M336 458 C376 458 415 460 460 462"/>
+  <path class="arrow" d="M760 466 C810 464 842 462 885 460"/>
+  <path class="dash" d="M196 380 C252 302 335 258 470 232"/>
+  <path class="dash" d="M1010 380 C970 325 940 300 900 280"/>
+  <text class="note" x="490" y="628">核心判断：memory 是可读写文件系统协议，不是默认 vector storage；检索主要靠 MEMORY.md 提示、Grep/search 与模型判断。</text>
+</svg>
