@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "contentType": "project",
+  "slug": "claude-code-memory",
+  "items": [
+    {
+      "id": "claude-code-memory-entrypoint-truncation-001",
+      "sectionTitle": "auto-memory 主轴",
+      "quote": "`MEMORY.md` 有硬上限：200 行和 25KB。这个限制本身就是架构信号：它不是正文库，而是短索引。真正的内容应该写进按主题组织的 Markdown 文件。",
+      "occurrence": 1,
+      "title": "MEMORY.md 超限会被截断加载",
+      "body": "`MEMORY.md` 超过 200 行或 25KB 时，Claude Code 不会自动删除磁盘上的内容，也不是写入时直接报错。限制发生在“加载进上下文”的阶段。\n\n`truncateEntrypointContent()` 会先按行截断到前 200 行，再按 25KB 字节上限截断；如果触发字节截断，会优先在上限前最后一个换行处截断，尽量避免切断半行。随后它会在被加载的内容末尾追加 warning，提醒：只加载了部分 `MEMORY.md`，索引行应保持短，细节应移动到 topic files。\n\n结果是：超出部分仍在文件里，但未来对话看不到那部分索引。被截掉的 topic 链接就不会稳定进入上下文，相关记忆更难被发现。因此这个上限是在倒逼 `MEMORY.md` 保持“一行一个指针”的短索引形态，而不是正文堆。"
+    },
+    {
+      "id": "claude-code-memory-types-not-files-001",
+      "sectionTitle": "写入什么内容",
+      "quote": "长期记忆被约束成四类：`user`、`feedback`、`project`、`reference`。它们都要求保存“当前代码、git、CLAUDE.md 无法直接推出”的上下文。",
+      "occurrence": 1,
+      "title": "四类 memory 不是四个索引文件",
+      "body": "`user`、`feedback`、`project`、`reference` 是每条长期记忆的内容分类，不是四个独立的 `MEMORY.md`。\n\nClaude Code 的文件化记忆更像这样：\n\n```text\nmemory/\n  MEMORY.md                 # 短索引\n  user_role.md              # type: user\n  feedback_testing.md       # type: feedback\n  project_release_freeze.md # type: project\n  reference_linear.md       # type: reference\n```\n\n`MEMORY.md` 承担入口索引作用，记录指向 topic Markdown 文件的短链接；真正的长期记忆正文在各个按主题命名的 `.md` 文件里，并通过 frontmatter 的 `type` 字段标记属于哪一类。不同作用域的 memory 目录可能各自有一个 `MEMORY.md`，但那是目录/作用域隔离，不是按四种类型各建一个索引文件。"
+    },
+    {
+      "id": "claude-code-memory-file-level-conflict-001",
+      "sectionTitle": "冲突与更新",
+      "quote": "这不是 fact graph 里的旧事实指向新事实。默认冲突更新是文件级改写：重复就更新旧 Markdown，过时就删除或改写。强一致性来自工具权限和 review，而不是数据库约束。",
+      "occurrence": 1,
+      "title": "文件级冲突更新怎么发生？",
+      "body": "文件级冲突更新可以理解为“先发现旧 topic，再读旧文件，再改写 Markdown”。默认进入主上下文的是 `MEMORY.md` 索引；相关 topic 原文不会全部默认进入，而是在用户 turn 中由 sideQuery 按需选择，读取后作为 `relevant_memories` attachment 注入。\n\n一个典型流程是：\n\n1. `MEMORY.md` 让模型知道已有 topic 文件。\n2. sideQuery 根据用户 query 和 memory manifest 选择最多 5 个相关 topic。\n3. 选中的 topic 文件被截断读取后进入上下文。\n4. 如果新信息和旧 topic 重复或冲突，模型读取旧 `.md`，用 `Edit` / `Write` 改写旧文件。\n5. 如果没有合适旧文件，才新建 topic file，并把短链接加入 `MEMORY.md`。\n\n这里没有数据库级的唯一约束、事务或 `superseded_by` 关系。所谓“强一致性”更多来自文件协议和工具边界：prompt 要求先检查旧文件、`Edit` 通常要求先 `Read`、extractor 只能写 memory 目录，主 agent 写过后后台 extractor 会跳过同一段消息。"
+    },
+    {
+      "id": "claude-code-memory-direct-write-skip-001",
+      "sectionTitle": "冲突与更新",
+      "quote": "这段互斥很关键：如果主 agent 已经写过 auto-memory 路径，后台 extractor 会跳过那段消息并推进 cursor，避免同一轮重复写入。",
+      "occurrence": 1,
+      "title": "怎么判断主 agent 已写 memory？",
+      "body": "“主 agent 已经写过 auto-memory 路径”不是检查文件内容是否真的新增了记忆，而是检查消息记录里的工具调用。\n\n源码里的判断可以简化成：\n\n```ts\ntool_use.name === Edit 或 Write\n&& input.file_path 在 auto-memory 目录下\n```\n\n也就是说，从上次 extractor cursor 之后，只要主对话里出现过一次 `Edit` / `Write` 工具调用，并且 `file_path` 落在 auto-memory 目录内，就认为主 agent 已经处理过记忆写入。这个路径不一定是 `MEMORY.md`，也可以是某个 topic file，例如 `feedback_testing.md`。\n\n发现这种直接写入后，后台 extractor 会跳过同一段消息并推进 cursor，避免同一批对话既被主 agent 保存，又被后台 agent 再抽取保存一次。"
+    },
+    {
+      "id": "claude-code-memory-surfacing-dedupe-001",
+      "sectionTitle": "怎么检索",
+      "quote": "选中文件后，`readMemoriesForSurfacing()` 只读每个文件前 200 行和 4KB。session 累计最多 60KB，且会过滤已经读过、写过或注入过的记忆。",
+      "occurrence": 1,
+      "title": "已召回 memory 如何去重？",
+      "body": "Claude Code 确实会记录“当前会话里哪些 memory 文件已经进入过上下文”，但它不是单独维护一张 memory recall 表，而是复用 `readFileState` 和消息扫描。\n\n去重有两层：\n\n1. `collectSurfacedMemories(messages)` 扫描历史消息里的 `relevant_memories` attachment，得到已经注入过的 memory 路径和累计字节数。源码注释明确说：因为它扫描 messages，compact 后旧 attachment 消失，所以计数会自然重置，允许重新 surface。\n2. `readFileState` 记录已经通过 `FileRead`、`Edit`、`Write` 或 relevant memory attachment 进入上下文的文件路径。`filterDuplicateMemoryAttachments()` 会把新选中的 memory 和 `readFileState` 对比，已经在上下文里的路径就不再重复注入。\n\n如果 memory 文件后来更新，`readFileState` 保存的 timestamp 可以被 `getChangedFiles()` 用来和当前 mtime 比较，必要时生成 edited-file diff。但被 `readMemoriesForSurfacing()` 截断注入的 memory 会带 `limit`，这类 partial view 不参与 changed-file diff，避免用不完整内容做误导性差异。因此它的语义更接近“避免同一上下文里重复塞同一个文件”，而不是“保证更新后自动重新召回完整最新版”。"
+    },
+    {
+      "id": "claude-code-memory-autodream-session-gate-001",
+      "sectionTitle": "autoDream",
+      "quote": "`autoDream` 是长期记忆的清理和合并机制。默认至少 24 小时、5 个 session 才运行，并且拿 consolidation lock，避免多个整理任务同时改 memory 文件。",
+      "occurrence": 1,
+      "title": "为什么 autoDream 要等 5 个 session？",
+      "body": "`autoDream` 整理的是跨 session 的长期记忆目录，不是当前 session 的 `session-memory/summary.md`。这里的 “5 个 session” 指同一项目 transcript 目录里，自上次 consolidation 之后被 touch 过的历史会话文件数量，不是所有 message 列表。\n\n调度 gate 只做便宜的文件级扫描：在项目 transcript 目录里找 UUID 命名的 `.jsonl` 文件，读取文件 `mtime`，筛出 `mtime > lastConsolidatedAt` 的 sessionId，然后排除当前 session。\n\n```text\n距离上次整理 >= 24 小时\n并且 touched transcript 文件数 >= 5\n并且当前没有别的 consolidation lock\n```\n\n这些 sessionId 会被写进 autoDream 的提示词作为“自上次整理以来有哪些 session 可回看”的线索；真正需要内容时，dream agent 再按窄关键词 grep JSONL transcript。它不会在触发判断阶段把所有 messages 全部读出来。\n\n这个门槛的意义是避免过度整理：`extractMemories` 负责平时增量写入；`autoDream` 等多个会话贡献了足够新材料后，再统一清理重复 topic、合并重叠内容、修剪 `MEMORY.md` 索引。"
+    },
+    {
+      "id": "claude-code-memory-autodream-input-prompt-001",
+      "sectionTitle": "autoDream",
+      "quote": "它的价值在冲突更新和索引卫生：合并重叠记忆，删除陈旧内容，保持 `MEMORY.md` 是短索引，而不是越写越长的正文堆。",
+      "occurrence": 1,
+      "title": "autoDream 的输入和提示词",
+      "body": "`autoDream` 要区分“LLM 请求上下文”和“整理材料”。作为 forked agent，它会继承父会话的 system/user context 和当前 conversation messages，然后追加一条 `Dream: Memory Consolidation` 用户提示词。因此它不是完全没有当前对话上下文。\n\n但历史 session 的完整 messages 不会被直接全部塞进 prompt。`autoDream` 只把整理材料的入口交给模型：\n\n```text\nmemoryRoot     = auto-memory 目录\ntranscriptDir  = 当前项目的 session transcript 目录\nsessionIds     = 上次整理后被 touch 过的历史 session 列表\n```\n\n然后提示词要求它按需用工具探索：列出 memory 目录、读 `MEMORY.md`、扫 topic files；如果需要旧会话细节，再用窄关键词 grep JSONL transcripts，而不是全文读取所有历史对话。\n\n`daily logs` 是 assistant-mode/KAIROS 布局里的追加日志：新记忆先按日期写到 `logs/YYYY/MM/YYYY-MM-DD.md`，每条是短的 timestamped bullet。后续 dream 类整理任务再把这些流水日志蒸馏成 topic files 和 `MEMORY.md` 索引。当前 `autoDream` 自动 gate 在 KAIROS active 时会关闭，但 consolidation prompt 兼容这种目录布局，所以看到 `logs/` 或 `sessions/` 子目录时会优先 review recent entries。\n\n所以 `autoDream` 更像“低频维护 agent”：它继承当前会话上下文，但主要输入是 memory 目录、索引、topic 文件、daily logs 和可按需检索的 transcript，而不是一次性吃下所有历史 messages。"
+    }
+  ]
+}
