@@ -5,6 +5,11 @@ const root = process.cwd();
 const projectsDir = path.join(root, "content", "projects");
 const outputPath = path.join(root, "lib", "generated-projects.ts");
 
+function getLectureNumber(title) {
+  const match = String(title || "").match(/[（(]\s*(\d{1,3})\s*[）)]/);
+  return match ? Number(match[1]) : null;
+}
+
 const slugs = fs.existsSync(projectsDir)
   ? fs.readdirSync(projectsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -13,7 +18,17 @@ const slugs = fs.existsSync(projectsDir)
       const dir = path.join(projectsDir, slug);
       return fs.existsSync(path.join(dir, "project.json")) && fs.existsSync(path.join(dir, "explainer.mdx"));
     })
-    .sort()
+    .map((slug) => {
+      const meta = JSON.parse(fs.readFileSync(path.join(projectsDir, slug, "project.json"), "utf8"));
+      return { slug, meta, lectureNumber: getLectureNumber(meta.title) };
+    })
+    .sort((a, b) => {
+      if (a.meta.projectName === b.meta.projectName && a.lectureNumber !== null && b.lectureNumber !== null) {
+        return a.lectureNumber - b.lectureNumber || a.slug.localeCompare(b.slug);
+      }
+      return a.slug.localeCompare(b.slug);
+    })
+    .map((entry) => entry.slug)
   : [];
 
 function slugifyHeading(title) {
