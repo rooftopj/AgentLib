@@ -23,7 +23,7 @@ Claude Code 的 Memory 不是一个单独的向量库功能。它由几条线拼
 
 ## Memory 家族
 
-第一篇先不把所有 Claude Code 上下文机制都展开，只抓 Memory 主线。`CLAUDE.md` 会和 memory files 一起进入上下文，但它更像项目说明和规则；auto-memory 才是本篇的长期记忆主轴。
+`CLAUDE.md` 会和 memory files 一起进入上下文，但它更像项目说明和规则；auto-memory 才承担跨 session 长期记忆的主轴。两者都会影响模型输入，但生命周期完全不同。
 
 ```ts
 // assets/projects/claude-code/src/context.ts
@@ -258,7 +258,7 @@ const result = await runForkedAgent({
 
 ## Team Memory 和 Agent Memory
 
-team memory 是共享层，依赖 auto-memory 开启。它有 team 路径、watcher、pull/push、ETag/412 retry 和 secret scanner。第一篇只需要知道：它复用文件化范式，但同步语义和安全边界更复杂。
+team memory 是共享层，依赖 auto-memory 开启。它有 team 路径、watcher、pull/push、ETag/412 retry 和 secret scanner。对 Memory 主轴来说，关键是它复用文件化范式；同步语义和安全边界则比本地 memory 更复杂。
 
 agent memory 是按 agent type 隔离的持久目录，scope 有 `user`、`project`、`local` 三种。被 @mention 的 agent 会优先搜索自己的 memory dir，而不是普通 auto-memory dir。
 
@@ -288,4 +288,4 @@ export function getAgentMemoryDir(
 
 这套设计牺牲了结构化一致性。没有默认 vector/embedding，也没有数据库级 dedup、merge、supersede；如果 description 写得差，sideQuery selector 可能漏掉相关 topic。
 
-另一个边界是同步复杂度。team memory 还涉及 secret、防冲突、删除是否传播、server wins 或 local wins 的语义。第一篇只讲它与主轴的关系，完整协议更适合单独成篇。
+另一个边界是同步复杂度。team memory 还涉及 secret、防冲突、删除是否传播、server wins 或 local wins 的语义。这里的关键关系是：team memory 仍然延续 Markdown 文件化记忆，但一旦进入共享层，就要额外处理多端同步和安全审查。

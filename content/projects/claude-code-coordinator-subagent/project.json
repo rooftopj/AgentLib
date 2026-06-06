@@ -1,0 +1,23 @@
+{
+  "slug": "claude-code-coordinator-subagent",
+  "title": "Claude Code 源码解析（04）Coordinator：主控 Agent 如何编排 Subagent",
+  "repoUrl": "https://github.com/jarmuine/claude-code",
+  "localSourcePath": "assets/projects/claude-code",
+  "projectName": "claude-code",
+  "focus": "Coordinator / Subagent 编排：coordinator mode、worker prompt、AgentTool 异步任务、SendMessage 续写、TaskStop 停止、TaskOutput 召回输出、worker 工具/权限/上下文隔离与 worktree/fork 边界",
+  "analyzedCommit": "4b9d30f",
+  "analyzedDate": "2026-06-06",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "开源项目",
+    "源码解读",
+    "Claude Code",
+    "Coordinator",
+    "Subagent",
+    "多 Agent"
+  ],
+  "summary": "这篇源码解析基于本地 Claude Code 源码，拆解 coordinator mode 如何把主 agent 变成编排者：什么时候启动 worker，worker 能看到什么上下文，AgentTool 如何把子 agent 写入 task state 和 transcript，SendMessage / TaskStop / TaskOutput 如何继续、停止和召回 worker 输出，以及默认异步编排和可选 fork/worktree/remote 隔离的边界。",
+  "coverImagePath": "/generated/claude-code-coordinator-subagent/architecture.svg",
+  "coverImageAlt": "Claude Code Coordinator 与 Subagent 编排架构图。"
+}

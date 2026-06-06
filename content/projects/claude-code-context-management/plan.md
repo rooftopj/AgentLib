@@ -23,7 +23,7 @@
 - 动态注入：git/CLAUDE.md、queued commands、tool delta、agent listing、MCP instructions、nested memory、skills。
 - 轻量压缩：tool result persistence、aggregate budget、microcompact。
 - 重型压缩：session memory compact 优先，失败再 legacy compact。
-- 恢复与边界：post-compact attachments、hooks、hard blocking、不是向量检索。
+- 恢复与边界：post-compact attachments、hooks、hard blocking，以及压缩后如何补回当前运行线索。
 
 ## 配图规划
 - 架构图：上下文输入层到 query loop。

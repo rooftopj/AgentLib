@@ -16,18 +16,19 @@ description: 将开源项目源码和一个学习焦点转换为 Agent Lib 的�
 
 2. 启动源码侦察阶段。
    - 如果任务较大，或用户要求“不要流于表面”，优先启动一个 `explorer` 子代理阅读源码。
-   - 子代理不要写文件，只返回：源码证据地图、关键洞察、推荐讲解顺序、容易误读的负面事实、推荐配图、暂不展开的边界。
+   - 子代理不要写文件，只返回：源码证据地图、关键洞察、推荐讲解顺序、容易误读的负面事实、推荐配图、与主轴相关的边界。
    - 主代理不要照抄子代理结论；必须带着侦察报告二次阅读关键源码并核验。
 
 3. 生成解读 plan。
    - plan 必须在源码侦察之后生成，落盘到 `content/projects/<slug>/plan.md`。
    - plan 要先回答“这篇讲解到底解决什么问题”，再组织讲解顺序。
-   - plan 至少包含：读者问题、源码证据地图、讲解大纲、配图规划、默认路径与可选路径、暂不展开的内容。
+   - plan 至少包含：读者问题、源码证据地图、讲解大纲、配图规划、默认路径与可选路径、当前主题的边界。
 
 4. 提炼真实机制，而不是平均摘要。
-   - 必须回答：什么时候触发写入、写入什么、存在哪、如何更新或处理冲突、什么时候触发召回、如何检索、如何排序或过滤、哪些是默认行为、哪些是可选能力。
-   - memory/retrieval 主题必须明确区分 vector storage、vector search、lexical/BM25 search、LLM rerank、文件或数据库持久化。
-   - 主动写出不容易从 README 看出的负面事实，例如“默认不是向量库”“没有结构化 supersede 表”“召回后仍需验证当前源码”。
+   - 必须回答本主题真正关心的生命周期问题，例如：什么时候触发、输入/输出是什么、状态存在哪、如何更新、如何恢复或继续、默认路径和可选能力分别是什么。
+   - 只有 memory/retrieval 主题才必须回答：什么时候触发写入、写入什么、存在哪、如何更新或处理冲突、什么时候触发召回、如何检索、如何排序或过滤。
+   - memory/retrieval 主题必须明确区分 vector storage、vector search、lexical/BM25 search、LLM rerank、文件或数据库持久化；非 memory 主题不要为了过门控强行牵扯这些概念。
+   - 主动写出不容易从 README 看出的负面事实。memory/retrieval 主题可以写“默认不是向量库”“没有结构化 supersede 表”；其他主题应写本主题自己的边界，例如“不是 git 回滚”“默认不创建 worktree”“不是自动规划器”。
 
 5. 制作项目配图。
    - 默认至少 3 张图；复杂主题建议 4 张：宏观架构图、关键生命周期图、存储布局图、召回或更新流程图。
@@ -143,8 +144,9 @@ description: 将开源项目源码和一个学习焦点转换为 Agent Lib 的�
 交付前把这些当作硬门槛：
 
 1. **机制覆盖门控**
-   - 正文必须直接回答：什么时候写入、写入什么、存在哪、冲突/更新怎么处理、什么时候召回、如何检索/排序、默认和可选分别是什么。
-   - memory/retrieval 主题必须明确区分 vector storage、vector search、lexical/BM25 search、LLM rerank 和持久化后端。
+   - 正文必须直接回答当前主题的关键生命周期：什么时候触发、由谁执行、输入/输出是什么、状态如何保存或传递、如何更新/恢复/停止、默认和可选分别是什么。
+   - 只有 memory/retrieval 主题才强制覆盖：什么时候写入、写入什么、存在哪、冲突/更新怎么处理、什么时候召回、如何检索/排序、默认和可选分别是什么。
+   - memory/retrieval 主题必须明确区分 vector storage、vector search、lexical/BM25 search、LLM rerank 和持久化后端；非 memory 主题不要硬写这些边界。
 
 2. **源码证据门控**
    - 每个核心结论都必须引用具体本地源码路径和函数/类/常量名。
@@ -154,6 +156,7 @@ description: 将开源项目源码和一个学习焦点转换为 Agent Lib 的�
 3. **删减门控**
    - 不要枚举每个模块。移除所有不能解释学习焦点的文件、功能和文档。
    - 只保留解释架构、运行路径、实现细节、扩展点和限制所需的内容。
+   - 正文是知识讲解页面，不是作者工作记录或系列规划。不要写“第一篇只讲”“本文不展开”“后续单独成篇”“更适合另写一篇”“留到后续”等制作说明；如果某个机制不是主轴，直接说明它和当前机制的关系及边界。
 
 4. **Plan 门控**
    - 交付前必须存在 `content/projects/<slug>/plan.md`。
@@ -184,6 +187,8 @@ npm run build
 
 `project:quality` enforces minimum depth and readability signals: enough sections, figures, rich components, several source excerpts, source-path evidence, required mechanism terms, no placeholders, default-vs-optional framing, no overlong pure-text paragraphs, and no long run of uninterrupted prose.
 
+It also rejects meta narration in `explainer.mdx`: no author-facing production notes, series scheduling, or deferred-article language such as “本文不展开”, “第一篇只讲”, “后续单独成篇”, or “更适合另写一篇”. Convert those into concrete mechanism boundaries.
+
 `project:review` enforces that every project explainer has an explicit review report at `content/projects/<slug>/review.md`.
 
 ## 阅读体验门控
@@ -191,7 +196,7 @@ npm run build
 不要靠连续长文本凑深度。如果某节开始变密，改成这些结构：
 
 - `<FigureBlock />`：架构、生命周期、数据流、召回、冲突/更新、存储布局。
-- `<SplitBlock />`：默认 vs 可选、写入 vs 召回、文本检索 vs 向量检索、运行态 vs 持久化。
+- `<SplitBlock />`：默认 vs 可选、运行态 vs 持久化、主路径 vs 扩展路径；memory/retrieval 主题可用写入 vs 召回、文本检索 vs 向量检索。
 - `<StepFlow />`：observe/write pipeline、recall pipeline、compact pipeline、conflict-resolution pipeline。
 - `<CalloutBlock />`：主结论、负面事实、警告、源码 caveat。
 

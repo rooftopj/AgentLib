@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="Claude Code coordinator architecture">
+  <rect width="1200" height="720" fill="#f8f4ed"/>
+  <text x="70" y="72" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#1f1a14">Coordinator / Subagent Architecture</text>
+  <text x="70" y="108" font-family="Arial, sans-serif" font-size="16" fill="#5f564b">主 agent 负责综合与决策，worker 通过 task runtime 异步回流结果。</text>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#256f78"/>
+    </marker>
+  </defs>
+  <rect x="70" y="170" width="250" height="130" rx="10" fill="#fffaf2" stroke="#d7c7af"/>
+  <text x="95" y="215" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#1f1a14">Coordinator Agent</text>
+  <text x="95" y="248" font-family="Arial, sans-serif" font-size="15" fill="#4f463c">synthesize results</text>
+  <text x="95" y="274" font-family="Arial, sans-serif" font-size="15" fill="#4f463c">spawn / continue / stop</text>
+  <rect x="455" y="155" width="270" height="160" rx="10" fill="#eef8f8" stroke="#8dbac0"/>
+  <text x="485" y="205" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#123b40">AgentTool</text>
+  <text x="485" y="238" font-family="Arial, sans-serif" font-size="15" fill="#27555a">register async task</text>
+  <text x="485" y="264" font-family="Arial, sans-serif" font-size="15" fill="#27555a">build worker tool pool</text>
+  <rect x="850" y="150" width="270" height="170" rx="10" fill="#fff8e8" stroke="#d9ba72"/>
+  <text x="880" y="202" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#5b4210">LocalAgentTask</text>
+  <text x="880" y="235" font-family="Arial, sans-serif" font-size="15" fill="#67501e">progress + output</text>
+  <text x="880" y="261" font-family="Arial, sans-serif" font-size="15" fill="#67501e">pending messages</text>
+  <rect x="455" y="440" width="270" height="130" rx="10" fill="#f5f7ff" stroke="#a8b1d7"/>
+  <text x="485" y="488" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#28315c">Worker Query</text>
+  <text x="485" y="521" font-family="Arial, sans-serif" font-size="15" fill="#404a75">own context / tools</text>
+  <text x="485" y="547" font-family="Arial, sans-serif" font-size="15" fill="#404a75">sidechain transcript</text>
+  <rect x="850" y="430" width="270" height="160" rx="10" fill="#fbf5ff" stroke="#c5a6d6"/>
+  <text x="880" y="480" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#4b275d">Task Notification</text>
+  <text x="880" y="513" font-family="Arial, sans-serif" font-size="15" fill="#614171">task-id / status / result</text>
+  <text x="880" y="539" font-family="Arial, sans-serif" font-size="15" fill="#614171">re-enters main loop</text>
+  <path d="M320 235 C370 235 398 235 452 235" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M725 235 C770 235 800 235 848 235" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M590 315 L590 436" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M725 505 C780 505 805 505 848 505" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M850 520 C690 650 260 635 185 305" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="355" y="218" font-family="Arial, sans-serif" font-size="14" fill="#256f78">spawn</text>
+  <text x="768" y="218" font-family="Arial, sans-serif" font-size="14" fill="#256f78">write task</text>
+  <text x="610" y="385" font-family="Arial, sans-serif" font-size="14" fill="#256f78">runAgent</text>
+  <text x="770" y="488" font-family="Arial, sans-serif" font-size="14" fill="#256f78">complete</text>
+  <text x="470" y="650" font-family="Arial, sans-serif" font-size="14" fill="#256f78">internal user-role signal</text>
+</svg>

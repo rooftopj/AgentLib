@@ -203,7 +203,7 @@ function resolveBackupPath(backupFileName: string, sessionId?: string): string {
 
 ## 冲突、更新与差异预览
 
-这里没有 dedup 或 supersede 那种记忆冲突解决，也没有向量 embedding。它的更新更机械：同一 messageId 的 snapshot update 会替换链上旧 snapshot；恢复前用 diff stats 告诉用户会改哪些文件。
+这里的更新很机械：同一 messageId 的 snapshot update 会替换链上旧 snapshot；恢复前用 diff stats 告诉用户会改哪些文件。
 
 ```ts
 // assets/projects/claude-code/src/utils/sessionStorage.ts
@@ -231,9 +231,9 @@ if (stats?.insertions || stats?.deletions) {
 }
 ```
 
-## 什么时候触发召回与恢复
+## 什么时候触发恢复
 
-这里的“召回”不是 memory recall，也不是 search/vector 检索。它是 resume 时从 transcript 召回 snapshot chain：加载 JSONL，收集 `file-history-snapshot` entry，再把它恢复成 `FileHistoryState`。
+恢复链路从 transcript 里的 snapshot chain 开始：resume 加载 JSONL，收集 `file-history-snapshot` entry，再把它恢复成 `FileHistoryState`。
 
 ```ts
 // assets/projects/claude-code/src/hooks/useFileHistorySnapshotInit.ts
@@ -255,10 +255,10 @@ await mkdir(newBackupDir, { recursive: true })
 ```
 
 <SplitBlock
-  leftTitle="不是向量检索"
-  left="没有 vector storage、embedding search 或 LLM rerank。这里的 search 只是按 messageId 找 snapshot，按 trackedFiles 比较备份。"
-  rightTitle="真正的召回"
-  right="resume 时从 transcript 读回 file-history metadata，再把备份文件迁移到当前 sessionId 下，供后续 Rewind 使用。"
+  leftTitle="恢复 metadata"
+  left="resume 时从 transcript 读回 file-history metadata，重建 messageId 到 trackedFiles 的 snapshot chain。"
+  rightTitle="恢复 backup blob"
+  right="如果 sessionId 改变，旧 session 里的备份文件会 hard link 或 copy 到当前 sessionId 下，供后续 Rewind 使用。"
 />
 
 ## 恢复代码怎么做
@@ -354,7 +354,7 @@ export const SDKControlRewindFilesRequestSchema = lazySchema(() =>
 
 ## 边界
 
-默认启用不等于覆盖所有变化。手工编辑、普通 bash 副作用、外部进程、数据库写入、网络资源都不在 file-history snapshot 的可靠范围内。它也不是向量存储、不是 memory recall、不是 git 回滚。
+默认启用不等于覆盖所有变化。手工编辑、普通 bash 副作用、外部进程、数据库写入、网络资源都不在 file-history snapshot 的可靠范围内。它也不是 git 回滚。
 
 <CalloutBlock
   title="最容易误读的地方"

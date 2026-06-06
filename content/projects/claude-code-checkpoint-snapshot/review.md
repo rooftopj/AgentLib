@@ -8,7 +8,7 @@
 
 ## Coverage Review
 - Covered: `/rewind` 与 `/checkpoint` 入口、MessageSelector UI、用户消息触发 snapshot、工具写前 track edit、JSONL metadata、file-history backup 目录、resume 迁移、conversation/code 双恢复路径、CLI/SDK 入口、边界。
-- Missing or weak: 初稿容易把“召回”写成 memory recall。已明确说明这里没有 vector storage、embedding search 或 LLM rerank，只有 transcript 里的 snapshot chain restore。
+- Missing or weak: 初稿容易把恢复链路讲成泛泛的“回到过去”。已改成 transcript metadata 与 file-history backup blob 两条路径，分别解释如何重建 snapshot chain。
 - Decision: PASS。
 
 ## Source Evidence Review
@@ -24,7 +24,7 @@
 ## Revision Actions
 - Applied: 把“snapshot 家族”单独成节，排除 shell/context-collapse/agent memory 等同名机制。
 - Applied: 增加 “Headless 与 SDK 路径” 节，覆盖 `--rewind-files` 和 SDK `rewind_files`。
-- Applied: 增加 “不是向量检索” 分栏，避免和第一讲 memory 召回混淆。
+- Applied: 重写恢复分栏，改为 metadata 恢复与 backup blob 迁移，避免引入无关主题。
 - Deferred with reason: 没展开 todo/tool result 的具体持久化实现，因为它们不是 checkpoint 主链路，只在边界中提及。
 
 ## Final Verdict

@@ -23,7 +23,7 @@ Claude Code 的上下文管理不是“快满了就总结一下”。它更像�
 
 ## 先看证据地图
 
-本文只讲“上下文怎么进模型、怎么被压缩”。不展开第一讲的长期 memory 写入，也不展开第二讲的 checkpoint restore。
+这条源码线聚焦“上下文怎么进模型、怎么被压缩”。长期 memory 写入和 checkpoint restore 都会影响会话状态，但它们不是 `query.ts` 这条上下文预算管线的主要职责。
 
 ```text
 # 1 assets/projects/claude-code/src/context.ts
@@ -36,7 +36,7 @@ Claude Code 的上下文管理不是“快满了就总结一下”。它更像�
 # 8 assets/projects/claude-code/src/services/compact/sessionMemoryCompact.ts
 ```
 
-质量门控上先说清楚：这里没有 vector storage、embedding search 或 LLM rerank。所谓 recall/search 主要是读取当前会话、文件状态、CLAUDE.md/nested memory 或 transcript 里的上下文记录，不是语义向量召回。
+读这条源码线时，先把问题收窄：它关心的是“哪些上下文进入下一次模型调用，以及超预算时先丢什么、替换什么、压缩什么”。长期记忆的生成和回忆不是这一讲的主轴。
 
 ## 固定上下文只放稳定信息
 
@@ -178,7 +178,7 @@ if (!toolUseContext.readFileState.has(memoryFile.path)) {
 }
 ```
 
-这里和第一讲 memory 的写入、remember、冲突/dedup 不同。它只负责“当前 turn 需要把哪些上下文放进模型”，不是更新长期记忆事实。
+这里不更新长期记忆事实，只负责“当前 turn 需要把哪些上下文放进模型”。
 
 ## 第一层压缩：工具结果预算
 
@@ -372,4 +372,4 @@ for (const att of getAgentListingDeltaAttachment(context, [])) {
   body="摘要只是最后一层。真正影响体验的是前面的预算纪律：工具结果 storage、content replacement、delta 注入、nested memory 去重、post-compact 重建，以及失败时的 blocking/reactive fallback。"
 />
 
-默认不是 vector 检索系统，也没有 embedding 冲突更新。它处理的是 message/context 的工程预算；memory 里的 recall、remember、dedup 是另一套主题。读这段源码时，最重要的是看每一层为什么放在这个顺序，而不是只记住“有 compact”。
+读这段源码时，最重要的是看每一层为什么放在这个顺序：先减少重复注入，再替换大工具结果，再压缩局部历史，最后才重写整段会话。只记住“有 compact”会漏掉真正的工程取舍。

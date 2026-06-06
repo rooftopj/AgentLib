@@ -5,13 +5,25 @@ const root = process.cwd();
 const projectsDir = path.join(root, "content", "projects");
 const errors = [];
 
-const requiredMechanismTerms = [
+const requiredMemoryMechanismTerms = [
   ["写入", "触发", "observe", "remember"],
   ["存储", "持久化", "to_dict", "storage"],
   ["冲突", "更新", "supersede", "dedup"],
   ["召回", "检索", "recall", "search"],
   ["向量", "vector", "embedding", "默认"]
 ];
+
+function requiresMemoryMechanismGate(meta) {
+  const category = `${meta.category || ""} ${meta.categoryLabel || ""}`.toLowerCase();
+  if (/memory|记忆/.test(category)) return true;
+
+  const titleAndTags = [
+    meta.title,
+    ...(Array.isArray(meta.tags) ? meta.tags : [])
+  ].join(" ").toLowerCase();
+
+  return /memory|记忆系统|retrieval|召回|检索|向量|vector|embedding/.test(titleAndTags);
+}
 
 function stripCode(text) {
   return text.replace(/```[\s\S]*?```/g, "");
@@ -20,6 +32,16 @@ function stripCode(text) {
 function includesAny(text, terms) {
   const lower = text.toLowerCase();
   return terms.some((term) => lower.includes(term.toLowerCase()));
+}
+
+function metaNarrationMatches(text) {
+  const patterns = [
+    /单独成篇|另[一]?篇|下一篇|更适合[^。！？\n]*篇|完整协议[^。！？\n]*篇/g,
+    /(本文|本篇|这篇|第一篇|第二篇|第三篇|第四篇)[^。！？\n]{0,40}(只讲|只需要知道|不展开|不重复展开|先不|留到)/g,
+    /(后续|以后)[^。！？\n]{0,30}(补充|展开|再讲|成篇|专题)/g,
+    /留到后续|暂不展开|不回答什么/g
+  ];
+  return patterns.flatMap((pattern) => text.match(pattern) || []);
 }
 
 function plainParagraphs(markdown) {
@@ -93,13 +115,16 @@ if (!fs.existsSync(projectsDir)) {
     const codeFenceCount = (explainer.match(/```/g) || []).length / 2;
     const sourceRefs = sourceReferenceCount(explainer, meta.localSourcePath || "");
     const paragraphs = plainParagraphs(explainer);
+    const metaNarration = metaNarrationMatches(stripCode(explainer));
     const longParagraphs = paragraphs
       .map((paragraph) => ({ paragraph, cjk: cjkCount(paragraph) }))
       .filter((item) => item.cjk > 260);
     const maxPlainRun = longestPlainRun(explainer);
 
+    const needsMemoryGate = requiresMemoryMechanismGate(meta);
+
     if (headings.length < 8) {
-      errors.push(`${slug}: 至少需要 8 个二级标题，覆盖结论、架构、写入、存储、冲突、召回、源码和边界`);
+      errors.push(`${slug}: 至少需要 8 个二级标题，覆盖结论、架构、关键生命周期、源码细读、默认/可选路径、边界和可复用设计`);
     }
     if (figureCount < 2) {
       errors.push(`${slug}: 至少需要 2 张图，覆盖宏观架构和关键流程`);
@@ -119,9 +144,14 @@ if (!fs.existsSync(projectsDir)) {
     if (maxPlainRun > 4) {
       errors.push(`${slug}: 连续纯文本段落过多（${maxPlainRun} 段），请插入图、分栏、步骤流、callout 或代码讲解`);
     }
-    for (const terms of requiredMechanismTerms) {
-      if (!includesAny(explainer, terms)) {
-        errors.push(`${slug}: 缺少机制问题覆盖，需出现以下任一关键词：${terms.join(" / ")}`);
+    if (metaNarration.length > 0) {
+      errors.push(`${slug}: 正文包含面向作者的制作说明或系列安排，请改成知识讲解本身：${[...new Set(metaNarration)].join(" / ")}`);
+    }
+    if (needsMemoryGate) {
+      for (const terms of requiredMemoryMechanismTerms) {
+        if (!includesAny(explainer, terms)) {
+          errors.push(`${slug}: memory/retrieval 主题缺少机制覆盖，需出现以下任一关键词：${terms.join(" / ")}`);
+        }
       }
     }
     if (!/默认|default/i.test(explainer) || !/可选|optional|pluggable|插拔/i.test(explainer)) {

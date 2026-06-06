@@ -23,7 +23,7 @@
 - 生命周期：用户消息建 checkpoint，工具写文件前补旧版本，恢复时按 messageId 找 snapshot。
 - 源码细读：命令入口、snapshot 数据结构、track edit、make snapshot、apply snapshot、JSONL 落盘。
 - 可复用设计：metadata 与 blob 分离、按用户消息绑定、恢复前 diff preview。
-- 边界：不是 git，不是全量快照，不是向量存储或 memory recall。
+- 边界：不是 git，不是全量项目快照；只覆盖 Claude Code file-history 追踪到的文件变化。
 
 ## 配图规划
 - 架构图：Rewind 面板到 transcript/file-history/restore 双路径。

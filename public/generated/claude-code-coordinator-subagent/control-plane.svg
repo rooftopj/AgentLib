@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-label="Subagent control plane">
+  <rect width="1200" height="620" fill="#f8f4ed"/>
+  <text x="70" y="70" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#1f1a14">Control Plane</text>
+  <text x="70" y="104" font-family="Arial, sans-serif" font-size="16" fill="#5f564b">继续、停止和读取输出是三种不同控制动作，不是同一个“等待结果”。</text>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#256f78"/>
+    </marker>
+  </defs>
+  <g font-family="Arial, sans-serif">
+    <rect x="470" y="190" width="260" height="120" rx="10" fill="#fff8e8" stroke="#d9ba72"/>
+    <text x="505" y="238" font-size="21" font-weight="700" fill="#5b4210">LocalAgentTask</text>
+    <text x="505" y="270" font-size="15" fill="#67501e">running / completed / killed</text>
+    <rect x="90" y="380" width="250" height="110" rx="10" fill="#eef8f8" stroke="#8dbac0"/>
+    <text x="125" y="425" font-size="20" font-weight="700" fill="#123b40">SendMessage</text>
+    <text x="125" y="455" font-size="15" fill="#27555a">queue or resume</text>
+    <rect x="475" y="380" width="250" height="110" rx="10" fill="#fbf5ff" stroke="#c5a6d6"/>
+    <text x="510" y="425" font-size="20" font-weight="700" fill="#4b275d">TaskStop</text>
+    <text x="510" y="455" font-size="15" fill="#614171">kill running task</text>
+    <rect x="860" y="380" width="250" height="110" rx="10" fill="#f5f7ff" stroke="#a8b1d7"/>
+    <text x="895" y="425" font-size="20" font-weight="700" fill="#28315c">TaskOutput</text>
+    <text x="895" y="455" font-size="15" fill="#404a75">read output by task id</text>
+    <rect x="470" y="60" width="260" height="80" rx="10" fill="#fffaf2" stroke="#d8c7ae"/>
+    <text x="505" y="108" font-size="20" font-weight="700" fill="#1f1a14">Coordinator</text>
+    <path d="M600 140 L600 186" stroke="#256f78" stroke-width="3" marker-end="url(#arr)"/>
+    <path d="M470 270 C340 300 245 335 220 376" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+    <path d="M600 310 L600 376" stroke="#256f78" stroke-width="3" marker-end="url(#arr)"/>
+    <path d="M730 270 C850 300 960 335 985 376" stroke="#256f78" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+    <path d="M215 380 C300 250 430 118 470 100" stroke="#256f78" stroke-width="2" fill="none" stroke-dasharray="6 7"/>
+    <path d="M985 380 C900 250 770 118 730 100" stroke="#256f78" stroke-width="2" fill="none" stroke-dasharray="6 7"/>
+  </g>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-label="Subagent spawn lifecycle">
+  <rect width="1200" height="560" fill="#f8f4ed"/>
+  <text x="70" y="72" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#1f1a14">Spawn Lifecycle</text>
+  <text x="70" y="106" font-family="Arial, sans-serif" font-size="16" fill="#5f564b">AgentTool 不是直接返回 worker 结果，而是启动异步 task 并返回 task id。</text>
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2a7372"/>
+    </marker>
+  </defs>
+  <g font-family="Arial, sans-serif">
+    <rect x="75" y="185" width="180" height="105" rx="8" fill="#fffaf2" stroke="#d8c7ae"/>
+    <text x="105" y="226" font-size="18" font-weight="700" fill="#1f1a14">1. decide</text>
+    <text x="105" y="255" font-size="14" fill="#50473c">research / implement</text>
+    <rect x="325" y="185" width="180" height="105" rx="8" fill="#eef8f8" stroke="#8dbac0"/>
+    <text x="355" y="226" font-size="18" font-weight="700" fill="#123b40">2. AgentTool</text>
+    <text x="355" y="255" font-size="14" fill="#27555a">description + prompt</text>
+    <rect x="575" y="185" width="180" height="105" rx="8" fill="#fff8e8" stroke="#d9ba72"/>
+    <text x="605" y="226" font-size="18" font-weight="700" fill="#5b4210">3. task state</text>
+    <text x="605" y="255" font-size="14" fill="#67501e">agentId / progress</text>
+    <rect x="825" y="185" width="180" height="105" rx="8" fill="#f5f7ff" stroke="#a8b1d7"/>
+    <text x="855" y="226" font-size="18" font-weight="700" fill="#28315c">4. runAgent</text>
+    <text x="855" y="255" font-size="14" fill="#404a75">own query loop</text>
+    <rect x="575" y="370" width="180" height="105" rx="8" fill="#fbf5ff" stroke="#c5a6d6"/>
+    <text x="605" y="411" font-size="18" font-weight="700" fill="#4b275d">5. notify</text>
+    <text x="605" y="440" font-size="14" fill="#614171">task-notification</text>
+    <path d="M255 238 L322 238" stroke="#2a7372" stroke-width="3" marker-end="url(#arrow2)"/>
+    <path d="M505 238 L572 238" stroke="#2a7372" stroke-width="3" marker-end="url(#arrow2)"/>
+    <path d="M755 238 L822 238" stroke="#2a7372" stroke-width="3" marker-end="url(#arrow2)"/>
+    <path d="M915 290 C900 390 800 420 758 422" stroke="#2a7372" stroke-width="3" fill="none" marker-end="url(#arrow2)"/>
+    <path d="M575 422 C365 430 190 370 165 294" stroke="#2a7372" stroke-width="3" fill="none" marker-end="url(#arrow2)"/>
+  </g>
+</svg>

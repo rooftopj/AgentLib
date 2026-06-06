@@ -23,7 +23,7 @@
 
 ## Revision Actions
 - Applied: 增加“先看证据地图”，让每个核心结论能追溯到源码路径。
-- Applied: 增加“不是向量检索/不是 memory recall”的边界说明，避免和 Memory 第一讲混淆。
+- Applied: 收窄主题边界，强调本文只讲 message/context 预算、动态注入和压缩顺序，不展开长期记忆机制。
 - Applied: 增加 post-compact 恢复上下文小节，说明 compact 后不是只剩摘要。
 - Deferred with reason: 未展开 reactive compact 的完整错误恢复路径，避免文章从上下文管理变成 API error handling 专题。
 
