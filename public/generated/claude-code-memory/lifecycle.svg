@@ -29,7 +29,7 @@
   <text class="body" x="82" y="238">stop hook 后台抽取</text>
 
   <rect class="guard" x="360" y="150" width="230" height="118"/>
-  <text class="head" x="382" y="184">2. Gate & Permission</text>
+  <text class="head" x="382" y="184">2. Gate &amp; Permission</text>
   <text class="body" x="382" y="212">feature/settings/env gate</text>
   <text class="body" x="382" y="238">工具只写 memory dir</text>
 
