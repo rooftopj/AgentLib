@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code compaction pipeline</title>
+  <desc id="desc">Cheap local reductions run before expensive summarization.</desc>
+  <style>.bg{fill:#f7f3ec}.box{fill:#fffaf2;stroke:#d8c7ad;stroke-width:2}.green{fill:#e9f3f0;stroke:#2f6f73;stroke-width:2}.gold{fill:#fff2db;stroke:#b08b57;stroke-width:2}.title{font:700 28px Arial,sans-serif;fill:#1d2b2a}.head{font:700 18px Arial,sans-serif;fill:#1d2b2a}.body{font:15px Arial,sans-serif;fill:#5d554a}.line{stroke:#2f6f73;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2f6f73"/></marker></defs>
+  <rect class="bg" width="1200" height="620"/>
+  <text class="title" x="60" y="60">Compaction pipeline: local first, summary last</text>
+  <rect class="box" x="60" y="210" width="190" height="120" rx="10"/>
+  <text class="head" x="90" y="248">Messages</text>
+  <text class="body" x="90" y="280">after compact boundary</text>
+  <rect class="green" x="305" y="210" width="190" height="120" rx="10"/>
+  <text class="head" x="330" y="248">Tool Budget</text>
+  <text class="body" x="330" y="280">persist/replace</text>
+  <rect class="green" x="550" y="210" width="190" height="120" rx="10"/>
+  <text class="head" x="578" y="248">Microcompact</text>
+  <text class="body" x="578" y="280">cache edit or clear</text>
+  <rect class="gold" x="795" y="120" width="220" height="120" rx="10"/>
+  <text class="head" x="825" y="158">Session Memory</text>
+  <text class="body" x="825" y="190">try cheap summary</text>
+  <rect class="gold" x="795" y="340" width="220" height="120" rx="10"/>
+  <text class="head" x="825" y="378">Legacy Compact</text>
+  <text class="body" x="825" y="410">LLM summary fork</text>
+  <rect class="box" x="1060" y="230" width="100" height="80" rx="10"/>
+  <text class="head" x="1080" y="264">Post</text>
+  <text class="body" x="1078" y="292">restore</text>
+  <path class="line" d="M250 270 C272 270 282 270 305 270"/>
+  <path class="line" d="M495 270 C518 270 528 270 550 270"/>
+  <path class="line" d="M740 246 C770 214 776 184 795 180"/>
+  <path class="line" d="M740 294 C770 326 776 382 795 400"/>
+  <path class="line" d="M1015 180 C1050 204 1052 230 1060 252"/>
+  <path class="line" d="M1015 400 C1050 372 1054 318 1060 292"/>
+</svg>

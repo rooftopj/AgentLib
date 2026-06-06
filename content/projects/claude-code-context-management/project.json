@@ -1,0 +1,23 @@
+{
+  "slug": "claude-code-context-management",
+  "title": "Claude Code 源码解析（03）Context Management：动态注入、工具结果预算与多层压缩",
+  "repoUrl": "https://github.com/jarmuine/claude-code",
+  "localSourcePath": "assets/projects/claude-code",
+  "projectName": "claude-code",
+  "focus": "上下文管理设计：system/user context、CLAUDE.md 与 nested memory 动态注入、queued command/skill/tool delta attachment、tool result budget、microcompact、session memory compact、autocompact 与边界",
+  "analyzedCommit": "4b9d30f",
+  "analyzedDate": "2026-06-06",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "开源项目",
+    "源码解读",
+    "Claude Code",
+    "上下文管理",
+    "Context",
+    "压缩"
+  ],
+  "summary": "这篇源码解析基于本地 Claude Code 源码，拆解它如何把上下文分成静态 system/user context、按 turn 动态注入的 attachments、工具结果预算替换、cache-friendly microcompact、session memory compact 和 autocompact 多层机制，而不是只靠一次大摘要解决长上下文问题。",
+  "coverImagePath": "/generated/claude-code-context-management/architecture.svg",
+  "coverImageAlt": "Claude Code 上下文管理架构图。"
+}
