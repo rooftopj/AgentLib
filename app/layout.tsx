@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
+import { BookOpen, Boxes, FolderGit2, Network } from "lucide-react";
 import SearchDialog from "@/components/SearchDialog";
+import TopicMenu from "@/components/TopicMenu";
 import { publicPath } from "@/lib/public-path";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -28,9 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </span>
           </Link>
           <nav className="site-nav" aria-label="主导航">
-            <Link href="/papers/">论文库</Link>
-            <Link href="/blogs/">博客</Link>
-            <Link href="/projects/">开源项目</Link>
+            <Link className="nav-link" href="/atlas/"><Network size={16} aria-hidden="true" />知识图谱</Link>
+            <TopicMenu />
+            <Link className="nav-link" href="/papers/"><BookOpen size={16} aria-hidden="true" />论文库</Link>
+            <Link className="nav-link" href="/blogs/"><Boxes size={16} aria-hidden="true" />博客</Link>
+            <Link className="nav-link" href="/projects/"><FolderGit2 size={16} aria-hidden="true" />开源项目</Link>
             <SearchDialog />
           </nav>
         </header>

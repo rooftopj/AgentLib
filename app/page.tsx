@@ -112,8 +112,13 @@ export default function HomePage() {
       </section>
 
       <section className="section-band">
-        <div className="section-heading">
-          <h2>按主题浏览</h2>
+        <div className="section-heading atlas-home-heading">
+          <div>
+            <p className="eyebrow">知识图谱</p>
+            <h2>按主题机制理解 Agent 领域</h2>
+            <p className="section-copy">从记忆、架构、Skill 和工具使用等主题切入，查看核心机制之间的关系，再进入具体论文、博客和项目。</p>
+          </div>
+          <Link className="button primary" href="/atlas/">打开知识图谱</Link>
         </div>
         <div className="category-grid">
           {categorySummaries.map((category) => (

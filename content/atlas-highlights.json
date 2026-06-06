@@ -1,0 +1,615 @@
+{
+  "version": 1,
+  "resources": [
+    {
+      "type": "blog",
+      "slug": "harness-engineering",
+      "topicNodeIds": [
+        "code-execution",
+        "environment-state",
+        "execution-feedback",
+        "module-design",
+        "failure-recovery"
+      ],
+      "highlights": [
+        {
+          "title": "应用可读",
+          "body": "Codex 能启动应用、驱动浏览器、看日志指标和 trace，修复才从静态猜测进入闭环。"
+        },
+        {
+          "title": "仓库地图",
+          "body": "AGENTS.md 作为短入口，深层知识放进 docs、计划、schema 和质量文档，保持可路由。"
+        },
+        {
+          "title": "边界优先",
+          "body": "高吞吐 agent 会复制仓库模式，依赖方向、数据边界和 lint 要提前机械化。"
+        },
+        {
+          "title": "反馈分层",
+          "body": "测试、DevTools、日志、指标、trace 和 agent review 组成反馈层，驱动下一轮修复。"
+        },
+        {
+          "title": "合并重构",
+          "body": "只有失败能快速发现、定位、修复和回滚时，才适合把部分质量控制移到合并后。"
+        },
+        {
+          "title": "熵管理",
+          "body": "反复出现的 review 意见应升级成 lint、测试、模板、skill 或周期性后台清理任务。"
+        },
+        {
+          "title": "四层环境",
+          "body": "任务入口、知识层、反馈层、约束层共同把 Codex 从代码生成器变成执行者。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "aflow-automating-agentic-workflow-generation",
+      "topicNodeIds": [
+        "workflow-graph",
+        "search-optimization",
+        "execution-feedback"
+      ],
+      "highlights": [
+        {
+          "title": "代码化流程",
+          "body": "把 workflow 写成可执行程序，让提示词、算子组合和代码边能被同一评估器比较。"
+        },
+        {
+          "title": "树形经验",
+          "body": "每个 MCTS 节点是一整个 workflow，边记录一次修改，成功和失败都能按父节点归因。"
+        },
+        {
+          "title": "真实反馈裁决",
+          "body": "候选流程在验证集多次运行，分数、成本、错误日志和期望输出一起回传搜索树。"
+        },
+        {
+          "title": "算子先验",
+          "body": "Generate、Review、Test、Programmer 等算子把常见成功模式变成可搜索积木。"
+        },
+        {
+          "title": "成本前沿",
+          "body": "搜索阶段可用强模型离线设计，上线时保留便宜模型执行的高性价比 workflow。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "agentfold-long-horizon-web-agents-proactive-context-management",
+      "topicNodeIds": [
+        "context-compression",
+        "environment-state",
+        "failure-recovery"
+      ],
+      "highlights": [
+        {
+          "title": "动态工作区",
+          "body": "把上下文拆成用户问题、工具、多尺度摘要和最近交互，让长程网页任务保持可维护状态。"
+        },
+        {
+          "title": "四块响应",
+          "body": "每步同时输出 thinking、folding、explanation 和 action，把行动与上下文维护绑成闭环。"
+        },
+        {
+          "title": "双尺度折叠",
+          "body": "关键证据做细粒度压缩，失败路径或完成子任务做深度合并，避免线性历史膨胀。"
+        },
+        {
+          "title": "折叠训练",
+          "body": "用生成和拒绝采样构造含 folding 指令的轨迹，再用 SFT 让模型学习何时压、压什么。"
+        },
+        {
+          "title": "长程收益",
+          "body": "BrowseComp 百轮后上下文约 7k token，比 ReAct 少约 92%，同时保持强开源结果。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "agentic-context-engineering-evolving-contexts-self-improving-language-models",
+      "topicNodeIds": [
+        "memory-write",
+        "memory-structure",
+        "execution-feedback"
+      ],
+      "highlights": [
+        {
+          "title": "条目化上下文",
+          "body": "把提示、示例、工具规则和失败经验整理成 playbook 条目，而不是整段重写。"
+        },
+        {
+          "title": "三角色闭环",
+          "body": "Generator 产出轨迹，Reflector 抽取经验，Curator 决定新增、合并、拒绝或剪枝。"
+        },
+        {
+          "title": "增量更新",
+          "body": "新经验以 delta 写入上下文，减少反复总结带来的简短偏置和上下文坍缩。"
+        },
+        {
+          "title": "反馈边界",
+          "body": "代码执行、SQL 结果和环境状态适合驱动更新；模糊自评容易污染 playbook。"
+        },
+        {
+          "title": "可治理经验",
+          "body": "经验保留在外部上下文中，可审计、可回滚，也能按团队或业务线分层维护。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "agentsquare-automatic-llm-agent-search-modular-design-space",
+      "topicNodeIds": [
+        "module-design",
+        "search-optimization",
+        "execution-feedback"
+      ],
+      "highlights": [
+        {
+          "title": "模块化空间",
+          "body": "把 Agent 表示为规划、推理、工具使用和记忆四类标准 IO 模块的组合。"
+        },
+        {
+          "title": "演化与重组",
+          "body": "模块演化负责创造新组件，模块重组负责复用已有强模块，二者交替探索和利用。"
+        },
+        {
+          "title": "预测器粗筛",
+          "body": "性能预测器只筛重组候选；新演化模块仍进入真实环境评估，避免误杀新设计。"
+        },
+        {
+          "title": "经验池记忆",
+          "body": "经验池保存模块组合、任务表现和失败症状，让重组器不再随机替换组件。"
+        },
+        {
+          "title": "模块级解释",
+          "body": "搜索结果输出可读模块组合，能反查任务为何需要记忆、工具投票或反馈式规划。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "autoskill-experience-driven-lifelong-learning-skill-self-evolution",
+      "topicNodeIds": [
+        "skill-representation",
+        "skill-retrieval",
+        "runtime-injection",
+        "skill-evolution"
+      ],
+      "highlights": [
+        {
+          "title": "技能工件化",
+          "body": "把偏好、流程、反模式和工具规则写入 SKILL.md，让长期经验可编辑、可迁移、可治理。"
+        },
+        {
+          "title": "异步学习路径",
+          "body": "前台先检索并注入已有技能生成回复，后台并发抽取、维护候选技能，更新影响后续请求。"
+        },
+        {
+          "title": "候选先审核",
+          "body": "新经验先生成候选技能，再检索相似旧技能，由 judge 决定 discard、merge 或 add。"
+        },
+        {
+          "title": "字段化抽取",
+          "body": "抽取器把经验拆进 name、description、prompt、triggers、tags 和 examples，而非保存原话。"
+        },
+        {
+          "title": "版本化合并",
+          "body": "merge 保留原技能身份，只吸收可复用约束、例子和流程细节，并递增版本追踪变化。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "chatsop-sop-guided-mcts-dialogue-agents",
+      "topicNodeIds": [
+        "workflow-graph",
+        "search-optimization",
+        "environment-state"
+      ],
+      "highlights": [
+        {
+          "title": "SOP 图约束",
+          "body": "把任务型对话表示为智能体动作和用户状态的有向图，显式约束关键业务步骤。"
+        },
+        {
+          "title": "离线在线分层",
+          "body": "离线预测 SOP 邻接表，在线每轮加载当前状态，用 MCTS 选择下一步动作。"
+        },
+        {
+          "title": "路径模拟",
+          "body": "SGM 从候选动作展开多步用户反应和后续路径，并把奖励回传到搜索树。"
+        },
+        {
+          "title": "结构化数据集",
+          "body": "SOPDAIL 同时保存任务画像、动作集合、用户状态、SOP、对话路径和自然脚本。"
+        },
+        {
+          "title": "动作话术分离",
+          "body": "在线规划先决定是否核验、答疑或说服，LLM 再把选中动作改写成自然回复。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "flow-modularized-agentic-workflow-automation",
+      "topicNodeIds": [
+        "workflow-graph",
+        "module-design",
+        "failure-recovery"
+      ],
+      "highlights": [
+        {
+          "title": "AOV 任务图",
+          "body": "用顶点表示子任务、边表示依赖、agent 绑定角色和任务子集，形成可调度 DAG。"
+        },
+        {
+          "title": "模块化打分",
+          "body": "候选图先比平均并行度，再比依赖复杂度，避免任务过度串行或依赖集中。"
+        },
+        {
+          "title": "依赖计数调度",
+          "body": "num_parents_not_completed 为零的节点可并行启动，把结构指标落到运行条件。"
+        },
+        {
+          "title": "运行时改图",
+          "body": "更新器读取当前图、子任务状态和中间产物，局部新增、删除、重连或重跑节点。"
+        },
+        {
+          "title": "双重验收",
+          "body": "Flow 不只看 agent 自报完成，还检查子任务需求是否满足，再释放下游依赖。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "inside-out-personatree-long-term-personalized-dialogue-systems",
+      "topicNodeIds": [
+        "memory-write",
+        "memory-structure",
+        "memory-retrieval"
+      ],
+      "highlights": [
+        {
+          "title": "画像树状态",
+          "body": "用生物、心理、社会 schema 约束 PersonaTree，叶节点保存用户核心属性的当前综合值。"
+        },
+        {
+          "title": "原子树操作",
+          "body": "MemListener 读取对话块、旧树和规则，输出 ADD、UPDATE、DELETE 或 NO_OP 操作序列。"
+        },
+        {
+          "title": "安全门校验",
+          "body": "树更新前检查路径、操作类型、值字符串和长度预算，避免模型随意扩展长期画像。"
+        },
+        {
+          "title": "快慢召回",
+          "body": "稳定画像问题直接读非空叶节点；长尾细节问题再由 PersonaTree 引导历史证据检索。"
+        },
+        {
+          "title": "低成本记忆",
+          "body": "训练后的 Qwen 记忆维护模型用约 2.3K tokens，匹配或超过约 32K 全文历史。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "magma-foundation-model-multimodal-ai-agents",
+      "topicNodeIds": [
+        "module-design",
+        "environment-state",
+        "execution-feedback"
+      ],
+      "highlights": [
+        {
+          "title": "行动接口",
+          "body": "把多模态任务从看图回答推进到看环境行动，统一处理 UI、视频和机器人观察。"
+        },
+        {
+          "title": "标记落地",
+          "body": "Set-of-Mark 给可操作对象、按钮或区域编号，把空间定位转成语言模型擅长的标记选择。"
+        },
+        {
+          "title": "轨迹规划",
+          "body": "Trace-of-Mark 把未来运动画成轨迹，使教学视频和机器人片段都能提供规划监督。"
+        },
+        {
+          "title": "统一生成",
+          "body": "文字答案、坐标、标记编号、轨迹和动作 token 都进入同一条件生成目标。"
+        },
+        {
+          "title": "跨域迁移",
+          "body": "SoM 与 ToM 先对齐异构标签，再混合 UI、机器人、视频和图文数据，减少任务干扰。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "magma-multi-graph-agentic-memory-architecture",
+      "topicNodeIds": [
+        "memory-write",
+        "memory-structure",
+        "memory-retrieval"
+      ],
+      "highlights": [
+        {
+          "title": "四图记忆",
+          "body": "同一事件节点进入语义、时间、因果和实体图，让不同关系保留可遍历的边类型。"
+        },
+        {
+          "title": "锚点融合",
+          "body": "用向量检索、关键词匹配和时间过滤三路召回入口节点，再用 RRF 融合降低单路脆弱性。"
+        },
+        {
+          "title": "意图走图",
+          "body": "Why、When、Entity 等意图决定边权重，beam search 同时看结构匹配和节点语义。"
+        },
+        {
+          "title": "双流写入",
+          "body": "Fast Path 先写事件、时间边和向量；Slow Path 后台读两跳邻域补因果与实体边。"
+        },
+        {
+          "title": "策略消融",
+          "body": "去掉 Adaptive Policy 后 LoCoMo Judge 从 0.700 降到 0.637，说明多图还需要路由策略。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "rolememo-persona-driven-dual-memory-role-playing-agents",
+      "topicNodeIds": [
+        "memory-write",
+        "memory-structure",
+        "memory-retrieval"
+      ],
+      "highlights": [
+        {
+          "title": "事实到洞察",
+          "body": "RoleMemo 要求从分散事实推回 persona 视角下的 insight，而不是只召回中性事件。"
+        },
+        {
+          "title": "双层记忆",
+          "body": "DualMem 把 factual cognition 和 insight cognition 同存入 memory bank，并保留洞察到事实的链接。"
+        },
+        {
+          "title": "证据编织",
+          "body": "事实片段被自然嵌入 24 轮对话块，再混入多实体干扰，历史扩展到 32k 到 256k。"
+        },
+        {
+          "title": "双指标评估",
+          "body": "Fact Recall@10 检查事实命中，Insight Recall@10 检查角色解释命中，区分两类记忆质量。"
+        },
+        {
+          "title": "角色训练",
+          "body": "4B 记忆构建模型经 SFT 与多轮轨迹 RL 后，在事实、洞察召回和角色质量上超过基线。"
+        }
+      ]
+    },
+    {
+      "type": "paper",
+      "slug": "skillrouter-skill-routing-llm-agents-scale",
+      "topicNodeIds": [
+        "skill-retrieval",
+        "skill-representation",
+        "tool-routing"
+      ],
+      "highlights": [
+        {
+          "title": "全文路由信号",
+          "body": "隐藏 skill body 会让多种检索管线准确率下降 31 到 44 个百分点，正文是关键证据。"
+        },
+        {
+          "title": "两阶段短名单",
+          "body": "0.6B bi-encoder 离线索引 8 万个完整技能，在线召回 top-20 后交给 reranker 精排。"
+        },
+        {
+          "title": "困难负样本",
+          "body": "每个 query 混合语义近邻、BM25 匹配、同 taxonomy 干扰和随机负样本训练召回器。"
+        },
+        {
+          "title": "假负例过滤",
+          "body": "用 BM25 找相似候选，再由 LLM 过滤功能等价项，避免把可替代技能误当负例。"
+        },
+        {
+          "title": "集合覆盖评估",
+          "body": "多技能任务除 Hit@1 外还看 Recall@10 和 FC@10，检查短名单是否包含完整所需技能集。"
+        }
+      ]
+    },
+    {
+      "type": "project",
+      "slug": "claude-code-checkpoint-snapshot",
+      "topicNodeIds": [
+        "context-compression",
+        "environment-state",
+        "failure-recovery"
+      ],
+      "highlights": [
+        {
+          "title": "双线回退",
+          "body": "Rewind 把对话截断和 file-history 文件恢复拆成两条路径，可单独执行也可一起执行。"
+        },
+        {
+          "title": "消息坐标",
+          "body": "checkpoint 绑定 user message；工具改文件前把旧内容补进最近 snapshot。"
+        },
+        {
+          "title": "索引分离",
+          "body": "JSONL 只存 snapshot 索引，真实备份放进 ~/.claude/file-history，避免撑爆 transcript。"
+        },
+        {
+          "title": "删除语义",
+          "body": "backupFileName 为 null 表示目标时间点文件不存在，恢复时删除当前文件而非复制备份。"
+        },
+        {
+          "title": "预览恢复",
+          "body": "fileHistoryGetDiffStats 先 dry-run 统计改动，让回滚变成可确认的用户动作。"
+        },
+        {
+          "title": "边界清楚",
+          "body": "手工编辑、bash 副作用、数据库和网络资源不在 file-history snapshot 的可靠范围内。"
+        }
+      ]
+    },
+    {
+      "type": "project",
+      "slug": "claude-code-context-management",
+      "topicNodeIds": [
+        "context-compression",
+        "runtime-injection",
+        "environment-state",
+        "failure-recovery"
+      ],
+      "highlights": [
+        {
+          "title": "分层预算",
+          "body": "固定 context 放稳定信息，动态 attachment 增量补变化，最后才进入全局 compact。"
+        },
+        {
+          "title": "Delta 注入",
+          "body": "agent listing 和 MCP instructions 只注入变化量，减少工具描述变化造成的 cache 破坏。"
+        },
+        {
+          "title": "记忆去重",
+          "body": "nested memory 同时用 loadedNestedMemoryPaths 和 readFileState 防止忙碌会话反复注入。"
+        },
+        {
+          "title": "工具结果预算",
+          "body": "大工具输出先落到 tool-results，只把路径和预览留给模型，resume 后复原替换决策。"
+        },
+        {
+          "title": "缓存压缩",
+          "body": "cached microcompact 生成 cache_edits，不改本地消息，降低 token 压力又保留缓存前缀。"
+        },
+        {
+          "title": "失败熔断",
+          "body": "autocompact 连续失败达到阈值会停止继续压缩，避免无限重试摘要烧 API。"
+        },
+        {
+          "title": "压后重建",
+          "body": "legacy compact 后补回文件、plan、skill、tools delta 和 agent listing 等运行态上下文。"
+        }
+      ]
+    },
+    {
+      "type": "project",
+      "slug": "claude-code-coordinator-subagent",
+      "topicNodeIds": [
+        "workflow-graph",
+        "module-design",
+        "execution-feedback",
+        "runtime-injection",
+        "tool-routing"
+      ],
+      "highlights": [
+        {
+          "title": "主控提示",
+          "body": "coordinator mode 切换专用 system prompt，让主 agent 负责拆分、综合和面向用户汇报。"
+        },
+        {
+          "title": "工具收窄",
+          "body": "主线程工具池被限制到 Agent、TaskStop、SendMessage 等编排工具，角色更像调度者。"
+        },
+        {
+          "title": "异步任务",
+          "body": "AgentTool 注册 async task，把 prompt、description、agentId 和 abort controller 写入 AppState。"
+        },
+        {
+          "title": "上下文隔离",
+          "body": "普通 worker 默认只拿自包含 prompt，不自动继承完整用户对话，工具和权限重新计算。"
+        },
+        {
+          "title": "通知回流",
+          "body": "worker 结果以 task-notification 回到主 query loop，prompt 要求主 agent 视作内部信号。"
+        },
+        {
+          "title": "续写控制",
+          "body": "SendMessage 对运行中 worker 排队 pendingMessages，对已停任务可从 transcript 恢复继续。"
+        },
+        {
+          "title": "输出控制面",
+          "body": "TaskOutput 按 task_id 读取 worker 输出；主路径仍偏 output_file 与异步通知。"
+        }
+      ]
+    },
+    {
+      "type": "project",
+      "slug": "claude-code-memory",
+      "topicNodeIds": [
+        "memory-write",
+        "memory-structure",
+        "memory-retrieval",
+        "context-compression"
+      ],
+      "highlights": [
+        {
+          "title": "短索引",
+          "body": "MEMORY.md 只加载前 200 行和 25KB，倒逼它保存 topic 指针而不是正文堆。"
+        },
+        {
+          "title": "文件分类",
+          "body": "user、feedback、project、reference 是 topic 文件 frontmatter 类型，不是四个索引文件。"
+        },
+        {
+          "title": "写入互斥",
+          "body": "主 agent 已向 auto-memory 目录 Edit/Write 后，后台 extractor 跳过同段消息防重复。"
+        },
+        {
+          "title": "文件级更新",
+          "body": "冲突处理靠先查旧 Markdown 再改写或删除，没有默认 superseded_by 或数据库事务。"
+        },
+        {
+          "title": "双层召回",
+          "body": "MEMORY.md 随 user context 注入，sideQuery 再从 manifest 里选最多 5 个 topic 文件。"
+        },
+        {
+          "title": "会话压缩",
+          "body": "session memory 写 summary.md，服务当前长会话 compact，不表达跨 session 用户偏好。"
+        },
+        {
+          "title": "低频整理",
+          "body": "autoDream 至少间隔 24 小时和 5 个 session 才整理，拿 lock 合并重复 topic 和索引。"
+        }
+      ]
+    },
+    {
+      "type": "project",
+      "slug": "soul-protocol-memory",
+      "topicNodeIds": [
+        "memory-write",
+        "memory-structure",
+        "memory-retrieval",
+        "execution-feedback"
+      ],
+      "highlights": [
+        {
+          "title": "观察后写",
+          "body": "Soul.observe 在交互完成后后处理，按显著性、事实抽取和图谱关系决定写入内容。"
+        },
+        {
+          "title": "五类记忆",
+          "body": "core、episodic、semantic、procedural、social 分别承载常驻档案、事件、事实、流程和关系。"
+        },
+        {
+          "title": "事实晋升",
+          "body": "低显著性轮次若抽到事实，会反向提升为 episodic，保留可解释的交互片段。"
+        },
+        {
+          "title": "冲突追踪",
+          "body": "旧事实不直接覆盖，而用 superseded_by 指向新事实，召回过滤旧值但保留审计历史。"
+        },
+        {
+          "title": "启发判重",
+          "body": "dedup 用 Jaccard 和 containment 给新事实判 SKIP、MERGE 或 CREATE，优先处理最高相似旧事实。"
+        },
+        {
+          "title": "ACT-R 排序",
+          "body": "召回先生成文本候选，再融合近期、频率、情绪、显著性和人格调制做 activation 排序。"
+        },
+        {
+          "title": "召回可观测",
+          "body": "RetrievalTrace 记录最终返回集合，帮助排查长期记忆为何没有被想起来。"
+        }
+      ]
+    }
+  ]
+}
