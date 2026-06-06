@@ -1,0 +1,23 @@
+{
+  "slug": "claude-code-checkpoint-snapshot",
+  "title": "Claude Code 源码解析（02）Checkpoint Snapshot：Rewind 如何同时回退对话和代码",
+  "repoUrl": "https://github.com/jarmuine/claude-code",
+  "localSourcePath": "assets/projects/claude-code",
+  "projectName": "claude-code",
+  "focus": "Checkpoint / snapshot 机制：/rewind 与 /checkpoint 入口、file-history snapshot 创建、备份存储、对话回退、代码恢复、resume 迁移与边界",
+  "analyzedCommit": "4b9d30f",
+  "analyzedDate": "2026-06-06",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "开源项目",
+    "源码解读",
+    "Claude Code",
+    "Checkpoint",
+    "Snapshot",
+    "Rewind"
+  ],
+  "summary": "这篇源码解析基于本地 Claude Code 源码，拆解 /rewind 与 /checkpoint 背后的 file-history snapshot：什么时候创建检查点，文件旧版本如何备份到 ~/.claude/file-history，metadata 如何写入 transcript，以及恢复时为什么对话回退和代码回滚是两条并行路径。",
+  "coverImagePath": "/generated/claude-code-checkpoint-snapshot/architecture.svg",
+  "coverImageAlt": "Claude Code checkpoint snapshot 架构图。"
+}

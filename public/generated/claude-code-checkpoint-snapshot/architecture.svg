@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Claude Code checkpoint snapshot architecture</title>
+  <desc id="desc">Rewind command opens selector and restores conversation and file history through separate paths.</desc>
+  <style>
+    .bg{fill:#f7f3ec}.panel{fill:#fffaf2;stroke:#d8c7ad;stroke-width:2}.accent{fill:#2f6f73}.dark{fill:#1d2b2a}.muted{fill:#6d6254}.line{stroke:#2f6f73;stroke-width:3;fill:none;marker-end:url(#arrow)}.dash{stroke:#b08b57;stroke-width:2.5;fill:none;stroke-dasharray:8 8;marker-end:url(#arrow2)}.title{font:700 30px Arial,sans-serif;fill:#1d2b2a}.head{font:700 20px Arial,sans-serif;fill:#1d2b2a}.body{font:16px Arial,sans-serif;fill:#5d554a}.small{font:14px Arial,sans-serif;fill:#6d6254}.tag{font:700 14px Arial,sans-serif;fill:#fff}
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2f6f73"/></marker>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b08b57"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="680"/>
+  <text class="title" x="58" y="64">Checkpoint Snapshot: Rewind is two coordinated state paths</text>
+
+  <rect class="panel" x="70" y="120" width="250" height="130" rx="10"/>
+  <text class="head" x="96" y="158">Command Entry</text>
+  <text class="body" x="96" y="190">/rewind</text>
+  <text class="body" x="96" y="216">/checkpoint alias</text>
+  <rect x="96" y="226" width="118" height="26" rx="13" fill="#2f6f73"/>
+  <text class="tag" x="112" y="244">open selector</text>
+
+  <rect class="panel" x="430" y="104" width="300" height="164" rx="10"/>
+  <text class="head" x="462" y="144">MessageSelector</text>
+  <text class="body" x="462" y="178">pick user message</text>
+  <text class="body" x="462" y="204">preview code diff</text>
+  <text class="body" x="462" y="230">choose code / conversation / both</text>
+
+  <rect class="panel" x="860" y="88" width="260" height="150" rx="10"/>
+  <text class="head" x="888" y="128">Conversation Path</text>
+  <text class="body" x="888" y="162">handleRestoreMessage</text>
+  <text class="body" x="888" y="188">slice messages</text>
+  <text class="body" x="888" y="214">new conversationId</text>
+
+  <rect class="panel" x="860" y="350" width="260" height="170" rx="10"/>
+  <text class="head" x="888" y="390">Code Path</text>
+  <text class="body" x="888" y="424">fileHistoryRewind</text>
+  <text class="body" x="888" y="450">applySnapshot</text>
+  <text class="body" x="888" y="476">copy backup or delete file</text>
+
+  <rect class="panel" x="430" y="376" width="300" height="172" rx="10"/>
+  <text class="head" x="462" y="416">Persisted Evidence</text>
+  <text class="body" x="462" y="450">transcript JSONL metadata</text>
+  <text class="body" x="462" y="476">~/.claude/file-history/session</text>
+  <text class="body" x="462" y="502">snapshot chain on resume</text>
+
+  <path class="line" d="M320 184 C360 184 382 184 430 184"/>
+  <path class="line" d="M730 168 C788 150 804 146 860 148"/>
+  <path class="line" d="M730 226 C802 290 814 388 860 420"/>
+  <path class="dash" d="M580 376 C580 318 580 292 580 268"/>
+  <path class="dash" d="M730 462 C790 462 812 462 860 462"/>
+
+  <text class="small" x="438" y="606">Negative fact: this is not git stash/commit, not full project snapshot, and not vector recall.</text>
+</svg>
