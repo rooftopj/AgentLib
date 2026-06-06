@@ -286,6 +286,14 @@ select {
   line-height: 0.96;
 }
 
+.library-kicker {
+  max-width: 720px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.48;
+}
+
 .library-stats {
   display: flex;
   flex-wrap: wrap;
@@ -332,6 +340,196 @@ select {
 .content-lane p {
   margin: 0;
   color: var(--muted);
+}
+
+.home-constellation-wrap {
+  margin: 22px 0 40px;
+}
+
+.home-constellation {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--bg) 84%, var(--surface));
+}
+
+.home-constellation svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.constellation-field {
+  fill: color-mix(in oklch, var(--bg) 84%, var(--surface));
+}
+
+.constellation-field + .constellation-glow {
+  fill: url("#constellationGlow");
+}
+
+.constellation-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 34%, transparent);
+  stroke-dasharray: 8 14;
+  stroke-width: 1.2;
+  transform-origin: 590px 192px;
+}
+
+.ring-one {
+  animation: constellation-spin 26s linear infinite;
+}
+
+.ring-two {
+  animation: constellation-spin 38s linear infinite reverse;
+}
+
+.constellation-line path {
+  fill: none;
+  marker-end: url("#constellationArrow");
+  stroke-linecap: round;
+  stroke-width: 2.2;
+}
+
+.constellation-line.line-a path {
+  stroke: color-mix(in srgb, var(--accent) 74%, var(--ink) 26%);
+  stroke-dasharray: 12 18;
+  animation: constellation-flow 6s linear infinite;
+}
+
+.constellation-line.line-b path {
+  stroke: color-mix(in srgb, var(--muted) 56%, var(--line) 44%);
+  stroke-dasharray: 8 18;
+  stroke-width: 1.4;
+  animation: constellation-flow 8s linear infinite reverse;
+}
+
+#constellationArrow path {
+  fill: color-mix(in srgb, var(--accent) 74%, var(--ink) 26%);
+}
+
+.constellation-sparks circle {
+  fill: color-mix(in srgb, var(--accent) 58%, #fff 42%);
+  opacity: 0.72;
+  animation: constellation-pulse 4.8s ease-in-out infinite;
+}
+
+.constellation-sparks circle:nth-child(2n) {
+  animation-delay: 1.2s;
+}
+
+.constellation-sparks circle:nth-child(3n) {
+  animation-delay: 2.2s;
+}
+
+.constellation-node {
+  filter: url("#softNodeShadow");
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: constellation-float 7s ease-in-out infinite;
+}
+
+.constellation-node circle {
+  fill: color-mix(in oklch, var(--bg) 88%, #fff);
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.constellation-node text {
+  fill: var(--ink);
+  font-size: 20px;
+  font-weight: 780;
+  letter-spacing: 0;
+}
+
+.node-core circle {
+  fill: color-mix(in srgb, var(--accent-soft) 68%, #fff 32%);
+  stroke: color-mix(in srgb, var(--accent) 76%, var(--ink) 24%);
+  stroke-width: 3;
+}
+
+.node-core text {
+  font-size: 24px;
+  font-weight: 860;
+}
+
+.node-architecture text,
+.node-code text {
+  font-size: 19px;
+}
+
+.node-memory {
+  animation-delay: -1.2s;
+}
+
+.node-architecture {
+  animation-delay: -2.5s;
+}
+
+.node-skills {
+  animation-delay: -3.3s;
+}
+
+.node-tools {
+  animation-delay: -4.1s;
+}
+
+.node-rag {
+  animation-delay: -1.8s;
+}
+
+.node-code {
+  animation-delay: -5s;
+}
+
+.home-constellation:hover .constellation-node circle {
+  stroke: color-mix(in srgb, var(--accent) 58%, var(--line) 42%);
+}
+
+@keyframes constellation-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -60;
+  }
+}
+
+@keyframes constellation-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes constellation-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes constellation-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constellation-ring,
+  .constellation-line path,
+  .constellation-sparks circle,
+  .constellation-node {
+    animation: none;
+  }
 }
 
 .featured-paper {

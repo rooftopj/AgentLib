@@ -22,6 +22,7 @@ export default function HomePage() {
       <section className="library-header">
         <div>
           <h1>Agent Lib</h1>
+          <p className="library-kicker">以主题机制为索引，沉淀 Agent 论文、工程实践和开源项目。</p>
         </div>
         <div className="library-stats" aria-label="资料统计">
           <span>{papers.length} 篇论文</span>
@@ -31,21 +32,83 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="content-lanes" aria-label="内容方向">
-        <Link className="content-lane card-link" href="/papers/">
-          <p className="paper-meta">论文讲解与精读</p>
-          <h2>想判断一篇论文值不值得读，从这里先看懂主线。</h2>
-          <p>先抓问题、方法、实验和局限，再决定要不要进入中英对照精读。</p>
-        </Link>
-        <Link className="content-lane card-link" href="/blogs/">
-          <p className="paper-meta">博客洞察</p>
-          <h2>想借鉴一线团队的做法，先看可复用的工程 insight。</h2>
-          <p>把实践经验、架构取舍和迁移提醒提炼出来，保留原文入口方便回看。</p>
-        </Link>
-        <Link className="content-lane card-link" href="/projects/">
-          <p className="paper-meta">开源项目分析</p>
-          <h2>想复用一个项目，先拆清结构、模块和实现路径。</h2>
-          <p>从仓库入口、核心代码、运行方式和设计取舍里整理可借鉴部分。</p>
+      <section className="home-constellation-wrap" aria-label="Agent Lib 知识星图">
+        <Link className="home-constellation card-link" href="/atlas/" aria-label="打开知识图谱">
+          <svg viewBox="0 0 1180 390" role="img" aria-labelledby="constellation-title">
+            <title id="constellation-title">Agent Lib knowledge constellation</title>
+            <defs>
+              <radialGradient id="constellationGlow" cx="50%" cy="50%" r="58%">
+                <stop offset="0%" stopColor="#d9f4e7" stopOpacity="0.86" />
+                <stop offset="48%" stopColor="#eef8f2" stopOpacity="0.36" />
+                <stop offset="100%" stopColor="#fbf8f3" stopOpacity="0" />
+              </radialGradient>
+              <marker id="constellationArrow" markerHeight="9" markerWidth="9" orient="auto" refX="8" refY="4.5">
+                <path d="M0,0 L9,4.5 L0,9 Z" />
+              </marker>
+              <filter id="softNodeShadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="12" stdDeviation="16" floodColor="#10251d" floodOpacity="0.12" />
+              </filter>
+            </defs>
+
+            <rect className="constellation-field" x="0" y="0" width="1180" height="390" rx="12" />
+            <circle className="constellation-glow" cx="590" cy="192" r="236" />
+            <circle className="constellation-ring ring-one" cx="590" cy="192" r="128" />
+            <circle className="constellation-ring ring-two" cx="590" cy="192" r="196" />
+
+            <g className="constellation-line line-a">
+              <path d="M590 192 C480 140 412 118 310 126" />
+              <path d="M590 192 C482 226 394 262 270 282" />
+              <path d="M590 192 C682 116 746 78 868 72" />
+              <path d="M590 192 C706 210 802 248 940 276" />
+              <path d="M590 192 C592 112 592 86 602 46" />
+              <path d="M590 192 C604 238 620 278 650 320" />
+            </g>
+            <g className="constellation-line line-b">
+              <path d="M310 126 C390 84 485 82 602 46" />
+              <path d="M270 282 C392 316 525 294 650 320" />
+              <path d="M868 72 C820 156 824 216 940 276" />
+              <path d="M650 320 C748 318 830 302 940 276" />
+            </g>
+
+            <g className="constellation-sparks">
+              <circle cx="214" cy="164" r="3" />
+              <circle cx="392" cy="68" r="2.5" />
+              <circle cx="488" cy="316" r="3" />
+              <circle cx="760" cy="128" r="2.5" />
+              <circle cx="1008" cy="224" r="3" />
+              <circle cx="704" cy="348" r="2.5" />
+            </g>
+
+            <g className="constellation-node node-core">
+              <circle cx="590" cy="192" r="58" />
+              <text x="590" y="184" textAnchor="middle">Agent</text>
+              <text x="590" y="209" textAnchor="middle">Lib</text>
+            </g>
+            <g className="constellation-node node-memory">
+              <circle cx="310" cy="126" r="48" />
+              <text x="310" y="132" textAnchor="middle">Memory</text>
+            </g>
+            <g className="constellation-node node-architecture">
+              <circle cx="270" cy="282" r="52" />
+              <text x="270" y="287" textAnchor="middle">Workflow</text>
+            </g>
+            <g className="constellation-node node-skills">
+              <circle cx="868" cy="72" r="43" />
+              <text x="868" y="77" textAnchor="middle">Skills</text>
+            </g>
+            <g className="constellation-node node-tools">
+              <circle cx="940" cy="276" r="47" />
+              <text x="940" y="281" textAnchor="middle">Tools</text>
+            </g>
+            <g className="constellation-node node-rag">
+              <circle cx="602" cy="46" r="34" />
+              <text x="602" y="51" textAnchor="middle">RAG</text>
+            </g>
+            <g className="constellation-node node-code">
+              <circle cx="650" cy="320" r="45" />
+              <text x="650" y="325" textAnchor="middle">Design</text>
+            </g>
+          </svg>
         </Link>
       </section>
 
