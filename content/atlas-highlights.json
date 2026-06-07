@@ -417,6 +417,42 @@
     },
     {
       "type": "project",
+      "slug": "claude-code-permission-sandbox",
+      "topicNodeIds": [
+        "code-execution",
+        "environment-state",
+        "module-design",
+        "tool-routing"
+      ],
+      "highlights": [
+        {
+          "title": "双层安全",
+          "body": "Permission 产出 allow/ask/deny，Sandbox 只在命令执行层限制文件和网络。"
+        },
+        {
+          "title": "顺序优先",
+          "body": "deny、内容 ask 和 safetyCheck 先于 bypass/acceptEdits，便利模式不能压过高风险判断。"
+        },
+        {
+          "title": "Bash 语义",
+          "body": "Bash 权限拆子命令、重定向和路径约束，deny/ask 还会剥离 env var 防绕过。"
+        },
+        {
+          "title": "规则翻译",
+          "body": "WebFetch domain 与 Edit/Read 路径规则会被转换成 sandbox runtime 的网络和文件配置。"
+        },
+        {
+          "title": "写前校验",
+          "body": "FileWrite 要求先读文件并检查 mtime，避免基于过期视图覆盖用户或工具改动。"
+        },
+        {
+          "title": "MCP 边界",
+          "body": "MCP 默认 passthrough，依赖 server/tool rule、连接策略和 server 自身实现共同约束。"
+        }
+      ]
+    },
+    {
+      "type": "project",
       "slug": "claude-code-checkpoint-snapshot",
       "topicNodeIds": [
         "context-compression",

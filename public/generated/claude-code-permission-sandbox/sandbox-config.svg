@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-label="Sandbox config mapping">
+  <rect width="1200" height="680" fill="#f7f4ef"/>
+  <style>
+    text{font-family:Inter,Arial,sans-serif;fill:#211b15}
+    .title{font-size:30px;font-weight:800}
+    .label{font-size:18px;font-weight:750}
+    .small{font-size:14px;fill:#62594f}
+    .box{fill:#fffaf3;stroke:#d8cdbc;stroke-width:2}
+    .blue{fill:#eef7fb;stroke:#6aa0b7}
+    .green{fill:#eef8f2;stroke:#70a885}
+    .red{fill:#fff1ef;stroke:#ca766e}
+    .line{stroke:#2e6f78;stroke-width:3;fill:none;marker-end:url(#arrow)}
+  </style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#2e6f78"/></marker></defs>
+  <text class="title" x="70" y="62">Sandbox config 来自 settings 与 permission rules</text>
+  <rect class="blue" x="75" y="135" width="275" height="135" rx="10"/>
+  <text class="label" x="105" y="178">permissions.allow</text>
+  <text class="small" x="105" y="210">WebFetch(domain:*)</text>
+  <text class="small" x="105" y="236">Edit(path)</text>
+  <path class="line" d="M350 202 H455"/>
+  <rect class="green" x="455" y="120" width="300" height="165" rx="10"/>
+  <text class="label" x="485" y="162">convertToSandboxRuntimeConfig</text>
+  <text class="small" x="485" y="195">allowedDomains / deniedDomains</text>
+  <text class="small" x="485" y="222">allowWrite / denyWrite</text>
+  <text class="small" x="485" y="249">allowRead / denyRead</text>
+  <path class="line" d="M755 202 H865"/>
+  <rect class="box" x="865" y="135" width="250" height="135" rx="10"/>
+  <text class="label" x="895" y="178">sandbox-runtime</text>
+  <text class="small" x="895" y="210">OS-level wrapper</text>
+  <text class="small" x="895" y="236">network / filesystem</text>
+  <rect class="blue" x="75" y="355" width="275" height="135" rx="10"/>
+  <text class="label" x="105" y="398">sandbox.filesystem</text>
+  <text class="small" x="105" y="430">allowWrite / denyWrite</text>
+  <text class="small" x="105" y="456">allowRead / denyRead</text>
+  <path class="line" d="M350 422 H455"/>
+  <rect class="red" x="455" y="350" width="300" height="155" rx="10"/>
+  <text class="label" x="485" y="392">hard deny surfaces</text>
+  <text class="small" x="485" y="425">settings.json</text>
+  <text class="small" x="485" y="452">.claude/skills</text>
+  <text class="small" x="485" y="479">bare git repo files</text>
+  <path class="line" d="M755 427 H865"/>
+  <rect class="box" x="865" y="355" width="250" height="135" rx="10"/>
+  <text class="label" x="895" y="398">Bash command</text>
+  <text class="small" x="895" y="430">wrapped if enabled</text>
+  <text class="small" x="895" y="456">or approval for override</text>
+  <text class="small" x="70" y="610">关键点：permission rule 既影响工具审批，也会被翻译成 sandbox 的 OS 级限制。</text>
+</svg>

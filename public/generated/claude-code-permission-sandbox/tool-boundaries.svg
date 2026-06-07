@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-label="Tool boundary differences">
+  <rect width="1200" height="680" fill="#f7f4ef"/>
+  <style>
+    text{font-family:Inter,Arial,sans-serif;fill:#211b15}
+    .title{font-size:30px;font-weight:800}
+    .label{font-size:20px;font-weight:750}
+    .small{font-size:15px;fill:#62594f}
+    .box{fill:#fffaf3;stroke:#d8cdbc;stroke-width:2}
+    .blue{fill:#eef7fb;stroke:#6aa0b7}
+    .green{fill:#eef8f2;stroke:#70a885}
+    .line{stroke:#2e6f78;stroke-width:3;fill:none;marker-end:url(#arrow)}
+  </style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#2e6f78"/></marker></defs>
+  <text class="title" x="70" y="62">不同工具的边界不同，但都回到同一个 permission result</text>
+  <rect class="blue" x="85" y="140" width="280" height="170" rx="10"/>
+  <text class="label" x="120" y="185">Bash / PowerShell</text>
+  <text class="small" x="120" y="222">command split</text>
+  <text class="small" x="120" y="250">deny / ask stronger than allow</text>
+  <text class="small" x="120" y="278">sandbox wrapping</text>
+  <path class="line" d="M365 225 H505"/>
+  <rect class="green" x="505" y="140" width="280" height="170" rx="10"/>
+  <text class="label" x="535" y="185">File Edit / Write</text>
+  <text class="small" x="535" y="222">path rules</text>
+  <text class="small" x="535" y="250">read-before-write</text>
+  <text class="small" x="535" y="278">mtime and safety paths</text>
+  <path class="line" d="M785 225 H925"/>
+  <rect class="box" x="925" y="140" width="230" height="170" rx="10"/>
+  <text class="label" x="955" y="185">MCP Tools</text>
+  <text class="small" x="955" y="222">server/tool rules</text>
+  <text class="small" x="955" y="250">passthrough by default</text>
+  <text class="small" x="955" y="278">host bridge possible</text>
+  <rect class="box" x="310" y="420" width="580" height="120" rx="12"/>
+  <text class="label" x="355" y="466">PermissionResult</text>
+  <text class="small" x="355" y="500">allow / ask / deny + message + suggestions + decisionReason + updatedInput</text>
+  <path class="line" d="M225 310 C260 390 390 420 520 420"/>
+  <path class="line" d="M645 310 V420"/>
+  <path class="line" d="M1040 310 C1000 390 790 420 690 420"/>
+  <text class="small" x="70" y="620">读法：不要把安全机制想成一个 if。每个工具先做自己的语义约束，再汇总成统一决策。</text>
+</svg>

@@ -1,0 +1,23 @@
+{
+  "slug": "claude-code-permission-sandbox",
+  "title": "Claude Code 源码解析（05）Permission / Sandbox：工具权限、用户批准与命令隔离",
+  "repoUrl": "https://github.com/jarmuine/claude-code",
+  "localSourcePath": "assets/projects/claude-code",
+  "projectName": "claude-code",
+  "focus": "Permission / Sandbox 安全机制：tool call 如何触发权限检查，mode、allow/deny/ask rule、working directory、hook/classifier 如何参与决策，用户批准如何回写，Bash sandbox 如何把 settings 与 permission rules 转成执行时文件和网络隔离，以及 MCP、WebFetch、文件工具的边界。",
+  "analyzedCommit": "4b9d30f",
+  "analyzedDate": "2026-06-07",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "开源项目",
+    "源码解读",
+    "Claude Code",
+    "Permission",
+    "Sandbox",
+    "安全机制"
+  ],
+  "summary": "这篇源码解析基于本地 Claude Code 源码，拆解 Permission 与 Sandbox 如何分工：权限层在每次 tool call 前用规则、模式、工具自检、hook 和 classifier 形成 allow/ask/deny 决策；sandbox 层只在命令执行时把网络和文件系统限制落到运行环境。重点说明 Bash、文件工具、WebFetch、MCP 的不同边界，以及 bypass、auto-allow、session rule、settings rule 的真实含义。",
+  "coverImagePath": "/generated/claude-code-permission-sandbox/architecture.svg",
+  "coverImageAlt": "Claude Code Permission 与 Sandbox 双层安全架构图。"
+}

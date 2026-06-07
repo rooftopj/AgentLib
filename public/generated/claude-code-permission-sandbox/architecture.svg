@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="Claude Code Permission and Sandbox architecture">
+  <rect width="1200" height="720" fill="#f7f4ef"/>
+  <style>
+    text{font-family:Inter,Arial,sans-serif;fill:#1f1a14}
+    .title{font-size:30px;font-weight:800}
+    .label{font-size:19px;font-weight:700}
+    .small{font-size:15px;fill:#5f574d}
+    .box{fill:#fffaf3;stroke:#d7cdbc;stroke-width:2}
+    .green{fill:#eef8f2;stroke:#74a98b}
+    .red{fill:#fff1ef;stroke:#cf7e75}
+    .blue{fill:#eef7fb;stroke:#6aa0b7}
+    .line{stroke:#2e6f78;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    .dash{stroke:#a58f63;stroke-width:2;stroke-dasharray:8 8;fill:none;marker-end:url(#arrow)}
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L9,3 L0,6 Z" fill="#2e6f78"/>
+    </marker>
+  </defs>
+  <text class="title" x="70" y="70">Permission / Sandbox 是两层安全面</text>
+  <text class="small" x="70" y="100">先决定是否允许工具调用，再决定 shell 命令是否放进 OS sandbox 执行。</text>
+  <rect class="box" x="70" y="150" width="220" height="110" rx="10"/>
+  <text class="label" x="95" y="193">Tool Use</text>
+  <text class="small" x="95" y="225">Bash / FileEdit / MCP</text>
+  <path class="line" d="M290 205 H390"/>
+  <rect class="blue" x="390" y="130" width="260" height="150" rx="10"/>
+  <text class="label" x="420" y="172">Permission Pipeline</text>
+  <text class="small" x="420" y="205">deny / ask / allow rules</text>
+  <text class="small" x="420" y="232">tool.checkPermissions</text>
+  <text class="small" x="420" y="259">mode / hook / classifier</text>
+  <path class="line" d="M650 205 H760"/>
+  <rect class="green" x="760" y="130" width="250" height="150" rx="10"/>
+  <text class="label" x="790" y="172">Allowed Tool Call</text>
+  <text class="small" x="790" y="205">updatedInput may change</text>
+  <text class="small" x="790" y="232">tool.call executes</text>
+  <path class="dash" d="M520 280 V390"/>
+  <rect class="red" x="380" y="390" width="285" height="120" rx="10"/>
+  <text class="label" x="410" y="435">Permission Prompt</text>
+  <text class="small" x="410" y="466">temporary / persistent rules</text>
+  <text class="small" x="410" y="492">or reject as tool_result</text>
+  <path class="line" d="M885 280 V385"/>
+  <rect class="box" x="735" y="385" width="310" height="155" rx="10"/>
+  <text class="label" x="765" y="428">Sandbox Adapter</text>
+  <text class="small" x="765" y="461">wrap Bash command</text>
+  <text class="small" x="765" y="488">filesystem + network config</text>
+  <text class="small" x="765" y="515">violations annotated in output</text>
+  <path class="line" d="M890 540 V610"/>
+  <rect class="box" x="735" y="610" width="310" height="60" rx="10"/>
+  <text class="label" x="775" y="648">Shell / File / MCP Result</text>
+  <text class="small" x="70" y="650">关键边界：sandbox 主要约束命令执行环境；permission 仍负责工具级审批和用户规则。</text>
+</svg>

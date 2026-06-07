@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-label="Permission decision flow">
+  <rect width="1200" height="680" fill="#f7f4ef"/>
+  <style>
+    text{font-family:Inter,Arial,sans-serif;fill:#211b15}
+    .title{font-size:30px;font-weight:800}
+    .step{font-size:17px;font-weight:750}
+    .small{font-size:14px;fill:#62594f}
+    .box{fill:#fffaf3;stroke:#d8cdbc;stroke-width:2}
+    .deny{fill:#fff1ef;stroke:#ca766e}
+    .ask{fill:#fff8e8;stroke:#c49b50}
+    .allow{fill:#eef8f2;stroke:#70a885}
+    .line{stroke:#2e6f78;stroke-width:3;fill:none;marker-end:url(#arrow)}
+  </style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#2e6f78"/></marker></defs>
+  <text class="title" x="70" y="62">权限判定顺序：先硬规则，再模式放行</text>
+  <text class="small" x="70" y="94">hasPermissionsToUseToolInner 的顺序决定了哪些规则能压过 bypass / acceptEdits。</text>
+  <rect class="box" x="70" y="150" width="210" height="95" rx="9"/><text class="step" x="92" y="190">1. deny tool</text><text class="small" x="92" y="218">whole tool deny</text>
+  <path class="line" d="M280 198 H360"/>
+  <rect class="box" x="360" y="150" width="230" height="95" rx="9"/><text class="step" x="385" y="190">2. ask tool</text><text class="small" x="385" y="218">unless sandboxed Bash auto-allow</text>
+  <path class="line" d="M590 198 H670"/>
+  <rect class="box" x="670" y="150" width="250" height="95" rx="9"/><text class="step" x="695" y="190">3. tool-specific check</text><text class="small" x="695" y="218">Bash / File / MCP own logic</text>
+  <path class="line" d="M795 245 V315"/>
+  <rect class="deny" x="610" y="315" width="370" height="100" rx="9"/><text class="step" x="635" y="355">4. bypass-immune decisions</text><text class="small" x="635" y="384">deny, content ask, safetyCheck, user-interaction</text>
+  <path class="line" d="M795 415 V485"/>
+  <rect class="allow" x="610" y="485" width="370" height="100" rx="9"/><text class="step" x="635" y="525">5. mode and allow rules</text><text class="small" x="635" y="554">bypassPermissions / allow rule / default ask</text>
+  <rect class="ask" x="145" y="340" width="330" height="120" rx="9"/><text class="step" x="175" y="382">ask 结果进入交互或 SDK prompt</text><text class="small" x="175" y="413">PermissionUpdate 可写 session / settings</text>
+  <path class="line" d="M610 365 H475"/>
+  <path class="line" d="M475 400 H475"/>
+  <text class="small" x="70" y="630">读法：越靠前越强。deny / safety check 先于 bypass，所以它们不是普通提示词约束。</text>
+</svg>

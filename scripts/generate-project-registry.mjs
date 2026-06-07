@@ -24,7 +24,7 @@ const slugs = fs.existsSync(projectsDir)
     })
     .sort((a, b) => {
       if (a.meta.projectName === b.meta.projectName && a.lectureNumber !== null && b.lectureNumber !== null) {
-        return a.lectureNumber - b.lectureNumber || a.slug.localeCompare(b.slug);
+        return b.lectureNumber - a.lectureNumber || a.slug.localeCompare(b.slug);
       }
       return a.slug.localeCompare(b.slug);
     })
