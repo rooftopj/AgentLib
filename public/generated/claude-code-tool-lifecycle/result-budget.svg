@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-label="Tool result persistence and budget">
+  <rect width="960" height="560" fill="#f7f3ec"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1d6f75"/>
+    </marker>
+    <style>
+      .title{font:700 28px Arial,sans-serif;fill:#17130f}
+      .label{font:700 17px Arial,sans-serif;fill:#17130f}
+      .small{font:14px Arial,sans-serif;fill:#5f5549}
+      .box{fill:#fffaf3;stroke:#d8c9b8;stroke-width:2;rx:12}
+      .accent{fill:#e8f5f5;stroke:#1d6f75;stroke-width:2;rx:12}
+      .warn{fill:#fff2d8;stroke:#b7791f;stroke-width:2;rx:12}
+      .line{stroke:#1d6f75;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#b7791f;stroke-width:2;fill:none;stroke-dasharray:6 6;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <text x="48" y="54" class="title">Tool Result 两层治理</text>
+  <text x="48" y="82" class="small">一次输出先看工具上限，历史上下文再看聚合预算。</text>
+
+  <rect x="62" y="146" width="162" height="92" class="box"/>
+  <text x="92" y="182" class="label">Raw Result</text>
+  <text x="90" y="210" class="small">tool output data</text>
+
+  <rect x="302" y="116" width="198" height="118" class="warn"/>
+  <text x="334" y="154" class="label">Per Tool Limit</text>
+  <text x="330" y="184" class="small">maxResultSizeChars</text>
+  <text x="330" y="204" class="small">persist if too large</text>
+  <text x="330" y="224" class="small">skip images</text>
+
+  <rect x="302" y="294" width="198" height="106" class="accent"/>
+  <text x="342" y="332" class="label">tool-results</text>
+  <text x="330" y="360" class="small">session scoped files</text>
+  <text x="330" y="380" class="small">path + preview</text>
+
+  <rect x="604" y="146" width="190" height="92" class="box"/>
+  <text x="640" y="182" class="label">tool_result</text>
+  <text x="630" y="210" class="small">full or persisted-output</text>
+
+  <rect x="604" y="306" width="234" height="112" class="warn"/>
+  <text x="638" y="344" class="label">History Budget</text>
+  <text x="632" y="372" class="small">aggregate user message</text>
+  <text x="632" y="392" class="small">ContentReplacementState</text>
+  <text x="632" y="412" class="small">stable cache-friendly replace</text>
+
+  <path d="M224 192 H302" class="line"/>
+  <path d="M500 176 H604" class="line"/>
+  <path d="M402 234 V294" class="dash"/>
+  <path d="M500 346 C548 334 572 286 604 222" class="line"/>
+  <path d="M698 238 V306" class="line"/>
+
+  <text x="62" y="500" class="small">区别：单次持久化发生在 tool_result 生成时；历史预算发生在下一轮模型请求前。</text>
+</svg>

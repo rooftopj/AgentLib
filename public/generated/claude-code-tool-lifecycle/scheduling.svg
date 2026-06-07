@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-label="Tool scheduling states">
+  <rect width="960" height="560" fill="#f7f3ec"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1d6f75"/>
+    </marker>
+    <style>
+      .title{font:700 28px Arial,sans-serif;fill:#17130f}
+      .label{font:700 17px Arial,sans-serif;fill:#17130f}
+      .small{font:14px Arial,sans-serif;fill:#5f5549}
+      .box{fill:#fffaf3;stroke:#d8c9b8;stroke-width:2;rx:12}
+      .safe{fill:#e8f5f5;stroke:#1d6f75;stroke-width:2;rx:12}
+      .solo{fill:#fff2d8;stroke:#b7791f;stroke-width:2;rx:12}
+      .line{stroke:#1d6f75;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#b7791f;stroke-width:2;fill:none;stroke-dasharray:6 6}
+    </style>
+  </defs>
+  <text x="48" y="54" class="title">调度规则：可并发不等于可乱序</text>
+  <text x="48" y="82" class="small">默认独占；并发安全工具可以提前跑；最终结果按 tool_use 顺序输出。</text>
+
+  <rect x="74" y="132" width="130" height="76" class="safe"/>
+  <text x="108" y="162" class="label">Tool A</text>
+  <text x="96" y="188" class="small">safe read</text>
+  <rect x="74" y="236" width="130" height="76" class="safe"/>
+  <text x="108" y="266" class="label">Tool B</text>
+  <text x="96" y="292" class="small">safe fetch</text>
+  <rect x="74" y="340" width="130" height="76" class="solo"/>
+  <text x="108" y="370" class="label">Tool C</text>
+  <text x="96" y="396" class="small">exclusive write</text>
+
+  <rect x="306" y="130" width="178" height="220" class="box"/>
+  <text x="352" y="164" class="label">Executor</text>
+  <text x="332" y="198" class="small">queued</text>
+  <text x="332" y="226" class="small">executing</text>
+  <text x="332" y="254" class="small">completed</text>
+  <text x="332" y="282" class="small">yielded</text>
+  <path d="M424 192 C450 210 450 242 424 270" class="dash"/>
+  <text x="332" y="322" class="small">stop at exclusive</text>
+
+  <rect x="586" y="116" width="280" height="104" class="safe"/>
+  <text x="622" y="152" class="label">Concurrent Batch</text>
+  <text x="622" y="180" class="small">A and B can run together</text>
+  <text x="622" y="200" class="small">limit defaults to 10</text>
+
+  <rect x="586" y="290" width="280" height="104" class="solo"/>
+  <text x="622" y="326" class="label">Exclusive Slot</text>
+  <text x="622" y="354" class="small">C waits until running tools finish</text>
+  <text x="622" y="374" class="small">later results cannot pass it</text>
+
+  <path d="M204 170 H306" class="line"/>
+  <path d="M204 274 H306" class="line"/>
+  <path d="M204 378 C260 378 262 320 306 320" class="line"/>
+  <path d="M484 198 C520 170 542 168 586 168" class="line"/>
+  <path d="M484 312 C522 336 542 342 586 342" class="line"/>
+
+  <text x="84" y="492" class="small">StreamingToolExecutor：progress 可提前显示，最终 tool_result 仍按原 tool_use 队列顺序吐出。</text>
+</svg>

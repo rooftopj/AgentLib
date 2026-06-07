@@ -1,0 +1,23 @@
+{
+  "slug": "claude-code-tool-lifecycle",
+  "title": "Claude Code 源码解析（06）Tool 调度与工具结果生命周期",
+  "repoUrl": "https://github.com/jarmuine/claude-code",
+  "localSourcePath": "assets/projects/claude-code",
+  "projectName": "claude-code",
+  "focus": "Tool 调度与工具结果生命周期：模型流式产生 tool_use 后，Claude Code 如何用 StreamingToolExecutor 与 runTools 判断并发/串行，如何在单个 tool.call 前后串起 schema、hooks、permission、progress、abort、result mapping，以及 tool_result 如何经过单次持久化、历史预算压缩、MCP/Agent/Bash 特殊映射后回到下一轮上下文。",
+  "analyzedCommit": "4b9d30f",
+  "analyzedDate": "2026-06-07",
+  "category": "architecture",
+  "categoryLabel": "Agent 架构",
+  "tags": [
+    "开源项目",
+    "源码解读",
+    "Claude Code",
+    "Tool 调度",
+    "工具生命周期",
+    "结果预算"
+  ],
+  "summary": "这篇源码解析基于本地 Claude Code 源码，拆解 tool_use 从模型流中出现到 tool_result 回填上下文的完整路径。重点讲清楚流式调度器如何保护并发和结果顺序，单工具执行管线如何接入 hooks、permission 与 abort，大输出如何落到 tool-results 并在下一轮模型调用前做稳定预算替换，以及 Bash、Agent、MCP、ToolSearch 这些特殊工具为什么仍能服从同一套生命周期外壳。",
+  "coverImagePath": "/generated/claude-code-tool-lifecycle/architecture.svg",
+  "coverImageAlt": "Claude Code Tool 调度与工具结果生命周期架构图。"
+}

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-label="Claude Code tool lifecycle architecture">
+  <rect width="960" height="560" fill="#f7f3ec"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1d6f75"/>
+    </marker>
+    <style>
+      .title{font:700 28px Arial,sans-serif;fill:#17130f}
+      .label{font:700 17px Arial,sans-serif;fill:#17130f}
+      .small{font:14px Arial,sans-serif;fill:#5f5549}
+      .box{fill:#fffaf3;stroke:#d8c9b8;stroke-width:2;rx:12}
+      .accent{fill:#e8f5f5;stroke:#1d6f75;stroke-width:2;rx:12}
+      .warn{fill:#fff2d8;stroke:#b7791f;stroke-width:2;rx:12}
+      .line{stroke:#1d6f75;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <text x="48" y="54" class="title">Tool 调度与结果生命周期</text>
+  <text x="48" y="82" class="small">从模型流里的 tool_use 到下一轮上下文里的 tool_result。</text>
+
+  <rect x="48" y="132" width="150" height="96" class="box"/>
+  <text x="74" y="166" class="label">Model Stream</text>
+  <text x="74" y="194" class="small">assistant chunks</text>
+  <text x="74" y="214" class="small">tool_use blocks</text>
+
+  <rect x="258" y="120" width="172" height="120" class="accent"/>
+  <text x="292" y="158" class="label">Query Loop</text>
+  <text x="286" y="186" class="small">collect tool_use</text>
+  <text x="286" y="206" class="small">choose executor</text>
+
+  <rect x="492" y="92" width="188" height="92" class="warn"/>
+  <text x="532" y="130" class="label">Scheduler</text>
+  <text x="524" y="158" class="small">streaming state machine</text>
+  <text x="524" y="178" class="small">or batch fallback</text>
+
+  <rect x="492" y="244" width="188" height="116" class="box"/>
+  <text x="524" y="284" class="label">runToolUse</text>
+  <text x="524" y="312" class="small">schema, hooks</text>
+  <text x="524" y="332" class="small">permission, call</text>
+  <text x="524" y="352" class="small">progress, failure</text>
+
+  <rect x="742" y="190" width="164" height="112" class="accent"/>
+  <text x="786" y="230" class="label">Result Layer</text>
+  <text x="770" y="258" class="small">map tool_result</text>
+  <text x="770" y="278" class="small">persist large output</text>
+  <text x="770" y="298" class="small">budget history</text>
+
+  <rect x="258" y="392" width="172" height="92" class="box"/>
+  <text x="298" y="430" class="label">Next Context</text>
+  <text x="286" y="458" class="small">assistant + user</text>
+  <text x="286" y="478" class="small">tool_result messages</text>
+
+  <path d="M198 180 H258" class="line"/>
+  <path d="M430 160 C456 148 466 140 492 138" class="line"/>
+  <path d="M586 184 V244" class="line"/>
+  <path d="M680 302 C710 294 724 274 742 256" class="line"/>
+  <path d="M824 302 C812 414 520 446 430 446" class="line"/>
+
+  <text x="48" y="518" class="small">关键：调度提前执行可以提升响应，但最终上下文仍要维持 tool_use 和 tool_result 的协议顺序。</text>
+</svg>

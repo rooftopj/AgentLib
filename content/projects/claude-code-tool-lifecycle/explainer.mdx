@@ -1,0 +1,597 @@
+# Claude Code 源码解析（06）Tool 调度与工具结果生命周期
+
+## 先给结论
+
+Claude Code 的 tool call 不是把模型输出拿来 `for` 一遍。它先在模型流中收集 `tool_use`，再交给调度器判断并发或独占；每个工具进入统一执行管线，最后 `tool_result` 还要经过持久化和预算压缩，才会回到下一轮上下文。
+
+<CalloutBlock
+  title="一句话抓住机制"
+  body="Tool 系统由三层组成：调度层决定什么时候跑，执行层决定能不能跑和怎么跑，结果层决定模型还能看到多少输出。"
+/>
+
+<FigureBlock
+  src="/generated/claude-code-tool-lifecycle/architecture.svg"
+  caption="Tool 调度总览：query 接收模型流，调度器执行 tool_use，结果经过 mapping、持久化和预算治理，再进入下一轮 messages。"
+/>
+
+<SplitBlock
+  leftTitle="默认路径"
+  left="工具默认不并发。只有工具自己的 isConcurrencySafe(input) 返回 true，调度器才允许它和其他并发安全工具一起跑；最终 tool_result 仍按 tool_use 原顺序输出。"
+  rightTitle="可选路径"
+  right="流式执行、deferred tool search、Agent 子任务、MCP 输出更新、Bash background task 都是可选或特殊路径。它们改变内部执行方式，但不绕开统一 tool_result 生命周期。"
+/>
+
+## 先看证据地图
+
+这条源码线横跨主 query loop、调度器、工具接口、执行管线和结果存储。关键是把“调度”和“调用”分开读。
+
+```text
+# 1 assets/projects/claude-code/src/query.ts
+# 2 assets/projects/claude-code/src/services/tools/StreamingToolExecutor.ts
+# 3 assets/projects/claude-code/src/services/tools/toolOrchestration.ts
+# 4 assets/projects/claude-code/src/services/tools/toolExecution.ts
+# 5 assets/projects/claude-code/src/Tool.ts
+# 6 assets/projects/claude-code/src/utils/toolResultStorage.ts
+# 7 assets/projects/claude-code/src/tools/BashTool/BashTool.tsx
+# 8 assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
+# 9 assets/projects/claude-code/src/tools/MCPTool/MCPTool.ts
+# 10 assets/projects/claude-code/src/tools/ToolSearchTool/ToolSearchTool.ts
+```
+
+<CalloutBlock
+  title="读源码的入口"
+  body="先读 query.ts 里的 tool_use 收集和 StreamingToolExecutor 接入，再读 runToolUse。直接从某个工具类开始，容易漏掉调度、hooks 和结果预算。"
+/>
+
+## Query Loop 先发现工作项
+
+模型返回 assistant stream 时，`query.ts` 会持续收集 `tool_use` block。启用 streaming tool execution 时，工具不是等整段 assistant 完全结束后才开始跑，而是在 tool_use 出现时交给 `StreamingToolExecutor.addTool()`。
+
+```ts
+// assets/projects/claude-code/src/query.ts
+const useStreamingToolExecution = config.gates.streamingToolExecution
+let streamingToolExecutor = useStreamingToolExecution
+  ? new StreamingToolExecutor(
+      toolUseContext.options.tools,
+      canUseTool,
+      toolUseContext,
+    )
+  : null
+```
+
+模型流结束后，系统还要把剩余结果收干净。流式路径调用 `getRemainingResults()`，非流式路径调用 `runTools()`。
+
+```ts
+// assets/projects/claude-code/src/query.ts
+const toolUpdates = streamingToolExecutor
+  ? streamingToolExecutor.getRemainingResults()
+  : runTools(toolUseBlocks, assistantMessages, canUseTool, toolUseContext)
+```
+
+<StepFlow
+  steps="1. assistant stream|2. 发现 tool_use|3. 加入调度器|4. 收集 tool_result|5. 递归下一轮 query"
+  descriptions="模型边生成边出现工具请求。|query.ts 保存 tool_use block。|流式路径可以提前启动安全工具。|最终结果规范化为 user message。|assistantMessages 和 toolResults 一起进入下一轮。"
+/>
+
+## Tool 接口先声明调度契约
+
+`Tool.ts` 里的 `Tool` 类型不是只有 `call()`。调度器要依赖 `isConcurrencySafe()`，权限层要依赖 `checkPermissions()`，结果层要依赖 `mapToolResultToToolResultBlockParam()` 和 `maxResultSizeChars`。
+
+```ts
+// assets/projects/claude-code/src/Tool.ts
+export type Tool<TInput extends zod.ZodRawShape = zod.ZodRawShape, TOutput = unknown> = {
+  name: string
+  call(
+    args: zod.infer<zod.ZodObject<TInput>>,
+    context: ToolUseContext,
+    canUseTool: CanUseToolFn,
+    parentMessage: AssistantMessage,
+    onProgress?: (progress: ToolProgress) => void,
+  ): Promise<ToolResult<TOutput>>
+  isConcurrencySafe(input: zod.infer<zod.ZodObject<TInput>>): boolean
+  maxResultSizeChars: number
+  mapToolResultToToolResultBlockParam(
+    result: TOutput,
+    toolUseId: string,
+  ): ToolResultBlockParam
+}
+```
+
+`buildTool()` 的默认值很保守：不声明并发安全的工具默认独占。这样新工具不会因为忘记写调度策略而被并发执行。
+
+```ts
+// assets/projects/claude-code/src/Tool.ts
+isConcurrencySafe: options.isConcurrencySafe ?? (() => false),
+isReadOnly: options.isReadOnly ?? (() => false),
+```
+
+<SplitBlock
+  leftTitle="调度契约"
+  left="isConcurrencySafe(input) 告诉调度器当前输入是否能和其他工具同时跑。它是按 input 计算的，不是工具名级别的固定属性。"
+  rightTitle="结果契约"
+  right="maxResultSizeChars 和 mapToolResultToToolResultBlockParam 决定结果如何变成 Claude API 能接收的 tool_result。大输出治理也从这里接入。"
+/>
+
+## 非流式调度按批次执行
+
+`toolOrchestration.ts` 是非流式 fallback。它先用 `partitionToolCalls()` 把 tool use 分批：连续的并发安全工具放进同一批，独占工具单独成批。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolOrchestration.ts
+for (const toolUse of toolUseMessages) {
+  const tool = findToolByName(toolUseContext.options.tools, toolUse.name)
+  const isConcurrencySafe = tool?.isConcurrencySafe(toolUse.input as never)
+
+  if (isConcurrencySafe) {
+    currentBatch.push(toolUse)
+  } else {
+    if (currentBatch.length > 0) batches.push(currentBatch)
+    batches.push([toolUse])
+    currentBatch = []
+  }
+}
+```
+
+同一批并发工具会走 `runToolsConcurrently()`，并发上限来自环境变量，默认 10。独占批次会走 `runToolsSerially()`。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolOrchestration.ts
+function getMaxToolUseConcurrency(): number {
+  const envValue = process.env.CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY
+  if (envValue) {
+    const parsed = parseInt(envValue, 10)
+    if (!isNaN(parsed) && parsed > 0) return parsed
+  }
+  return 10
+}
+```
+
+<FigureBlock
+  src="/generated/claude-code-tool-lifecycle/scheduling.svg"
+  caption="非流式与流式调度共享同一个原则：并发安全工具可以并行，独占工具必须等待，最终结果按原 tool_use 顺序回填。"
+/>
+
+## 流式调度是状态机
+
+`StreamingToolExecutor` 的核心不是“并发池”，而是状态机。每个工具有 `queued`、`executing`、`completed`、`yielded` 四种状态，还会缓存 progress 和最终 message。
+
+```ts
+// assets/projects/claude-code/src/services/tools/StreamingToolExecutor.ts
+type TrackedTool = {
+  block: ToolUseBlock
+  assistantMessage: AssistantMessage
+  status: 'queued' | 'executing' | 'completed' | 'yielded'
+  isConcurrencySafe: boolean
+  messages: Array<MessageUpdate>
+  pendingProgress: Array<MessageUpdate>
+}
+```
+
+并发判断非常直接：当前没有执行中工具，或者新工具并发安全且所有执行中工具也并发安全。只要有一个独占工具在跑，后面的工具就不能启动。
+
+```ts
+// assets/projects/claude-code/src/services/tools/StreamingToolExecutor.ts
+private canExecuteTool(isConcurrencySafe: boolean): boolean {
+  const executingTools = this.trackedTools.filter(t => t.status === 'executing')
+  if (executingTools.length === 0) return true
+  return isConcurrencySafe && executingTools.every(t => t.isConcurrencySafe)
+}
+```
+
+<CalloutBlock
+  title="并发不是乱序"
+  body="progress 可以尽快吐给 UI，但最终 tool_result 会按 tool_use 原始顺序 yield。这样模型看到的工具对话仍是稳定的。"
+/>
+
+## 结果顺序由 Executor 兜住
+
+`getCompletedResults()` 先吐出所有 pending progress，然后只输出已经完成且轮到顺序的最终结果。遇到正在执行的独占工具时，它会停止向后看，避免后续结果越过独占工具。
+
+```ts
+// assets/projects/claude-code/src/services/tools/StreamingToolExecutor.ts
+async *getCompletedResults(): AsyncGenerator<MessageUpdate> {
+  for (const tool of this.trackedTools) {
+    while (tool.pendingProgress.length > 0) {
+      yield tool.pendingProgress.shift()!
+    }
+  }
+
+  for (const tool of this.trackedTools) {
+    if (tool.status === 'yielded') continue
+    if (tool.status === 'completed') {
+      tool.status = 'yielded'
+      for (const message of tool.messages) yield message
+    } else if (tool.status === 'executing' && !tool.isConcurrencySafe) {
+      break
+    } else {
+      break
+    }
+  }
+}
+```
+
+流式路径还有一个重要细节：Bash 工具出错会中断 sibling Bash。读文件、WebFetch 这类失败不一定要把同批工具全部停掉。
+
+```ts
+// assets/projects/claude-code/src/services/tools/StreamingToolExecutor.ts
+if (update.message?.type === 'user' && update.message.isMeta === false) {
+  const isError = update.message.message.content.some(
+    block => block.type === 'tool_result' && block.is_error,
+  )
+  if (isError && toolDefinition.name === 'Bash') {
+    this.hasErrored = true
+    this.siblingAbortController.abort('sibling_error')
+  }
+}
+```
+
+<SplitBlock
+  leftTitle="即时性"
+  left="progress message 走 pendingProgress，可以在最终 tool_result 前显示。Bash 长命令、hook 进度、后台任务都依赖这条路径。"
+  rightTitle="一致性"
+  right="最终结果仍按原 tool_use 顺序输出。调度器允许执行提前，但不让模型上下文的工具对话变成乱序。"
+/>
+
+## 单工具生命周期从校验开始
+
+调度器只负责“什么时候跑”。真正跑一个工具时，会进入 `runToolUse()`，再进入 `streamedCheckPermissionsAndCallTool()` 和 `checkPermissionsAndCallTool()`。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+const tool = findToolByName(toolUseContext.options.tools, toolUse.name)
+if (!tool) {
+  return [createUnknownToolResult(toolUse)]
+}
+
+for await (const update of streamedCheckPermissionsAndCallTool(
+  tool,
+  toolUse.id,
+  toolInput,
+  toolUseContext,
+  canUseTool,
+  assistantMessage,
+  messageId,
+  requestId,
+  mcpServerType,
+  mcpServerBaseUrl,
+)) {
+  yield update
+}
+```
+
+执行管线的第一层是输入校验。schema 或 `validateInput()` 失败时，系统直接返回 error tool_result，工具本体不会被调用。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+const isValidResult = tool.inputSchema.safeParse(input)
+if (!isValidResult.success) {
+  return [{
+    message: createUserMessage({
+      content: [{ type: 'tool_result', tool_use_id: toolUseID, is_error: true, content }],
+      toolUseResult: `Error: ${content}`,
+    }),
+  }]
+}
+```
+
+<FigureBlock
+  src="/generated/claude-code-tool-lifecycle/lifecycle.svg"
+  caption="单个 tool_use 生命周期：schema、hooks、permission、tool.call、result mapping、post/failure hooks 是固定插槽。"
+/>
+
+## Hooks 和 Permission 包住 tool.call
+
+PreToolUse hook 在 permission 前运行。它可以产生附件和进度，可以改 input，也可以阻断继续。之后 `resolveHookPermissionDecision()` 把 hook permission result 与 `canUseTool` 合并。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+for await (const hookResult of runPreToolUseHooks(
+  toolUseContext,
+  tool,
+  toolUseID,
+  messageId,
+  processedInput,
+  requestId,
+  mcpServerType,
+  mcpServerBaseUrl,
+)) {
+  hookMessages.push(hookResult)
+}
+
+const resolved = await resolveHookPermissionDecision(
+  hookPermissionResult,
+  tool,
+  processedInput,
+  toolUseContext,
+  canUseTool,
+  assistantMessage,
+  toolUseID,
+)
+```
+
+只有最终决策是 allow，才会调用 `tool.call()`。调用时会把 `toolUseId`、`userModified`、上下文和 `onProgress` 都传进去。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+const result = await tool.call(
+  callInput as never,
+  {
+    ...toolUseContext,
+    toolUseId: toolUseID,
+    userModified: permissionDecision.updatedInput !== undefined,
+  },
+  canUseTool,
+  assistantMessage,
+  onProgress,
+)
+```
+
+<StepFlow
+  steps="schema|validateInput|PreToolUse|permission|tool.call|PostToolUse"
+  descriptions="类型和字段先过关。|工具可以做业务校验。|hook 能改 input 或阻断。|canUseTool 给出 allow/ask/deny。|真正执行工具。|成功后还能补附件或改 MCP 输出。"
+/>
+
+## Result Mapping 不是简单 stringify
+
+工具返回的是内部 `ToolResult<TOutput>`。要进入 Claude API，必须用工具自己的 `mapToolResultToToolResultBlockParam()` 转成 `tool_result` block。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+const mappedToolResultBlock = tool.mapToolResultToToolResultBlockParam(
+  result.data as never,
+  toolUseID,
+)
+
+const addToolResult = async (overrideMappedToolResultBlock?: ToolResultBlockParam) => {
+  const toolResultBlock = overrideMappedToolResultBlock
+    ? await processPreMappedToolResultBlock(tool, overrideMappedToolResultBlock, toolUseID)
+    : await processToolResultBlock(tool, result.data, toolUseID)
+  toolResultMessages.push(createUserMessage({ content: [toolResultBlock] }))
+}
+```
+
+非 MCP 工具会先把 tool_result 放进消息，再跑 PostToolUse hook。MCP 工具相反，因为 PostToolUse hook 可以更新 MCP 输出。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+if (!tool.isMcp) {
+  await addToolResult()
+}
+
+for await (const hookResult of runPostToolUseHooks(...)) {
+  hookMessages.push(hookResult)
+}
+
+if (tool.isMcp) {
+  await addToolResult(hookUpdatedMCPOutput ?? mappedToolResultBlock)
+}
+```
+
+<CalloutBlock
+  title="MCP 的特殊性"
+  body="MCP 仍然回到 tool_result 外壳，但 PostToolUse hook 有机会修改 MCP 输出，所以它的结果消息写入时机不同。"
+/>
+
+## 第一层结果治理是单次持久化
+
+`toolResultStorage.ts` 先处理单个 tool_result。超过工具自己的 `maxResultSizeChars` 时，内容会写入当前 session 的 `tool-results` 目录，上下文里只保留路径和预览。
+
+```ts
+// assets/projects/claude-code/src/utils/toolResultStorage.ts
+const TOOL_RESULTS_SUBDIR = 'tool-results'
+
+export function getToolResultsDir(): string | null {
+  const projectDir = getProjectDir(getOriginalCwd())
+  const sessionId = getSessionId()
+  if (!projectDir || !sessionId) return null
+  return path.join(projectDir, sessionId, TOOL_RESULTS_SUBDIR)
+}
+```
+
+持久化后的 message 会变成 `<persisted-output>`。这不是为了 UI 好看，而是为了让模型知道完整结果在哪，同时避免把巨大文本原样塞回上下文。
+
+```ts
+// assets/projects/claude-code/src/utils/toolResultStorage.ts
+function buildLargeToolResultMessage(result: PersistedToolResult): string {
+  return `<persisted-output>
+Full output has been saved to: ${result.path}
+
+Preview:
+${result.preview}
+</persisted-output>`
+}
+```
+
+<FigureBlock
+  src="/generated/claude-code-tool-lifecycle/result-budget.svg"
+  caption="结果治理分两层：单次大输出先落盘，历史上下文再按 API message 的 aggregate budget 做稳定替换。"
+/>
+
+## 第二层结果治理是历史预算
+
+下一轮模型调用前，`query.ts` 会调用 `applyToolResultBudget()`。它处理的是历史 messages 里聚合后的 tool_result 预算，运行在 microcompact 前。
+
+```ts
+// assets/projects/claude-code/src/query.ts
+messagesForQuery = await applyToolResultBudget(
+  messagesForQuery,
+  toolUseContext.contentReplacementState,
+  persistReplacements
+    ? records => void recordContentReplacement(records, toolUseContext.agentId).catch(logError)
+    : undefined,
+  new Set(
+    toolUseContext.options.tools
+      .filter(t => !Number.isFinite(t.maxResultSizeChars))
+      .map(t => t.name),
+  ),
+)
+```
+
+`ContentReplacementState` 会记录已经见过和已经替换过的 tool result。已经替换的内容要稳定复用，避免每轮生成不同文本破坏 prompt cache。
+
+```ts
+// assets/projects/claude-code/src/utils/toolResultStorage.ts
+export type ContentReplacementState = {
+  seenIds: Set<string>
+  replacements: Map<string, ContentReplacement>
+}
+```
+
+<SplitBlock
+  leftTitle="单次持久化"
+  left="针对一个工具本次输出。如果超出 maxResultSizeChars，就写入 tool-results，只把 persisted-output 预览交给模型。"
+  rightTitle="历史预算"
+  right="针对下一轮请求里的历史 user message。相邻 tool_results 会被 API 规范合并，所以要按 message 级聚合预算处理。"
+/>
+
+## Bash 结果有自己的形态
+
+Bash 默认结果上限是 30,000 字符。它还支持结构化输出、图片输出、background task 和已经持久化的 raw output。
+
+```ts
+// assets/projects/claude-code/src/tools/BashTool/BashTool.tsx
+maxResultSizeChars: 30_000,
+isConcurrencySafe(input) {
+  return this.isReadOnly?.(input) ?? false
+},
+```
+
+`mapToolResultToToolResultBlockParam()` 会处理 `persistedOutputPath`。这说明 Bash 有时在工具内部已经把长输出写好了，结果层只负责把路径和预览包进 tool_result。
+
+```ts
+// assets/projects/claude-code/src/tools/BashTool/BashTool.tsx
+if (data.persistedOutputPath) {
+  return {
+    type: 'tool_result',
+    tool_use_id: toolUseId,
+    content: `<persisted-output>
+Full output has been saved to: ${data.persistedOutputPath}
+
+Preview:
+${data.output}
+</persisted-output>`,
+  }
+}
+```
+
+<CalloutBlock
+  title="Bash 的并发规则"
+  body="Bash 只有 read-only 命令可并发。写文件、改目录、影响环境的命令会走独占路径，避免并发工具互相踩状态。"
+  tone="warning"
+/>
+
+## Agent 是工具也是嵌套运行时
+
+`AgentTool` 表面上也是一个 tool，但内部会启动子 agent、重新组装工具池、处理 async task、fork 或 worktree isolation。它可以声明并发安全，但权限并不简单沿用外层工具。
+
+```ts
+// assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
+isConcurrencySafe() {
+  return true
+},
+isReadOnly() {
+  return true
+},
+```
+
+子 agent 的 tool result budget 也会单独处理。`inProcessRunner.ts` 和 `runAgent.ts` 会传递或克隆 `contentReplacementState`，避免嵌套任务把父上下文的替换状态搅乱。
+
+```ts
+// assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
+contentReplacementState,
+```
+
+<SplitBlock
+  leftTitle="外层看起来"
+  left="Agent 是一个工具调用，有 tool_use_id，也会回一个 tool_result。调度器可以把它当成并发安全工具。"
+  rightTitle="内层实际"
+  right="Agent 内部可能再次运行 query，拥有自己的工具池、权限请求、abort controller、transcript 和结果预算状态。"
+/>
+
+## MCP 和 ToolSearch 是动态工具边界
+
+MCP 工具由服务端 tool 动态转换成 Claude Code `Tool`。它默认 `isMcp=true`，输出可以包含 `structuredContent`、图片和 `_meta`。
+
+```ts
+// assets/projects/claude-code/src/tools/MCPTool/MCPTool.ts
+isMcp: true,
+maxResultSizeChars: 100000,
+```
+
+ToolSearch 则处理 deferred tools。搜索结果不是普通长文本，而是 `tool_reference` blocks。后续模型能看到哪些 deferred/MCP schema，也会受到历史 tool_result 和 compact metadata 的影响。
+
+```ts
+// assets/projects/claude-code/src/tools/ToolSearchTool/ToolSearchTool.ts
+name: 'ToolSearch',
+description: 'Searches over deferred tool metadata with BM25 and exposes matching tools for the next model call.',
+```
+
+<StepFlow
+  steps="Bash|Agent|MCP|ToolSearch"
+  descriptions="本地命令、progress、background、raw persisted output。|外层工具，内层嵌套 query 和独立上下文。|动态 server tool，PostToolUse 可改输出。|发现 deferred schema，返回 tool_reference。"
+/>
+
+## Failure Hook 保留错误生命周期
+
+工具失败不是简单 throw。`toolExecution.ts` 会记录 telemetry，然后运行 `runPostToolUseFailureHooks()`。最终仍然返回 error `tool_result`，让模型能基于错误继续。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+for await (const hookResult of runPostToolUseFailureHooks(
+  toolUseContext,
+  tool,
+  toolUseID,
+  messageId,
+  processedInput,
+  content,
+  isInterrupt,
+  requestId,
+  mcpServerType,
+  mcpServerBaseUrl,
+)) {
+  hookMessages.push(hookResult)
+}
+```
+
+错误消息保留 `tool_use_id`，这是对话协议的关键。模型需要看到“哪一次 tool_use 失败了”，而不是只看到一段普通用户文本。
+
+```ts
+// assets/projects/claude-code/src/services/tools/toolExecution.ts
+content: [
+  {
+    type: 'tool_result',
+    content,
+    is_error: true,
+    tool_use_id: toolUseID,
+  },
+],
+```
+
+<CalloutBlock
+  title="错误也是结果"
+  body="失败路径仍产出 tool_result。这样下一轮模型能把失败当作工具调用的反馈，而不是把异常混进普通用户输入。"
+/>
+
+## 这套设计的关键取舍
+
+Claude Code 把工具系统拆成“调度、执行、结果”三层，最大的收益是复杂工具可以继续统一接入。Bash、Agent、MCP、ToolSearch 的内部差异很大，但外部都要服从 tool_use 到 tool_result 的协议。
+
+<SplitBlock
+  leftTitle="解决的问题"
+  left="并发不会破坏顺序，大输出不会撑爆上下文，权限和 hook 不散落在每个工具内部，错误仍能被模型理解。"
+  rightTitle="付出的复杂度"
+  right="调度器要维护状态机，结果层要维护稳定替换记录，特殊工具需要定制 mapping，MCP 和 Agent 还要处理嵌套运行时。"
+/>
+
+## 可复用设计
+
+把工具并发能力做成工具自声明，而不是在调度器里写工具名白名单。调度器只关心 `isConcurrencySafe(input)`，工具自己负责判断当前输入是否安全。
+
+把 `tool.call()` 包进统一生命周期。schema、hooks、permission、progress、post hook、failure hook 都有固定插槽，工具作者只需要实现核心业务逻辑。
+
+把结果治理分成两层。单次超大输出先落盘，历史上下文再做稳定替换。这样既能保留可追溯文件，又能保护 prompt cache 和上下文预算。
+
+<CalloutBlock
+  title="工程启发"
+  body="Agent 工具系统真正难的不是调用函数，而是让并发、权限、结果、失败和上下文预算都能在同一套协议里组合。"
+/>

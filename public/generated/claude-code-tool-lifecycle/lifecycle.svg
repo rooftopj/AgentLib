@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" role="img" aria-label="Single tool lifecycle">
+  <rect width="960" height="560" fill="#f7f3ec"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#1d6f75"/>
+    </marker>
+    <style>
+      .title{font:700 28px Arial,sans-serif;fill:#17130f}
+      .label{font:700 16px Arial,sans-serif;fill:#17130f}
+      .small{font:13px Arial,sans-serif;fill:#5f5549}
+      .box{fill:#fffaf3;stroke:#d8c9b8;stroke-width:2;rx:12}
+      .accent{fill:#e8f5f5;stroke:#1d6f75;stroke-width:2;rx:12}
+      .warn{fill:#fff2d8;stroke:#b7791f;stroke-width:2;rx:12}
+      .line{stroke:#1d6f75;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .fail{stroke:#b33a3a;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <text x="48" y="54" class="title">单个 tool_use 的执行生命周期</text>
+  <text x="48" y="82" class="small">runToolUse 包住工具业务逻辑，工具本体只在 allow 后进入 call。</text>
+
+  <rect x="46" y="158" width="108" height="74" class="box"/>
+  <text x="74" y="188" class="label">Schema</text>
+  <text x="68" y="212" class="small">safeParse</text>
+
+  <rect x="190" y="158" width="118" height="74" class="box"/>
+  <text x="222" y="188" class="label">Validate</text>
+  <text x="214" y="212" class="small">tool rules</text>
+
+  <rect x="344" y="148" width="132" height="94" class="accent"/>
+  <text x="376" y="184" class="label">Pre Hook</text>
+  <text x="370" y="208" class="small">update input</text>
+  <text x="370" y="226" class="small">block or attach</text>
+
+  <rect x="512" y="148" width="132" height="94" class="warn"/>
+  <text x="544" y="184" class="label">Permission</text>
+  <text x="542" y="208" class="small">allow ask deny</text>
+  <text x="542" y="226" class="small">updated input</text>
+
+  <rect x="680" y="158" width="118" height="74" class="accent"/>
+  <text x="718" y="188" class="label">Call</text>
+  <text x="706" y="212" class="small">onProgress</text>
+
+  <rect x="834" y="158" width="112" height="74" class="box"/>
+  <text x="858" y="188" class="label">Map</text>
+  <text x="850" y="212" class="small">tool_result</text>
+
+  <rect x="292" y="344" width="146" height="88" class="warn"/>
+  <text x="324" y="378" class="label">Failure Hook</text>
+  <text x="320" y="404" class="small">error tool_result</text>
+
+  <rect x="602" y="344" width="146" height="88" class="box"/>
+  <text x="634" y="378" class="label">Post Hook</text>
+  <text x="628" y="404" class="small">attachments</text>
+
+  <path d="M154 195 H190" class="line"/>
+  <path d="M308 195 H344" class="line"/>
+  <path d="M476 195 H512" class="line"/>
+  <path d="M644 195 H680" class="line"/>
+  <path d="M798 195 H834" class="line"/>
+  <path d="M738 232 C732 292 704 322 690 344" class="line"/>
+  <path d="M512 242 C462 294 420 322 384 344" class="fail"/>
+  <path d="M748 388 C812 350 846 290 878 232" class="line"/>
+
+  <text x="54" y="500" class="small">注意：MCP 成功路径会先跑 PostToolUse hook，再写 tool_result，因为 hook 可以更新 MCP 输出。</text>
+</svg>

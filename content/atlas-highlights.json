@@ -453,6 +453,43 @@
     },
     {
       "type": "project",
+      "slug": "claude-code-tool-lifecycle",
+      "topicNodeIds": [
+        "tool-routing",
+        "execution-feedback",
+        "module-design",
+        "code-execution",
+        "context-compression"
+      ],
+      "highlights": [
+        {
+          "title": "流式调度",
+          "body": "query.ts 在模型流中发现 tool_use 后，可交给 StreamingToolExecutor 边生成边执行。"
+        },
+        {
+          "title": "并发契约",
+          "body": "工具默认独占，只有 isConcurrencySafe(input) 为真才可与其他安全工具并发。"
+        },
+        {
+          "title": "顺序回填",
+          "body": "progress 可即时显示，但最终 tool_result 按原 tool_use 顺序 yield 给上下文。"
+        },
+        {
+          "title": "执行管线",
+          "body": "runToolUse 统一包住 schema、PreToolUse、permission、tool.call、post 和 failure hooks。"
+        },
+        {
+          "title": "双层结果",
+          "body": "超大单次输出落到 tool-results，历史 tool_result 再按 message 聚合预算稳定替换。"
+        },
+        {
+          "title": "特殊工具",
+          "body": "Bash、Agent、MCP 和 ToolSearch 内部路径不同，但外层仍服从 tool_use 到 tool_result。"
+        }
+      ]
+    },
+    {
+      "type": "project",
       "slug": "claude-code-checkpoint-snapshot",
       "topicNodeIds": [
         "context-compression",
