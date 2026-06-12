@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Script from "next/script";
 import { BookOpen, Boxes, FolderGit2, Network } from "lucide-react";
+import AmbientNoise from "@/components/AmbientNoise";
 import SearchDialog from "@/components/SearchDialog";
 import TopicMenu from "@/components/TopicMenu";
 import { publicPath } from "@/lib/public-path";
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
+        <AmbientNoise />
         <header className="site-header">
           <Link href="/" className="brand" aria-label="返回首页">
             <img className="brand-mark" src={publicPath("/agent-paper-logo.png")} alt="" aria-hidden="true" />

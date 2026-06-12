@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ContentTypeBadge from "@/components/ContentTypeBadge";
+import Reveal from "@/components/Reveal";
 import { blogs } from "@/lib/blogs";
 import { categories, papers } from "@/lib/papers";
 import { projects } from "@/lib/projects";
@@ -19,21 +20,38 @@ export default function HomePage() {
 
   return (
     <div className="page-shell library-shell">
-      <section className="library-header">
-        <div>
-          <h1>Agent Lib</h1>
-          <p className="library-kicker">以主题机制为索引，沉淀 Agent 论文、工程实践和开源项目。</p>
-        </div>
-        <div className="library-stats" aria-label="资料统计">
-          <span>{papers.length} 篇论文</span>
-          <span>{blogs.length} 篇博客</span>
-          <span>{projects.length} 个项目</span>
-          <span>{categories.length} 个主题</span>
-        </div>
-      </section>
+      <Reveal distance={18}>
+        <section className="library-header">
+          <div>
+            <h1 className="hero-wordmark" aria-label="Agent Lib">
+              {"Agent Lib".split("").map((letter, index) => (
+                <span
+                  aria-hidden="true"
+                  className={letter === " " ? "hero-wordmark-space" : undefined}
+                  key={`${letter}-${index}`}
+                  style={{ "--letter-index": index } as React.CSSProperties}
+                >
+                  {letter}
+                </span>
+              ))}
+            </h1>
+            <p className="library-kicker hero-kicker">
+              以主题机制为索引，沉淀{" "}
+              <span>Agent 论文</span>、<span>工程实践</span>和<span>开源项目</span>。
+            </p>
+          </div>
+          <div className="library-stats" aria-label="资料统计">
+            <span>{papers.length} 篇论文</span>
+            <span>{blogs.length} 篇博客</span>
+            <span>{projects.length} 个项目</span>
+            <span>{categories.length} 个主题</span>
+          </div>
+        </section>
+      </Reveal>
 
-      <section className="home-constellation-wrap" aria-label="Agent Lib 知识星图">
-        <Link className="home-constellation card-link" href="/atlas/" aria-label="打开知识图谱">
+      <Reveal delay={90} distance={24}>
+        <section className="home-constellation-wrap" aria-label="Agent Lib 知识星图">
+          <Link className="home-constellation card-link" href="/atlas/" aria-label="打开知识图谱">
           <svg viewBox="0 0 1180 390" role="img" aria-labelledby="constellation-title">
             <title id="constellation-title">Agent Lib knowledge constellation</title>
             <defs>
@@ -109,16 +127,19 @@ export default function HomePage() {
               <text x="650" y="325" textAnchor="middle">Design</text>
             </g>
           </svg>
-        </Link>
-      </section>
+          </Link>
+        </section>
+      </Reveal>
 
-      <section className="focus-paper latest-section">
+      <Reveal delay={120} distance={18}>
+        <section className="focus-paper latest-section">
         <div className="section-heading">
           <p className="eyebrow">最近更新</p>
         </div>
         <div className="latest-grid">
-          {recentPapers.map((paper) => (
-            <Link className="latest-card latest-card-with-media card-link" href={`/papers/${paper.slug}/`} key={paper.slug}>
+          {recentPapers.map((paper, index) => (
+            <Reveal delay={index * 55} distance={16} key={paper.slug}>
+              <Link className="latest-card latest-card-with-media card-link" href={`/papers/${paper.slug}/`}>
               {paper.coverImagePath ? (
                 <img className="blog-row-cover" src={publicPath(paper.coverImagePath)} alt="" aria-hidden="true" />
               ) : null}
@@ -132,11 +153,13 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-            </Link>
+              </Link>
+            </Reveal>
           ))}
 
-          {recentBlogs.map((blog) => (
-            <Link className="latest-card latest-card-with-media card-link" href={`/blogs/${blog.slug}/`} key={blog.slug}>
+          {recentBlogs.map((blog, index) => (
+            <Reveal delay={(recentPapers.length + index) * 55} distance={16} key={blog.slug}>
+              <Link className="latest-card latest-card-with-media card-link" href={`/blogs/${blog.slug}/`}>
               <img
                 className="blog-row-cover"
                 src={blog.insightImageUrl || blog.coverImageUrl}
@@ -153,11 +176,13 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-            </Link>
+              </Link>
+            </Reveal>
           ))}
 
-          {recentProjects.map((project) => (
-            <Link className="latest-card latest-card-with-media card-link" href={`/projects/${project.slug}/`} key={project.slug}>
+          {recentProjects.map((project, index) => (
+            <Reveal delay={(recentPapers.length + recentBlogs.length + index) * 55} distance={16} key={project.slug}>
+              <Link className="latest-card latest-card-with-media card-link" href={`/projects/${project.slug}/`}>
               <img className="blog-row-cover" src={publicPath(project.coverImagePath)} alt="" aria-hidden="true" />
               <div>
                 <p className="paper-meta"><ContentTypeBadge type="project" />{project.projectName} · {project.analyzedDate}</p>
@@ -169,12 +194,15 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-            </Link>
+              </Link>
+            </Reveal>
           ))}
         </div>
-      </section>
+        </section>
+      </Reveal>
 
-      <section className="section-band">
+      <Reveal delay={120} distance={18}>
+        <section className="section-band">
         <div className="section-heading atlas-home-heading">
           <div>
             <p className="eyebrow">知识图谱</p>
@@ -184,15 +212,18 @@ export default function HomePage() {
           <Link className="button primary" href="/atlas/">打开知识图谱</Link>
         </div>
         <div className="category-grid">
-          {categorySummaries.map((category) => (
-            <Link className="category-tile card-link" key={category.slug} href={`/categories/${category.slug}/`}>
+          {categorySummaries.map((category, index) => (
+            <Reveal delay={index * 45} distance={14} key={category.slug}>
+              <Link className="category-tile card-link" href={`/categories/${category.slug}/`}>
               <span>{category.label}</span>
               <small>{category.description}</small>
               <em>{category.totalCount} 篇资料 · {category.paperCount} 论文 · {category.blogCount} 博客 · {category.projectCount} 项目</em>
-            </Link>
+              </Link>
+            </Reveal>
           ))}
         </div>
-      </section>
+        </section>
+      </Reveal>
     </div>
   );
 }
