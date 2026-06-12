@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { spaceMixedText } from "@/components/InlineText";
 import LearningAnnotations from "@/components/LearningAnnotations";
 import { groupToc, renderMdxContent } from "@/components/RichMdxRenderer";
+import TocNav from "@/components/TocNav";
 import { annotationItems, readAnnotations } from "@/lib/annotations";
 import { getPaper, papers } from "@/lib/papers";
 
@@ -71,21 +72,7 @@ export default async function PaperPage({ params }: { params: Promise<{ slug: st
   return (
     <div className={`reader-shell${annotations.length > 0 ? " annotated-reader-shell" : ""}`}>
       <aside className="reader-aside">
-        <Link href="/papers/" className="back-link">返回论文索引</Link>
-        <nav aria-label="论文目录">
-          {tocGroups.map((group) => (
-            <section className="toc-group" key={group.id}>
-              <a className="toc-primary" href={`#${group.id}`}>{group.title}</a>
-              {group.children.length > 0 ? (
-                <div className="toc-children">
-                  {group.children.map((child) => (
-                    <a href={`#${child.id}`} key={child.id}>{child.title}</a>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ))}
-        </nav>
+        <TocNav backHref="/papers/" backLabel="返回论文索引" groups={tocGroups} ariaLabel="论文目录" />
       </aside>
       <article className="paper-article">
         <header className="article-header">

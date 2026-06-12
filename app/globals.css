@@ -37,6 +37,26 @@ main {
   z-index: 1;
 }
 
+.reading-progress {
+  position: fixed;
+  top: 67px;
+  right: 0;
+  left: 0;
+  z-index: 19;
+  height: 2px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.reading-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--accent) 76%, var(--ink)), var(--accent));
+  transform-origin: left center;
+  transition: transform 90ms linear;
+}
+
 .ambient-noise {
   position: fixed;
   inset: 0;
@@ -207,6 +227,7 @@ select {
 }
 
 .search-dialog {
+  inset: 14vh auto auto 50%;
   width: min(680px, 100%);
   max-width: calc(100% - 36px);
   border: 1px solid var(--line);
@@ -223,7 +244,6 @@ select {
 }
 
 .search-dialog:popover-open {
-  inset: 14vh auto auto 50%;
   opacity: 1;
   transform: translate(-50%, 0);
 }
@@ -279,12 +299,21 @@ select {
   padding: 12px 16px 16px;
 }
 
+.quick-searches-label {
+  flex: 0 0 100%;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 780;
+}
+
 .quick-searches a {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 5px 10px;
   background: var(--surface);
   color: var(--muted);
+  animation: quick-search-rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--quick-index) * 45ms + 90ms);
 }
 
 .page-shell {
@@ -303,6 +332,39 @@ select {
 
 .papers-library-page .page-title h1 {
   line-height: 1.12;
+}
+
+.page-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(22px, 5vw, 72px);
+  align-items: end;
+  margin-bottom: 34px;
+  padding: 28px 0 30px;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-intro h1 {
+  max-width: 960px;
+  margin: 0;
+  font-size: clamp(44px, 6.5vw, 82px);
+  line-height: 1;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.page-intro > div > p:not(.eyebrow) {
+  max-width: 76ch;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: clamp(17px, 1.6vw, 21px);
+  line-height: 1.62;
+}
+
+.page-intro-aside {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
 }
 
 .home-hero {
@@ -614,6 +676,20 @@ select {
   stroke: color-mix(in srgb, var(--accent) 58%, var(--line) 42%);
 }
 
+.home-constellation svg:has(.constellation-node:hover) .constellation-line path,
+.home-constellation svg:has(.constellation-node:hover) .constellation-sparks circle {
+  opacity: 0.34;
+}
+
+.home-constellation .constellation-node:hover circle {
+  fill: color-mix(in oklch, var(--accent-soft) 62%, var(--bg));
+  stroke: color-mix(in oklch, var(--accent) 72%, var(--ink));
+}
+
+.home-constellation .constellation-node:hover text {
+  fill: color-mix(in oklch, var(--accent) 70%, var(--ink));
+}
+
 @keyframes constellation-flow {
   from {
     stroke-dashoffset: 0;
@@ -651,6 +727,18 @@ select {
   }
 }
 
+@keyframes quick-search-rise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .constellation-ring,
   .constellation-line path,
@@ -664,6 +752,8 @@ select {
   }
 
   .reveal,
+  .quick-searches a,
+  .atlas-detail-panel,
   .hero-wordmark span,
   .hero-kicker,
   .hero-kicker span,
@@ -874,6 +964,7 @@ select {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
+  overflow: hidden;
   padding: 22px;
 }
 
@@ -887,6 +978,7 @@ select {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 20px;
@@ -920,6 +1012,25 @@ select {
   border-radius: var(--radius);
   background: var(--surface);
   object-fit: cover;
+  transition: filter 220ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card-link:hover .blog-row-cover,
+.card-link:focus-visible .blog-row-cover {
+  filter: saturate(1.04) contrast(1.02);
+  transform: scale(1.018);
+}
+
+.card-link h2,
+.card-link h3 {
+  transition: color 180ms ease;
+}
+
+.card-link:hover h2,
+.card-link:hover h3,
+.card-link:focus-visible h2,
+.card-link:focus-visible h3 {
+  color: color-mix(in oklch, var(--accent) 58%, var(--ink));
 }
 
 .paper-meta {
@@ -1244,7 +1355,8 @@ mark {
   display: none;
 }
 
-.reader-aside nav {
+.reader-aside nav,
+.toc-nav {
   display: grid;
   gap: 10px;
   margin-top: 18px;
@@ -1254,6 +1366,7 @@ mark {
 }
 
 .reader-aside nav a,
+.toc-nav a,
 .back-link {
   display: block;
   padding: 8px 10px;
@@ -1261,8 +1374,20 @@ mark {
 }
 
 .toc-group {
+  position: relative;
   border-top: 1px solid color-mix(in oklch, var(--line) 70%, transparent);
   padding-top: 10px;
+}
+
+.toc-group.active::before {
+  position: absolute;
+  top: 12px;
+  bottom: 2px;
+  left: 0;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  content: "";
 }
 
 .toc-group:first-child {
@@ -1270,11 +1395,13 @@ mark {
   padding-top: 0;
 }
 
-.reader-aside nav .toc-primary {
+.reader-aside nav .toc-primary,
+.toc-nav .toc-primary {
   color: var(--ink);
   font-size: 15px;
   font-weight: 760;
   line-height: 1.38;
+  transition: color 160ms ease, transform 160ms ease;
 }
 
 .toc-children {
@@ -1288,6 +1415,17 @@ mark {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.42;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.toc-group.active .toc-primary,
+.toc-children a.active {
+  color: color-mix(in oklch, var(--accent) 72%, var(--ink));
+}
+
+.toc-group.active .toc-primary,
+.toc-children a.active {
+  transform: translateX(4px);
 }
 
 .article-header {
@@ -1780,6 +1918,21 @@ mark {
   background: transparent;
   color: var(--code-line);
   cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.code-toolbar button:hover,
+.code-toolbar button:focus-visible {
+  border-color: color-mix(in oklch, var(--accent) 64%, var(--code-line));
+  background: color-mix(in oklch, var(--accent) 18%, transparent);
+  outline: 0;
+}
+
+.code-toolbar button.copied {
+  border-color: color-mix(in oklch, var(--accent) 74%, var(--code-line));
+  background: color-mix(in oklch, var(--accent) 22%, transparent);
+  color: oklch(92% 0.04 164);
+  transform: translateY(-1px);
 }
 
 .code-block {
@@ -2511,6 +2664,7 @@ th {
   top: 84px;
   display: grid;
   gap: 12px;
+  animation: atlas-detail-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .atlas-detail-card,
@@ -2703,6 +2857,18 @@ th {
   }
 }
 
+@keyframes atlas-detail-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1180px) {
   .atlas-workspace {
     grid-template-columns: 220px minmax(0, 1fr);
@@ -2792,6 +2958,7 @@ th {
   .home-hero,
   .atlas-hero,
   .category-atlas-header,
+  .page-intro,
   .atlas-workspace,
   .content-lanes,
   .library-header,
@@ -2848,7 +3015,8 @@ th {
     position: static;
   }
 
-  .reader-aside nav {
+  .reader-aside nav,
+  .toc-nav {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 
@@ -2861,6 +3029,7 @@ th {
 
   .hero-copy h1,
   .page-title h1,
+  .page-intro h1,
   .article-header h1 {
     font-size: 42px;
   }

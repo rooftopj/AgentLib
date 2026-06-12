@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { spaceMixedText } from "@/components/InlineText";
 import LearningAnnotations from "@/components/LearningAnnotations";
 import { groupToc, renderMdxContent } from "@/components/RichMdxRenderer";
+import TocNav from "@/components/TocNav";
 import { annotationItems, readAnnotations } from "@/lib/annotations";
 import { blogs, getBlog } from "@/lib/blogs";
 
@@ -29,21 +29,7 @@ export default async function BlogPage({ params }: { params: Promise<{ slug: str
   return (
     <div className={`reader-shell${annotations.length > 0 ? " annotated-reader-shell" : ""}`}>
       <aside className="reader-aside">
-        <Link href="/blogs/" className="back-link">返回博客</Link>
-        <nav aria-label="博客目录">
-          {tocGroups.map((group) => (
-            <section className="toc-group" key={group.id}>
-              <a className="toc-primary" href={`#${group.id}`}>{group.title}</a>
-              {group.children.length > 0 ? (
-                <div className="toc-children">
-                  {group.children.map((child) => (
-                    <a href={`#${child.id}`} key={child.id}>{child.title}</a>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ))}
-        </nav>
+        <TocNav backHref="/blogs/" backLabel="返回博客" groups={tocGroups} ariaLabel="博客目录" />
       </aside>
       <article className="paper-article">
         <header className="article-header blog-article-header">

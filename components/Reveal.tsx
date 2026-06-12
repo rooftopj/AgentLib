@@ -8,6 +8,7 @@ type RevealProps = {
   delay?: number;
   distance?: number;
   direction?: "up" | "down" | "left" | "right";
+  rootMargin?: string;
   threshold?: number;
 };
 
@@ -17,7 +18,8 @@ export default function Reveal({
   delay = 0,
   distance = 22,
   direction = "up",
-  threshold = 0.16
+  rootMargin = "0px 0px 28% 0px",
+  threshold = 0.01
 }: RevealProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -32,6 +34,18 @@ export default function Reveal({
       return;
     }
 
+    const revealIfInRange = () => {
+      const rect = node.getBoundingClientRect();
+      const preloadDistance = window.innerHeight * 0.28;
+      if (rect.top <= window.innerHeight + preloadDistance && rect.bottom >= 0) {
+        setVisible(true);
+        return true;
+      }
+      return false;
+    };
+
+    if (revealIfInRange()) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -39,12 +53,12 @@ export default function Reveal({
           observer.disconnect();
         }
       },
-      { threshold, rootMargin: "0px 0px -8% 0px" }
+      { threshold, rootMargin }
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [threshold]);
+  }, [rootMargin, threshold]);
 
   return (
     <div

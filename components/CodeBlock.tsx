@@ -88,7 +88,9 @@ export default function CodeBlock({ id, code, language, filename, highlights = [
     <figure className="code-figure" id={id}>
       <figcaption className="code-toolbar">
         <span>{filename || language}</span>
-        <button type="button" onClick={copyCode}>{copied ? "已复制" : "复制"}</button>
+        <button className={copied ? "copied" : ""} type="button" onClick={copyCode} aria-live="polite">
+          {copied ? "已复制" : "复制"}
+        </button>
       </figcaption>
       <pre className={`code-block language-${language}`}>
         <code>

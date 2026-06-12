@@ -214,7 +214,7 @@ export default function TopicAtlas({ groups, showSidebar = true }: { groups: Atl
         ) : null}
       </section>
 
-      <aside className="atlas-detail-panel" aria-label="节点详情">
+      <aside className="atlas-detail-panel" aria-label="节点详情" key={`${activeGroup.slug}-${selectedNode?.id || "empty"}`}>
         {selectedNode ? (
           <>
             <div className={`atlas-detail-card tone-${selectedNode.tone}`}>

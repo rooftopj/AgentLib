@@ -1,17 +1,18 @@
 import Link from "next/link";
 import ContentTypeBadge from "@/components/ContentTypeBadge";
+import PageIntro from "@/components/PageIntro";
+import Reveal from "@/components/Reveal";
 import { papers } from "@/lib/papers";
 import { publicPath } from "@/lib/public-path";
 
 export default function PapersPage() {
   return (
     <div className="page-shell compact papers-library-page">
-      <div className="page-title">
-        <h1>论文</h1>
-      </div>
+      <PageIntro eyebrow="Paper Library" title="论文库" description="按主题机制浏览 Agent 论文讲解、图示、公式与代码直觉。" />
       <div className="paper-list">
-        {papers.map((paper) => (
-          <Link className="paper-row blog-row card-link" href={`/papers/${paper.slug}/`} key={paper.slug}>
+        {papers.map((paper, index) => (
+          <Reveal delay={index * 35} distance={14} key={paper.slug}>
+            <Link className="paper-row blog-row card-link" href={`/papers/${paper.slug}/`}>
             {paper.coverImagePath ? (
               <img className="blog-row-cover" src={publicPath(paper.coverImagePath)} alt="" aria-hidden="true" />
             ) : null}
@@ -25,7 +26,8 @@ export default function PapersPage() {
                 ))}
               </div>
             </div>
-          </Link>
+            </Link>
+          </Reveal>
         ))}
       </div>
     </div>
