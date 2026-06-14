@@ -627,7 +627,7 @@
         },
         {
           "title": "通知回流",
-          "body": "worker 结果以 task-notification 回到主 query loop，prompt 要求主 agent 视作内部信号。"
+          "body": "worker 完成时把 task-notification 入统一队列，主循环 drain 后再让 coordinator 判断。"
         },
         {
           "title": "续写控制",
@@ -635,7 +635,7 @@
         },
         {
           "title": "输出控制面",
-          "body": "TaskOutput 按 task_id 读取 worker 输出；主路径仍偏 output_file 与异步通知。"
+          "body": "TaskOutput 按 task_id 查 AppState 和输出文件，区别于 queue 里的完成通知。"
         }
       ]
     },

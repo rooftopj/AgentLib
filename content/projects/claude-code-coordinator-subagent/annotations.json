@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "contentType": "project",
+  "slug": "claude-code-coordinator-subagent",
+  "items": [
+    {
+      "id": "claude-code-coordinator-notification-wait-001",
+      "sectionTitle": "结果不是 return，而是通知回流",
+      "quote": "异步 worker 结束时不会直接替主 agent 回答用户。`LocalAgentTask` 会生成 `<task-notification>`，里面包含 task id、输出文件路径、状态、摘要、结果和 usage。这个 XML 作为内部消息回到主循环。",
+      "occurrence": 1,
+      "title": "通知和最终答案是什么关系？",
+      "body": "`<task-notification>` 不是 worker 最后一条 assistant message 本身，而是一个**通知信封**。它的 `<result>` 字段通常来自 worker 最终 assistant message 的文本内容。\n\n生成链路可以拆成四步：\n\n1. worker 在自己的 sidechain 里运行，产生一串 `agentMessages`，其中包括 assistant 消息、tool use、tool result 等。\n2. worker 结束后，`finalizeAgentTool(agentMessages, agentId, metadata)` 找最后一条 assistant message，抽出其中的 text block；如果最后一条 assistant 只有 tool_use 没有文本，就向前找最近一条有文本的 assistant message。\n3. `completeAgentTask(agentResult)` 先把这个 `agentResult` 存进 `LocalAgentTaskState.result`，让 `TaskOutput(block=true)` 能立刻看到 task 已完成。\n4. `enqueueAgentNotification(...)` 再把 `extractTextContent(agentResult.content)` 得到的文本放进 `<result>`，连同 `task-id`、`output-file`、`status`、`summary`、`usage` 一起包装成 `<task-notification>`，入 command queue。\n\n所以二者关系是：\n\n```text\n最后 assistant 文本 -> agentResult.content -> task state.result\n                                  -> task-notification <result>\n```\n\n`TaskOutput` 后续读到的 clean result 和 `<task-notification><result>` 通常同源；但 `<task-notification>` 还额外带了 task id、输出文件路径、状态、摘要、usage 等控制信息，并且失败或 killed 时 `<result>` 可能缺失或只是 partial result。\n\n源码里确实有两类 `sleep`，但语义不同：\n\n1. `TaskOutput(block=true)` 主动等待某个 task 完成时，会每 100ms 检查一次 task state。这是“工具调用选择阻塞读取输出”的等待路径。\n2. headless/streaming 循环在队列暂时为空、但仍有后台 task 运行时，会 `sleep(100)` 让出事件循环，然后回去 drain 新入队的通知。这是避免忙等的轻量等待，不是 coordinator 靠 sleep 来编排 worker。\n\n因此，worker 结果是通过队列通知驱动主循环；`sleep` 只是某些等待/阻塞场景里的节流实现细节。"
+    },
+    {
+      "id": "claude-code-coordinator-taskoutput-queue-001",
+      "sectionTitle": "TaskStop 和 TaskOutput 构成控制面",
+      "quote": "`TaskOutput` 解决的是“我需要主动读取这个 task 的输出”。非阻塞模式下，如果 task 已经完成，就直接读输出；blocking 模式可以等待。",
+      "occurrence": 1,
+      "title": "TaskOutput 读队列吗？",
+      "body": "`TaskOutput` 和 command queue 是两条不同通道。\n\ncommand queue 承担的是**事件送达**：worker 完成、失败或停止时，`LocalAgentTask.enqueueAgentNotification()` 把 `<task-notification>` 放进队列，主循环稍后 drain 它，让模型知道“某个 task 有结果了”。这条通知里会带 `task_id`、`output_file`、状态、摘要和可选 result，但它不是 `TaskOutput` 的数据源。\n\n`TaskOutput` 承担的是**主动查询**：模型已经知道某个 `task_id` 后，发起一次工具调用。源码里它先从 `toolUseContext.getAppState().tasks[task_id]` 找 task；如果可读，就通过 `getTaskOutputData(task)` 读取 task 的状态和输出。\n\n对 `local_agent` 来说，有三种内容要区分：\n\n1. **clean result**：worker 最终 assistant message 的文本内容。`completeAgentTask(result)` 会把 `AgentToolResult` 存到 `LocalAgentTaskState.result`；`TaskOutput` 再用 `extractTextContent(agentTask.result.content)` 抽出干净答案。这通常是主 agent 最想看的“子 agent 结论”。\n2. **output file**：`getTaskOutputPath(taskId)` 指向的 task 输出路径。对 local agent，注册任务时会 `initTaskOutputAsSymlink(agentId, getAgentTranscriptPath(agentId))`，所以这个文件通常是指向 sidechain transcript 的符号链接。\n3. **transcript**：worker 自己那条 sidechain 会话的 JSONL 记录，包含初始 prompt、每轮消息、tool use、tool result、progress 等原始过程。它适合恢复、审计和排查，但不适合直接当最终答案。\n\n因此源码注释才说：local agent 的磁盘输出是完整 transcript，不只是子 agent 答案；能拿到内存里的 clean final result 时，`TaskOutput` 会优先返回 clean result，拿不到时才退回磁盘 output/transcript。\n\n```text\nworker 完成 -> command queue -> 通知主 agent 有结果\n主 agent 需要更多内容 -> TaskOutput(task_id) -> 查 AppState.result / output symlink / transcript\n```\n\n所以不是 `TaskOutput` 从 queue 里把消息取出来；queue 只是把“有这个 task 结果”推给主循环，`TaskOutput` 是后续按 id 拉取更完整输出的控制工具。"
+    }
+  ]
+}
