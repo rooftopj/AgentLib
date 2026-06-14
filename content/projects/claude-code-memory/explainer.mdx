@@ -1,25 +1,54 @@
-# Claude Code 源码解析（01）Memory：文件化长期记忆、相关召回与会话压缩
+# Claude Code 源码解析（01）Memory：文件化长期记忆、会话压缩与后台整理
 
 ## 先给结论
 
-Claude Code 的 Memory 不是一个单独的向量库功能。它由几条线拼起来：auto-memory 保存跨 session 的长期上下文，`relevant_memories` 在 query 时按需注入 topic files，session memory 给当前会话 compact 用，team memory 和 agent memory 是可选扩展。
+Claude Code 的 Memory 不是一个单独的向量库功能。它由几条状态线拼起来：auto-memory 保存跨 session 的长期上下文，`relevant_memories` 在 query 时按需注入 topic files，session memory 给当前会话 compact 用，autoDream 低频整理长期记忆，team memory 和 agent memory 是可选扩展。
 
 <CalloutBlock
-  title="最重要的判断"
-  body="默认形态是 Markdown 文件协议，而不是 vector storage。MEMORY.md 是短索引，topic .md 文件是正文；召回有索引注入和 sideQuery 选文件两层，但不是默认 embedding 相似度检索。"
+  title="先抓住机制"
+  body="默认形态是 Markdown 文件协议，而不是 vector storage。`MEMORY.md` 是短索引，topic `.md` 文件是正文；召回靠索引注入和 sideQuery 选文件，不是默认 embedding 相似度检索。"
 />
 
 <FigureBlock
   src="/generated/claude-code-memory/architecture.svg"
-  caption="Claude Code Memory 全景：长期记忆、后台抽取、会话摘要、autoDream、team/agent memory 是不同生命周期的机制。"
+  caption="Claude Code Memory 全景：长期记忆、后台抽取、相关召回、会话摘要、autoDream、team/agent memory 是不同生命周期的机制。"
 />
 
 <SplitBlock
-  leftTitle="不要混在一起"
-  left="CLAUDE.md/rules 更像指令；auto-memory 是长期记忆；relevant_memories 是按 query 选出的记忆正文；session memory 是当前会话压缩笔记；agent memory 是某个 agent 的自我改进目录。"
-  rightTitle="为什么先分层"
-  right="如果不分层，很容易误以为所有 Memory 都来自同一个数据库，或者以为 MEMORY.md 本身装下了所有长期事实。源码里恰好相反：它靠多个文件入口和多种注入时机共同工作。"
+  leftTitle="长期记忆"
+  left="auto-memory 负责跨 session 的 user、feedback、project、reference 记忆。它用 `MEMORY.md` 做短索引，用 topic Markdown 保存正文。"
+  rightTitle="会话记忆"
+  right="session memory 只服务当前长会话 compact。它写 `session-memory/summary.md`，不是跨 session 的用户偏好库。"
 />
+
+这篇的主线是：**长期记忆如何被写入文件，查询时如何被召回进上下文，当前会话如何用 session memory 压缩，后台 autoDream 如何整理旧记忆**。这几条线都叫 memory，但触发时机、存储位置和消费方式完全不同。
+
+## 源码证据地图
+
+先把源码按生命周期摆出来。写入和召回不是同一个入口；长期记忆和 session memory 也不共用一套文件。
+
+```text
+# 1 assets/projects/claude-code/src/context.ts
+# 2 assets/projects/claude-code/src/memdir/paths.ts
+# 3 assets/projects/claude-code/src/memdir/memdir.ts
+# 4 assets/projects/claude-code/src/memdir/memoryTypes.ts
+# 5 assets/projects/claude-code/src/query/stopHooks.ts
+# 6 assets/projects/claude-code/src/services/extractMemories/extractMemories.ts
+# 7 assets/projects/claude-code/src/memdir/findRelevantMemories.ts
+# 8 assets/projects/claude-code/src/utils/attachments.ts
+# 9 assets/projects/claude-code/src/services/SessionMemory/sessionMemory.ts
+# 10 assets/projects/claude-code/src/services/autoDream/autoDream.ts
+# 11 assets/projects/claude-code/src/services/autoDream/consolidationPrompt.ts
+# 12 assets/projects/claude-code/src/tools/AgentTool/agentMemory.ts
+```
+
+<StepFlow
+  title="Memory 的三条主链路"
+  steps="长期写入|文件持久化|相关召回|会话压缩|后台整理"
+  descriptions="主 agent、/memory 命令或 extractMemories 把跨 session 信息写进 auto-memory 目录。|`MEMORY.md` 保存短索引，topic `.md` 保存正文和 frontmatter。|每个用户 turn 可启动 relevant memory prefetch，把相关 topic 截断注入上下文。|session memory 把当前长会话写成 `summary.md`，供 autocompact 使用。|autoDream 等 24 小时和多个 session 后低频合并、删除、修剪长期记忆。"
+/>
+
+这个拆法能避免一个常见误解：`CLAUDE.md`、auto-memory、session memory、team memory、agent memory 不是同一个数据库的不同视图，而是不同生命周期的文件协议和注入路径。
 
 ## Memory 家族
 
@@ -32,25 +61,27 @@ const claudeMd = shouldDisableClaudeMd
   : getClaudeMds(filterInjectedMemoryFiles(await getMemoryFiles()))
 ```
 
-这段说明启动上下文时会读取 memory files，再交给 `getClaudeMds` 汇总。后面 query 侧还会另走一条 relevant memory prefetch，专门把相关 topic files 作为 attachment 注入。
+这段代码说明启动上下文时会读取 memory files，再交给 `getClaudeMds()` 汇总。它回答的是“基础背景怎么进入模型”：在 query 开始前，`MEMORY.md` 这类入口内容会成为 user context 的一部分。
 
-```text
-# 1 assets/projects/claude-code/src/context.ts
-# 2 assets/projects/claude-code/src/memdir/paths.ts
-# 3 assets/projects/claude-code/src/services/extractMemories/extractMemories.ts
-# 4 assets/projects/claude-code/src/memdir/findRelevantMemories.ts
-# 5 assets/projects/claude-code/src/utils/attachments.ts
-# 6 assets/projects/claude-code/src/services/SessionMemory/sessionMemory.ts
-```
+但 query 侧相关记忆不是在这里完成。后面每个用户 turn 还会走 `startRelevantMemoryPrefetch()`，从 topic files 中挑相关正文作为 `relevant_memories` attachment 注入。也就是说，`MEMORY.md` 给方向，topic file 给证据。
 
 <FigureBlock
   src="/generated/claude-code-memory/storage-layout.svg"
   caption="存储布局：auto/team/agent memory 共享 MEMORY.md + topic files 的文件化范式；session memory 单独服务当前会话压缩。"
 />
 
+<SplitBlock
+  leftTitle="容易混淆"
+  left="CLAUDE.md/rules 是项目指令；auto-memory 是长期上下文；relevant_memories 是 query 侧召回正文；session memory 是当前会话摘要；agent memory 是某类 agent 自己的持久目录。"
+  rightTitle="正确理解"
+  right="它们都可能进入模型上下文，但不是同一个生命周期。先分清触发入口和存储位置，再看它们如何被注入。"
+/>
+
+一个例子：用户偏好“先看源码再总结”，这适合写入 auto-memory 的 `feedback` 或 `user` topic；当前会话已经读过哪些文件，则适合 session memory 或当前消息历史，不应该变成长期事实；某个 code-review agent 的经验，则可能进入 agent memory，而不是全局 auto-memory。
+
 ## auto-memory 主轴
 
-auto-memory 默认开启，但会被环境、bare/simple 模式、remote memory 目录和 settings 关掉。默认路径是 `<memoryBase>/projects/<sanitized-project>/memory/`，其中 `MEMORY.md` 是入口索引。
+auto-memory 解决的是跨 session 长期上下文：用户偏好、项目背景、反馈纠正、外部引用。它默认开启，但会被环境变量、simple/bare 模式、settings 或 remote memory 约束关掉。
 
 ```ts
 // assets/projects/claude-code/src/memdir/paths.ts
@@ -63,6 +94,8 @@ export function isAutoMemoryEnabled(): boolean {
 }
 ```
 
+这段代码给出触发前提：不是所有运行环境都会使用 auto-memory。只有 auto-memory enabled 时，remember skill、extractMemories、autoDream、team sync 等路径才围绕 auto-memory 目录工作。
+
 `MEMORY.md` 有硬上限：200 行和 25KB。这个限制本身就是架构信号：它不是正文库，而是短索引。真正的内容应该写进按主题组织的 Markdown 文件。
 
 ```ts
@@ -72,14 +105,18 @@ export const MAX_ENTRYPOINT_LINES = 200
 export const MAX_ENTRYPOINT_BYTES = 25_000
 ```
 
+`MEMORY.md` 超限时，磁盘文件不会被自动删改。限制发生在加载阶段：`truncateEntrypointContent()` 会只把前 200 行 / 25KB 内的索引加载进上下文，并追加 warning。结果是超出部分虽然还在文件里，但模型未来看不到那些索引指针。
+
+<CalloutBlock
+  title="MEMORY.md 是路标"
+  body="它应该是一行一个 topic 指针，例如 `- [Testing preference](feedback_testing.md) — prefers source-backed tests`。如果把长正文写进索引，后面的链接会被截断加载，相关记忆反而更难被召回。"
+/>
+
 ## 写入什么时候触发
 
-写入有三条主路径。第一条是主 agent 按系统提示或用户明确要求 remember/forget 直接写。第二条是 `/memory` 命令打开文件给人手工编辑。第三条是 `extractMemories` 在 stop hook 后台 fork 一个 agent 补写。
+长期记忆写入有三条路径：用户或主 agent 显式写、`/memory` 命令人工编辑、stop hook 后台抽取。它们都写文件，但触发时机不同。
 
-<FigureBlock
-  src="/generated/claude-code-memory/lifecycle.svg"
-  caption="生命周期：显式写入、后台抽取、文件持久化、相关召回、session compact 和 autoDream 整理。"
-/>
+第一条路径是显式写入。用户说“记住……”，或者模型根据系统规则决定保存长期上下文时，会通过 Edit/Write 修改 auto-memory 目录。第二条路径是 `/memory` UI/命令，用户直接打开文件维护。第三条路径是后台 `extractMemories`：一轮对话结束后，它 fork 一个 agent 去补写可能遗漏的长期记忆。
 
 ```ts
 // assets/projects/claude-code/src/query/stopHooks.ts
@@ -95,7 +132,20 @@ if (!toolUseContext.agentId) {
 }
 ```
 
-这不是一个叫 `observe()` 的公开 API，但语义上很像“回合结束后的观察”。用户 turn 完成后，Claude Code 在主响应路径之外启动记忆抽取和梦境整理。
+这不是一个叫 `observe()` 的公开 API，但语义上很像“回合结束后的观察”。主回复完成后，stop hook 触发后台抽取和后台整理；它们不阻塞用户当前响应，而是另起 forked agent 或后台任务处理 memory 文件。
+
+<FigureBlock
+  src="/generated/claude-code-memory/lifecycle.svg"
+  caption="生命周期：显式写入、后台抽取、文件持久化、相关召回、session compact 和 autoDream 整理。"
+/>
+
+<StepFlow
+  title="后台抽取的状态流"
+  steps="主对话完成|stop hook 触发|检查是否已写 memory|fork extractor|写 topic file 和索引|推进 cursor"
+  descriptions="用户 turn 和工具循环结束后，主路径先完成响应。|stopHooks 在 main thread 且 gate 开启时调用 executeExtractMemories。|extractor 检查从上次 cursor 以来主 agent 是否已经写过 auto-memory。|如果没写过，runForkedAgent 以 extractMemories prompt 扫描最近消息。|抽取器只能写 memory 目录，按文件协议新建或更新 topic Markdown 和 MEMORY.md。|成功或跳过后推进 cursor，避免同一批消息反复被抽取。"
+/>
+
+一个具体例子：用户纠正“解释源码时先讲触发入口，再讲状态流”。主 agent 可能当场写入 `feedback_source_reading.md`；如果主 agent 没写，stop hook 后台 extractor 会读取这段对话，判断它是长期协作反馈，再写入 auto-memory。
 
 ## 写入什么内容
 
@@ -111,14 +161,25 @@ export const MEMORY_TYPES = [
 ] as const
 ```
 
-`user` 保存用户角色、目标和知识背景；`feedback` 保存用户对协作方式的纠正或确认；`project` 保存项目目标、约束、事故和期限；`reference` 保存外部系统入口。
+这四类不是四个 `MEMORY.md`。它们是 topic file frontmatter 的 `type` 字段，用来告诉模型这条记忆是什么性质。目录里仍然是一个短索引和多个正文文件。
+
+```text
+memory/
+  MEMORY.md
+  user_profile.md          # type: user
+  feedback_source_first.md # type: feedback
+  project_release.md       # type: project
+  reference_linear.md      # type: reference
+```
 
 <SplitBlock
-  leftTitle="应该存"
-  left="用户是谁、偏好怎么协作、项目为什么这么做、外部信息去哪找。这些内容未来能改变 Claude 的判断，但不能稳定从当前源码推导。"
-  rightTitle="不该存"
-  right="代码结构、文件列表、git 历史、临时任务状态、已经在 CLAUDE.md 里的规则。源码要求这些内容从当前状态读取，避免把过期快照当事实。"
+  leftTitle="应该写"
+  left="用户背景、长期偏好、协作反馈、项目目标、外部系统入口。这些内容未来会影响判断，且不能稳定从当前源码或 git 状态推出。"
+  rightTitle="不该写"
+  right="临时任务状态、当前文件列表、刚读过的代码片段、已经在 CLAUDE.md 里的规则、可从 git 或工作区重新获得的事实。"
 />
+
+这个分类的意义是防止 memory 变成废纸篓。比如“用户偏好中文源码级解释”是 `user` 或 `feedback`；“项目本周处于冻结期”是 `project`；“Linear 项目入口在哪里”是 `reference`；“刚刚 grep 到某函数在第 120 行”不是长期 memory。
 
 ## 存储形态
 
@@ -135,6 +196,8 @@ export const MEMORY_FRONTMATTER_EXAMPLE: readonly string[] = [
 ]
 ```
 
+这段代码说明召回的第一信号不是 embedding，而是 frontmatter。后面 `findRelevantMemories()` 会扫描文件名、`name`、`description` 构造 manifest，让 sideQuery 从 manifest 中选文件。如果 description 写得含糊，后续召回就会变差。
+
 session memory 另走一套路径。它保存在 `{projectDir}/{sessionId}/session-memory/summary.md`，用途是当前长会话的压缩，不是跨 session 的用户偏好库。
 
 ```ts
@@ -144,14 +207,25 @@ export function getSessionMemoryPath(): string {
 }
 ```
 
+<FigureBlock
+  src="/generated/claude-code-memory/storage-layout.svg"
+  caption="文件布局：长期 auto/team/agent memory 用 MEMORY.md + topic files；session memory 单独按 session 存 summary.md。"
+/>
+
+所以“存在哪”要分清：auto-memory 存项目级长期记忆目录；session memory 存当前会话目录；agent memory 按 agent type 和 scope 存；team memory 是共享层。它们都可能是 Markdown，但读写入口不同。
+
 ## 冲突与更新
 
 Claude Code 没有结构化 `supersede` 表，也没有 `to_dict` 后写入事实数据库。它的 dedup、conflict 和 update 主要靠“先查旧文件，再改旧文件”的 prompt 规则、后台 manifest、主 agent 与 extractor 互斥，以及 autoDream 的周期整理。
 
 <CalloutBlock
   title="冲突处理的真实形态"
-  body="这不是 fact graph 里的旧事实指向新事实。默认冲突更新是文件级改写：重复就更新旧 Markdown，过时就删除或改写。强一致性来自工具权限和 review，而不是数据库约束。"
+  body="默认冲突更新是文件级改写：重复就更新旧 Markdown，过时就删除或改写。强一致性来自工具权限、prompt 规则和 review，而不是数据库事务。"
 />
+
+这不是 fact graph 里的旧事实指向新事实。默认冲突更新是文件级改写：重复就更新旧 Markdown，过时就删除或改写。强一致性来自工具权限和 review，而不是数据库约束。
+
+一个典型流程是：`MEMORY.md` 让模型知道已有 topic；query 侧相关召回把可能相关的 topic 原文注入；如果新信息和旧 topic 冲突，模型先读旧 `.md`，再用 Edit/Write 改写；如果没有合适旧文件，才新建 topic 并把短链接加回 `MEMORY.md`。
 
 ```ts
 // assets/projects/claude-code/src/services/extractMemories/extractMemories.ts
@@ -165,14 +239,19 @@ function hasMemoryWritesSince(
 
 这段互斥很关键：如果主 agent 已经写过 auto-memory 路径，后台 extractor 会跳过那段消息并推进 cursor，避免同一轮重复写入。
 
+这个判断不是比较文件 diff，而是扫描消息里的工具调用：从上次 cursor 之后，只要出现 Edit/Write，且 `file_path` 在 auto-memory 目录下，就认为主 agent 已经处理过记忆写入。它可能写的是 `MEMORY.md`，也可能写的是某个 topic file。
+
+<StepFlow
+  title="文件级冲突更新"
+  steps="索引发现旧 topic|召回 topic 原文|判断重复或冲突|改写旧文件|更新索引|后台跳过重复抽取"
+  descriptions="MEMORY.md 提供已有记忆的短指针。|relevant_memories 或显式 Read 把旧 topic 正文放进上下文。|模型根据新旧内容判断是合并、替换、删除还是新增。|Edit/Write 修改旧 Markdown，而不是写结构化 supersede 记录。|新建或重命名 topic 时，MEMORY.md 的链接也要同步维护。|hasMemoryWritesSince 发现主 agent 已写 auto-memory 后，extractor 跳过同一段消息。"
+/>
+
+这个设计的边界是显而易见的：没有数据库唯一约束，没有 transaction，也没有向量库里的实体合并器。它靠文件协议和低频整理维持卫生，所以 topic 命名、description 和 review 很重要。
+
 ## 召回什么时候触发
 
-召回分两层。第一层发生在 `getUserContext`：`MEMORY.md` 作为索引和 memory 指令进入上下文。第二层发生在每个用户 turn：`startRelevantMemoryPrefetch()` 启动异步选择器，主模型工作时它并行找相关 topic files。
-
-<FigureBlock
-  src="/generated/claude-code-memory/recall-prefetch.svg"
-  caption="召回双通道：MEMORY.md 索引随上下文注入；topic files 由 sideQuery 从 manifest 里最多选 5 个，再作为 relevant_memories attachment 注入。"
-/>
+召回也有两层。第一层发生在 `getUserContext()`：`MEMORY.md` 作为短索引进入上下文。第二层发生在用户 turn 开始时：`startRelevantMemoryPrefetch()` 异步选择相关 topic files，稍后作为 attachment 注入。
 
 ```ts
 // assets/projects/claude-code/src/query.ts
@@ -182,7 +261,14 @@ using pendingMemoryPrefetch = startRelevantMemoryPrefetch(
 )
 ```
 
-prefetch 不阻塞主 turn。`query.ts` 在工具执行后的收集点检查它是否 settled；如果已经完成，就把 memory attachments 注入，否则下一轮 iteration 再尝试。
+这段代码的位置很重要：prefetch 在主模型工作前启动，但不要求立刻完成。主 query 可以继续走工具循环；当 `getAttachmentMessages()` 到达收集点，如果 prefetch 已经完成，就把 `relevant_memories` 加进消息流，否则下一轮再尝试。
+
+<FigureBlock
+  src="/generated/claude-code-memory/recall-prefetch.svg"
+  caption="召回双通道：MEMORY.md 索引随上下文注入；topic files 由 sideQuery 从 manifest 里最多选 5 个，再作为 relevant_memories attachment 注入。"
+/>
+
+用一个例子看：用户问“这个项目之前为什么禁用了某个测试？”`MEMORY.md` 可能只有一行指针 `testing_history.md`；prefetch 会用当前 query 和 manifest 让 sideQuery 选择这个 topic；如果选中，它的正文前 200 行 / 4KB 会作为 attachment 注入，模型再结合当前源码回答。
 
 ## 怎么检索
 
@@ -201,6 +287,8 @@ const result = await sideQuery({
 })
 ```
 
+这里的“检索”是 LLM selector，不是 embedding index。输入是 manifest 文本，输出是文件选择。它没有默认 vector storage、没有默认 embedding 相似度搜索，也没有默认 lexical/BM25 ranking。源码里正向证据是 Markdown scan + sideQuery + attachment 读取。
+
 选中文件后，`readMemoriesForSurfacing()` 只读每个文件前 200 行和 4KB。session 累计最多 60KB，且会过滤已经读过、写过或注入过的记忆。
 
 ```ts
@@ -213,16 +301,18 @@ export const RELEVANT_MEMORIES_CONFIG = {
 } as const
 ```
 
-所以“检索”不是向量相似度，而是：frontmatter manifest -> sideQuery selector -> 截断读取 -> attachment 注入 -> readFileState 去重。
+去重不是单独一张 memory recall 表。`collectSurfacedMemories(messages)` 扫描历史里的 `relevant_memories` attachment；`readFileState` 记录已经通过 FileRead、Edit、Write 或 relevant memory attachment 进入上下文的路径。`filterDuplicateMemoryAttachments()` 再把重复路径过滤掉，并把幸存 memory 标记进 `readFileState`。
 
 <StepFlow
   steps="扫描文件|构造 manifest|sideQuery 选择|读取正文|去重注入|模型验证"
-  descriptions="scanMemoryFiles 读取 Markdown header|formatMemoryManifest 暴露文件名和 description|selectRelevantMemories 最多选 5 个|readMemoriesForSurfacing 限 200 行/4KB|filterDuplicateMemoryAttachments 避免重复|TRUSTING_RECALL_SECTION 要求回到当前源码核验"
+  descriptions="scanMemoryFiles 读取 Markdown frontmatter 和文件路径。|formatMemoryManifest 暴露文件名、name、description 给选择器。|sideQuery 基于 query 和 manifest 最多选 5 个 topic。|readMemoriesForSurfacing 限制每个文件 200 行和 4KB。|filterDuplicateMemoryAttachments 用历史 attachment 和 readFileState 避免重复注入。|TRUSTING_RECALL_SECTION 要求模型回到当前源码和上下文核验，而不是盲信旧记忆。"
 />
+
+如果 compact 后旧 `relevant_memories` attachment 消失，`collectSurfacedMemories()` 的计数会自然重置，允许重新 surface。若 memory 文件更新，`readFileState` timestamp 可帮助 changed-file diff，但截断注入的 partial view 不参与完整 diff，避免用不完整内容制造误导。
 
 ## Session Memory
 
-session memory 是另一个问题：如何在长会话 compact 后保留当前工作状态。它不是长期记忆，也不会表达用户长期偏好。它在 post-sampling hook 中按 token 和 tool-call 门槛更新 `summary.md`。
+session memory 解决的是“当前会话太长怎么办”，不是“未来 session 如何记住用户”。它维护当前 session 的 `summary.md`，供 session memory compact 优先使用。
 
 ```ts
 // assets/projects/claude-code/src/services/SessionMemory/sessionMemory.ts
@@ -234,7 +324,15 @@ export function shouldExtractMemory(messages: Message[]): boolean {
 }
 ```
 
-compact 时，`trySessionMemoryCompaction()` 等待抽取完成，读取 `summary.md`，再把它变成 compact summary message。这里解决的是“当前会话太长”，不是“未来会话怎么记住用户”。
+状态流是：主会话消息增长到 token 阈值，或距离上次更新后工具调用数足够多；session memory extractor 通过 forked agent 更新 `session-memory/summary.md`；成功后记录已总结到哪个消息；autocompact 前再读取这份文件，优先生成 compact summary。
+
+<StepFlow
+  title="session memory 的用途"
+  steps="长会话增长|后台更新 summary.md|记录总结边界|autocompact 前读取|保留未总结尾部"
+  descriptions="消息 token 或工具调用数量达到门槛后，系统认为需要更新会话笔记。|session_memory forked agent 写当前 session 的 `session-memory/summary.md`。|成功后记录 lastSummarizedMessageId，说明旧消息已被摘要覆盖。|autocompact 前 trySessionMemoryCompaction 优先读取现成 summary。|压缩结果保留最近未总结消息，避免刚发生的操作被摘要吞掉。"
+/>
+
+这个边界要牢记：session memory 不应该保存“用户长期偏好”，也不会进入其他 session 的 auto-memory 目录。它是当前会话的压缩材料，生命周期随 session 走。
 
 ## autoDream
 
@@ -247,6 +345,27 @@ const DEFAULTS: AutoDreamConfig = {
   minSessions: 5,
 }
 
+sessionIds = await listSessionsTouchedSince(lastAt)
+sessionIds = sessionIds.filter(id => id !== currentSession)
+if (!force && sessionIds.length < cfg.minSessions) return
+```
+
+这里的 “5 个 session” 指项目 transcript 目录里，自上次 consolidation 之后被 touch 过的历史 `.jsonl` 会话数量，不是把所有 message 列表读进内存。调度 gate 只做便宜的文件级扫描：时间够、session 数够、当前没有 consolidation lock，才启动 dream task。
+
+它的价值在冲突更新和索引卫生：合并重叠记忆，删除陈旧内容，保持 `MEMORY.md` 是短索引，而不是越写越长的正文堆。
+
+`autoDream` 的输入也不是“所有历史对话全文”。它启动一个 forked agent，继承当前会话上下文，再追加 `Dream: Memory Consolidation` 提示词。提示词把 `memoryRoot`、`transcriptDir`、`sessionIds` 交给模型，让它按需列目录、读 `MEMORY.md`、扫 topic files，必要时用窄关键词 grep transcript。
+
+```ts
+// assets/projects/claude-code/src/services/autoDream/autoDream.ts
+const prompt = `${buildConsolidationPrompt({
+  memoryRoot,
+  transcriptDir,
+})}
+
+Sessions since last consolidation (${sessionIds.length}):
+${sessionIds.map(id => `- ${id}`).join('\n')}`
+
 const result = await runForkedAgent({
   querySource: 'auto_dream',
   forkLabel: 'auto_dream',
@@ -254,13 +373,21 @@ const result = await runForkedAgent({
 })
 ```
 
-它的价值在冲突更新和索引卫生：合并重叠记忆，删除陈旧内容，保持 `MEMORY.md` 是短索引，而不是越写越长的正文堆。
+<StepFlow
+  title="autoDream 整理路径"
+  steps="读取上次整理时间|扫描 touched sessions|获取整理锁|启动 dream agent|按需探索材料|更新索引和 topic"
+  descriptions="consolidation lock 的 mtime 表示 lastConsolidatedAt。|listSessionsTouchedSince 只根据 transcript 文件 mtime 找候选 sessionId。|锁防止多个整理任务同时写 memory 目录。|runForkedAgent 追加 Dream: Memory Consolidation 提示词。|dream agent 按提示读 memoryRoot、daily logs、topic files，并用窄关键词查 transcript。|最终合并重复、删除陈旧内容、修剪 MEMORY.md，保持索引短小。"
+/>
+
+`daily logs` 是 assistant-mode/KAIROS 布局里的追加日志：新记忆先按日期写到 `logs/YYYY/MM/YYYY-MM-DD.md`，每条是短的 timestamped bullet。consolidation prompt 兼容这种目录布局，看到 `logs/` 或 `sessions/` 子目录时会优先 review recent entries，再把流水日志蒸馏成 topic files 和 `MEMORY.md` 索引。
 
 ## Team Memory 和 Agent Memory
 
-team memory 是共享层，依赖 auto-memory 开启。它有 team 路径、watcher、pull/push、ETag/412 retry 和 secret scanner。对 Memory 主轴来说，关键是它复用文件化范式；同步语义和安全边界则比本地 memory 更复杂。
+team memory 和 agent memory 都复用“索引 + topic files”的文件化范式，但作用域不同。team memory 是共享层，agent memory 是某类 agent 的私有经验目录。
 
-agent memory 是按 agent type 隔离的持久目录，scope 有 `user`、`project`、`local` 三种。被 @mention 的 agent 会优先搜索自己的 memory dir，而不是普通 auto-memory dir。
+team memory 的关键不是换了存储格式，而是多端同步带来的额外边界：watcher、pull/push、ETag/412 retry、secret scanner、删除是否传播、server wins/local wins 语义。对 Memory 主轴来说，只需要知道它仍然围绕 `MEMORY.md` 和 topic files 工作，但同步协议比本地 auto-memory 更复杂。
+
+agent memory 按 agent type 和 scope 隔离。被 @mention 的 agent 会优先搜索自己的 memory dir，而不是普通 auto-memory dir。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/agentMemory.ts
@@ -276,16 +403,35 @@ export function getAgentMemoryDir(
 }
 ```
 
+<SplitBlock
+  leftTitle="team memory"
+  left="团队共享事实和约定，适合跨成员复用。风险来自同步冲突、secret 泄漏和删除传播语义。"
+  rightTitle="agent memory"
+  right="某个 agent type 的经验目录，适合让 code-review、research、test agent 分别沉淀自己的偏好和案例。"
+/>
+
+这两条扩展的共同边界是：它们不是默认 query 侧召回的唯一来源，也不是向量库替代品。它们把文件化 memory 推到更复杂的作用域，而不是改变“短索引 + topic 正文 + 按需注入”的基本模型。
+
 ## 可复用设计
 
-- **把索引和正文分开**：`MEMORY.md` 控制上下文成本，topic files 保存细节。
-- **用后台 fork，但要互斥**：主 agent 已写时 extractor 跳过，减少重复与冲突。
-- **召回不要只靠索引**：索引给方向，prefetch 注入正文，模型再验证当前源码。
-- **权限要落在工具层**：extractor 只能写 memory dir，session memory 只能 Edit 指定 summary。
-- **区分长期记忆和会话摘要**：跨 session profile 和当前 session compact 是两个问题。
+Claude Code Memory 最值得复用的是文件协议和生命周期分层，而不是某个具体 prompt。
+
+1. **索引和正文分离**：`MEMORY.md` 控制上下文成本，topic files 保存细节。
+2. **显式写入和后台抽取互斥**：主 agent 已写时 extractor 跳过，避免同一轮重复保存。
+3. **召回先选文件再注入正文**：manifest 给 sideQuery 选择，attachment 给主模型使用。
+4. **默认不依赖向量库**：没有 vector storage、embedding search、BM25 ranking 或 LLM rerank 管线；默认是 Markdown scan + sideQuery selector。
+5. **长期记忆和会话摘要分开**：跨 session facts 进 auto-memory，当前 session compact 进 session memory。
+6. **低频整理单独做**：autoDream 等足够多 session 后再合并重复和修剪索引。
+
+<CalloutBlock
+  title="文件化记忆的取舍"
+  body="它牺牲了数据库级一致性和向量召回能力，换来可读、可编辑、可审查、可按工具权限约束的长期记忆。"
+/>
 
 ## 边界
 
-这套设计牺牲了结构化一致性。没有默认 vector/embedding，也没有数据库级 dedup、merge、supersede；如果 description 写得差，sideQuery selector 可能漏掉相关 topic。
+这套设计的边界也很清楚。它默认没有结构化 fact graph，没有 `superseded_by` 表，没有 `to_dict` 后的事实数据库，也没有默认 vector / embedding / BM25 检索。冲突处理依赖模型读旧文件后改写，召回质量依赖 topic 命名和 description。
 
-另一个边界是同步复杂度。team memory 还涉及 secret、防冲突、删除是否传播、server wins 或 local wins 的语义。这里的关键关系是：team memory 仍然延续 Markdown 文件化记忆，但一旦进入共享层，就要额外处理多端同步和安全审查。
+另一个边界是同步和安全。team memory 把 Markdown 文件化记忆带进共享环境后，会额外遇到 secret、冲突、删除传播、多端一致性问题；agent memory 则会让记忆按 agent type 分裂，带来作用域选择问题。
+
+所以这套 Memory 更像一个可审查的文件化上下文层，而不是一套强一致的长期知识库。它适合保存能被人读懂和修改的长期上下文；如果要做事实级冲突解析、实体关系、向量召回或多用户同步事务，需要在它之上再加专门机制。

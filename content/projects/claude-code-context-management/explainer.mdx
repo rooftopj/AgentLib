@@ -6,24 +6,26 @@ Claude Code 的上下文管理不是“快满了就总结一下”。它更像�
 
 <CalloutBlock
   title="一句话抓住设计"
-  body="Claude Code 把上下文压力拆成多个便宜步骤：能增量注入就不改 system prompt，能替换工具结果就不总结整段历史，能保留尾部消息就不把所有上下文压成一段摘要。"
+  body="上下文压力不是一个摘要器能解决的。Claude Code 先避免把会变的信息放进稳定前缀，再冻结工具结果替换，最后才用 compact 改写历史。"
 />
 
 <FigureBlock
   src="/generated/claude-code-context-management/architecture.svg"
-  caption="上下文管理全景：静态 context、消息历史、动态 attachment 和多层压缩在 query loop 中组合。"
+  caption="上下文管理全景：固定 context、消息历史、动态 attachment 和多层压缩在 query loop 中组合。"
 />
 
 <SplitBlock
   leftTitle="默认路径"
-  left="每轮 query 会读取 system/user context，把 message history 做预算处理，再在工具结果后追加 queued command、文件变更、nested memory、skill/tool/MCP delta 等 attachment。"
+  left="每轮 query 先组装 system/user context 和消息历史，再做工具结果预算、snip、microcompact、context collapse、autocompact 等前置处理。工具执行完成后，再把 queued command、文件变更、tool/MCP/agent delta 等动态事实追加进历史。"
   rightTitle="可选增强"
-  right="HISTORY_SNIP、CACHED_MICROCOMPACT、CONTEXT_COLLAPSE、session memory compact、reactive compact 都是按 feature gate 或配置开启的增强路径。"
+  right="HISTORY_SNIP、CACHED_MICROCOMPACT、CONTEXT_COLLAPSE、session memory compact、reactive compact 都受 feature gate 或配置影响。它们不是互斥开关，而是按顺序尝试降低上下文压力。"
 />
 
-## 先看证据地图
+这篇讲解只看一条主线：**下一次模型调用会看到什么上下文，以及超预算时系统按什么顺序处理它**。长期记忆抽取、checkpoint/file-history 回滚、subagent 编排会影响会话状态，但不是这条 context budget 管线的主轴。
 
-这条源码线聚焦“上下文怎么进模型、怎么被压缩”。长期 memory 写入和 checkpoint restore 都会影响会话状态，但它们不是 `query.ts` 这条上下文预算管线的主要职责。
+## 源码证据地图
+
+读这条线时，先把源码分成五个问题：固定内容从哪来，动态状态何时注入，工具结果何时变小，历史何时被局部删除，最后何时进入全局 compact。
 
 ```text
 # 1 assets/projects/claude-code/src/context.ts
@@ -34,13 +36,22 @@ Claude Code 的上下文管理不是“快满了就总结一下”。它更像�
 # 6 assets/projects/claude-code/src/services/compact/autoCompact.ts
 # 7 assets/projects/claude-code/src/services/compact/compact.ts
 # 8 assets/projects/claude-code/src/services/compact/sessionMemoryCompact.ts
+# 9 assets/projects/claude-code/src/services/SessionMemory/sessionMemory.ts
 ```
 
-读这条源码线时，先把问题收窄：它关心的是“哪些上下文进入下一次模型调用，以及超预算时先丢什么、替换什么、压缩什么”。长期记忆的生成和回忆不是这一讲的主轴。
+<StepFlow
+  title="一次请求前后发生什么"
+  steps="固定 context|历史消息预算|局部压缩|模型与工具循环|动态 attachment|下一轮继续"
+  descriptions="system/user context 先进入 API 参数，尽量保持稳定。|消息历史先经过工具结果预算、snip、microcompact 等处理。|能局部释放 token 的路径先执行，避免过早进入全局摘要。|模型生成 tool_use，工具执行后把 tool_result 写回历史。|queued command、文件变更、tool/MCP delta 等运行态补丁追加进消息流。|下一轮模型看到的是固定前缀、处理后的历史和刚补进来的动态状态。"
+/>
+
+这个顺序很关键。如果把所有状态都写进 system prompt，缓存前缀会频繁变化；如果先 autocompact 再处理大工具结果，就会把很多本可局部替换的内容交给摘要器；如果 compact 后不补 attachment，模型会丢掉当前运行态。
 
 ## 固定上下文只放稳定信息
 
-`context.ts` 把上下文分成 `getSystemContext()` 和 `getUserContext()`。system context 里包括 git status 和 cache breaker；user context 里包括 CLAUDE.md/memory files 和日期。
+固定 context 解决的问题是：哪些信息应该每轮都可见，但又足够稳定，可以放在 API 请求的前缀里。Claude Code 把这部分拆成 `getSystemContext()` 和 `getUserContext()`。
+
+`getSystemContext()` 放的是系统运行环境，例如 git status 和 cache breaker。`getUserContext()` 放的是用户/项目记忆，例如 CLAUDE.md、memory files 和日期。
 
 ```ts
 // assets/projects/claude-code/src/context.ts
@@ -57,7 +68,7 @@ export const getSystemContext = memoize(async () => {
 })
 ```
 
-`getUserContext()` 会决定是否读取 CLAUDE.md。`--bare` 和 `CLAUDE_CODE_DISABLE_CLAUDE_MDS` 都会影响这条路径；读取后的内容还会缓存，供 auto-mode classifier 等逻辑复用。
+这段代码的机制含义不是“读取 git status”这么简单。它把 git 状态放在 memoized 的 system context 里，说明这类内容被当成相对稳定的请求前缀；而 `cacheBreaker` 是显式让前缀变化的例外，用来打破不希望复用的缓存。
 
 ```ts
 // assets/projects/claude-code/src/context.ts
@@ -71,14 +82,18 @@ return {
 }
 ```
 
+这里的状态流是：`getMemoryFiles()` 找到可注入的 memory 文件，`filterInjectedMemoryFiles()` 过滤掉不该重复注入的内容，`getClaudeMds()` 组装成 user context。下一轮模型调用会把它当成基础背景，而不是一条普通 user message。
+
 <FigureBlock
   src="/generated/claude-code-context-management/injection.svg"
-  caption="上下文注入分两层：固定 context 在 API 前 prepend，动态 attachment 在工具循环后按需补充。"
+  caption="上下文注入分两层：固定 context 进入 API 前缀，动态 attachment 在工具循环后按需补充。"
 />
+
+这个边界解释了为什么后面需要 attachment。日期变化、MCP server 变更、文件被外部改动、plan mode 状态都太容易变；如果它们每次都改写固定前缀，prompt cache 会被频繁破坏。
 
 ## 动态注入不是拼大 prompt
 
-`query.ts` 在工具调用结束后才处理 attachment。这样做很细：工具结果先被纳入历史，再追加“刚刚发生的变化”，避免把 queued command、文件变更、skill discovery、memory prefetch 混进静态 prompt。
+动态 attachment 解决的问题是：运行过程中出现的新状态，需要让模型知道，但不应该塞进稳定 system/user context。`query.ts` 的处理时机很明确：工具结果先进入历史，随后才扫描动态 attachment。
 
 ```ts
 // assets/projects/claude-code/src/query.ts
@@ -95,6 +110,8 @@ for await (const attachment of getAttachmentMessages(
 }
 ```
 
+这段代码里的关键状态有三个：`queuedCommandsSnapshot` 是本轮工具执行期间排队的用户/系统输入；`updatedToolUseContext` 保存当前工具、文件、权限、plan 等运行态；最后一个数组是“截至此刻模型和工具已经产生的历史”。`getAttachmentMessages()` 基于这三者决定本轮要补哪些状态。
+
 `attachments.ts` 里可以看到一组动态 attachment：queued commands、date change、deferred tools delta、agent listing delta、MCP instructions delta、changed files、nested memory、dynamic skill、plan mode、task reminder 等。
 
 ```ts
@@ -109,17 +126,25 @@ const allThreadAttachments = [
     Promise.resolve(getMcpInstructionsDeltaAttachment(...))),
   maybe('changed_files', () => getChangedFiles(context)),
   maybe('nested_memory', () => getNestedMemoryAttachments(context)),
+  maybe('plan_mode', () => getPlanModeAttachments(messages, toolUseContext)),
 ]
 ```
 
+可以把 attachment 理解成“状态增量日志”。例如用户在模型执行工具时又输入一句话，这不是固定 prompt 的一部分，而是 `queued_commands`；如果某个 MCP server instructions 变化，也不是重写工具 schema，而是 `mcp_instructions_delta`；如果进入 plan mode，则通过 `plan_mode` attachment 持续提醒模型当前只能规划。
+
 <StepFlow
-  steps="API 前固定 context|模型生成工具调用|工具结果进入历史|动态 attachment 扫描变化|下一轮模型看到增量"
-  descriptions="这就是动态注入的节奏：不是一次性构造超大 prompt，而是在每个工具循环后追加和当前状态相关的上下文。"
+  title="动态 attachment 的状态流"
+  steps="运行态发生变化|getAttachmentMessages 扫描状态|生成 attachment message|写回消息历史|下一轮模型消费"
+  descriptions="用户追加输入、文件改变、MCP 状态变化或 plan mode 变化先发生在运行态。|query loop 在工具结果之后调用 getAttachmentMessages，并传入最新 toolUseContext 和历史。|attachments.ts 把变化包装成 queued_commands、changed_files、delta 等 attachment。|这些 attachment 被 yield 出去，同时进入 toolResults，成为下一轮历史的一部分。|模型把它们当作当前状态补丁读取；compact/resume 后也能按需要重建。"
 />
+
+这种设计最容易被误读成“只是换个地方拼 prompt”。真正的差别在于：稳定规则留在固定 context，运行态变化进入消息尾部。这样模型仍能看到新状态，但缓存前缀不必因为一个文件改动、一个 server 断开或一个 plan reminder 重新写入。
 
 ## Delta 注入解决缓存破坏
 
-很多看似应该放进工具描述的东西，被 Claude Code 移到了 attachment delta。典型例子是 agent listing：源码注释说 agent 列表放在工具描述里会造成大量 cache creation，因为 MCP 连接、插件重载、权限变化都会改变描述。
+Delta attachment 解决的问题是：某些运行态很大，而且会变化，但模型只需要知道“相对上次变了什么”。Agent listing、deferred tools、MCP instructions 都属于这一类。
+
+Agent listing 的源码先从历史 attachment 里恢复“已经公告过哪些 agent 类型”，再和当前可用 agent 集合做差分。状态不是凭空算一次，而是从消息历史里的 delta 累积出来。
 
 ```ts
 // assets/projects/claude-code/src/utils/attachments.ts
@@ -136,7 +161,9 @@ export function getAgentListingDeltaAttachment(toolUseContext, messages) {
 }
 ```
 
-MCP instructions 也走 delta。它不是每轮塞全量说明，而是比较当前 MCP client/tool 与历史 attachment，只有变化才注入。
+这段代码证明了一个机制点：delta attachment 是可重放的。历史里出现过 `addedTypes` 就加入当前已公告集合，出现 `removedTypes` 就删掉。下一轮只发送新差异，不必把所有 agent 描述塞进工具 schema。
+
+MCP instructions 也是同一思路。系统先从当前 MCP clients/tools 得到最新 instructions，再和历史消息里已经公告过的 instructions 比较，只在变化时注入。
 
 ```ts
 // assets/projects/claude-code/src/utils/attachments.ts
@@ -153,15 +180,19 @@ export function getMcpInstructionsDeltaAttachment(
 ```
 
 <SplitBlock
-  leftTitle="为什么不用全量描述"
-  left="全量工具描述一变，prompt cache prefix 就容易失效。对长会话来说，这比多几个 token 更贵，因为它会让大段前缀重新写入缓存。"
-  rightTitle="delta 的收益"
-  right="attachment delta 把变化记录进消息流。模型能看到新增/移除，缓存前缀也更稳定；compact 后再重新公告必要集合。"
+  leftTitle="不用 delta 的后果"
+  left="如果 agent listing 或 MCP instructions 直接写进工具描述，MCP 连接、插件重载、权限变化都会改变工具 schema。长会话里这会造成大段 cache creation。"
+  rightTitle="delta 的行为"
+  right="消息历史记录每次新增/移除。下一轮只注入差异；compact 后如果旧 delta 被吃掉，再用当前状态重新公告必要集合。"
 />
 
-## Nested memory 有去重设计
+一个具体例子：某个 MCP server 断开后，模型不需要重新阅读所有 MCP server 的完整说明，只需要知道“这个 server 的 instructions 移除了”。如果稍后 compact 删除了旧 delta，post-compact 阶段会从当前 MCP 状态重新公告，避免模型拿着过期工具环境继续推理。
 
-CLAUDE.md 和 nested memory 的注入不是“读到就塞”。`memoryFilesToAttachments()` 同时用 `loadedNestedMemoryPaths` 和 `readFileState` 去重。注释里解释：`readFileState` 是 LRU，忙碌会话里可能淘汰；所以需要一个不淘汰的 Set 防止反复注入。
+## Nested memory 是运行态召回
+
+Nested memory 解决的问题是：当前任务涉及某个路径时，模型需要看到局部 CLAUDE.md 或规则文件，但这些文件不应该每轮全量注入。它和长期 memory 写入不是一回事，这里只负责“把当前路径相关规则放进上下文”。
+
+`memoryFilesToAttachments()` 同时检查 `loadedNestedMemoryPaths` 和 `readFileState`。前者是不淘汰的本轮已注入集合，后者是文件读取状态。两者合用，是为了防止忙碌会话里 read cache 淘汰后又反复注入同一 memory。
 
 ```ts
 // assets/projects/claude-code/src/utils/attachments.ts
@@ -178,17 +209,24 @@ if (!toolUseContext.readFileState.has(memoryFile.path)) {
 }
 ```
 
-这里不更新长期记忆事实，只负责“当前 turn 需要把哪些上下文放进模型”。
+状态流是：用户提到或打开某个路径后，attachment 逻辑寻找该路径上适用的 nested memory；如果之前没注入过，也没有作为普通文件读取过，就生成 `nested_memory` attachment；随后路径写入 `loadedNestedMemoryPaths`，下一轮不再重复发。
+
+<CalloutBlock
+  title="这不是长期记忆写入"
+  body="nested memory 不负责把新事实写进 memory store。它只是按当前文件路径召回已有规则，并且用 loadedNestedMemoryPaths 防止重复注入。"
+/>
+
+这个边界很重要。读者如果把 nested memory 当成“学习用户偏好”，就会误解它的生命周期。它更像当前工作目录的局部规则加载器：触发来自路径，输出是 attachment，生命周期服务当前会话上下文。
 
 ## 第一层压缩：工具结果预算
+
+工具结果预算解决的问题是：上下文爆掉的常常不是聊天文本，而是工具输出。尤其是 grep、bash、web fetch、文件读取结果，它们可能一次返回几万到几十万字符。
 
 长上下文最容易爆的不是用户文本，而是工具结果。`toolResultStorage.ts` 先对大工具输出做 persistence：把完整内容写入 `tool-results` 目录，只把文件路径和预览留给模型。
 
 ```ts
 // assets/projects/claude-code/src/utils/toolResultStorage.ts
-export function getToolResultsDir(): string {
-  return join(getSessionDir(), TOOL_RESULTS_SUBDIR)
-}
+export const TOOL_RESULTS_SUBDIR = 'tool-results'
 
 export function buildLargeToolResultMessage(result) {
   return `<persisted-output>\n` +
@@ -198,7 +236,9 @@ export function buildLargeToolResultMessage(result) {
 }
 ```
 
-第二层是 aggregate tool result budget。它不是简单截断，而是记录每个 tool_use_id 的替换决策，resume 后也能复原同样的 replacement，避免 prompt cache 因模板变化或路径变化被破坏。
+这段代码证明 persistence 的输出形态：模型不再看到完整工具结果，而是看到一个 `<persisted-output>` 包装，里面有路径和 preview。完整内容写到 session 目录下的 `tool-results`，之后如果真的需要，可以通过文件路径重新读取。
+
+触发条件不是“看起来很大”，而是按工具声明和默认上限计算。普通工具会被 `DEFAULT_MAX_RESULT_SIZE_CHARS = 50_000` 限制；同一 user message 里的多个工具结果，还会受聚合预算约束。
 
 ```ts
 // assets/projects/claude-code/src/utils/toolResultStorage.ts
@@ -206,20 +246,37 @@ export type ContentReplacementState = {
   seenIds: Set<string>
   replacements: Map<string, string>
 }
-
-export type ContentReplacementRecord = {
-  kind: 'tool-result'
-  toolUseId: string
-  replacement: string
-}
 ```
+
+第二层是 aggregate tool result budget。它不是简单截断，而是记录每个 tool_use_id 的替换决策，resume 后也能复原同样的 replacement，避免 prompt cache 因模板变化或路径变化被破坏。
 
 <FigureBlock
   src="/generated/claude-code-context-management/storage.svg"
-  caption="工具结果预算：大输出写入 tool-results，消息里保留稳定 replacement，必要时写 content-replacement entry 供 resume 复原。"
+  caption="工具结果预算：大输出写入 tool-results，消息里保留稳定 replacement，必要时写 content-replacement record 供 resume 复原。"
 />
 
+用一个具体场景看它为什么要冻结决策：
+
+```text
+同一轮工具结果：
+A = 120k 字符
+B = 90k 字符
+C = 20k 字符
+聚合预算 = 200k 字符
+```
+
+A+B+C 合计 230k，系统会选最大的 fresh 结果替换，例如把 A 写入 `tool-results`，模型只看 A 的 preview。关键是下一轮不能重新决定“这次替换 B”。`seenIds` 表示某个结果已经被预算器看过，`replacements` 保存模型当时看到的 exact replacement。resume 时也用这些记录复原同一串字节，而不是按新模板重算。
+
+<CalloutBlock
+  title="replacement 是缓存契约"
+  body="aggregate budget 的目的不只是省 token。它还要保证已经进入历史的 tool_result 在后续请求和 resume 后保持同一形态，否则 prompt cache 和模型看到的历史都会漂移。"
+/>
+
+这个机制的负面事实也要说清：persistence 不是摘要。模型只看到 preview，如果后续真的需要完整输出，要重新按路径读取。它换来的是上下文稳定和可恢复，而不是把全部证据都压进模型注意力。
+
 ## 第二层压缩：microcompact
+
+microcompact 解决的问题是：在真正改写整段历史之前，能不能先清掉一部分旧工具结果或缓存层内容。它比 legacy compact 轻，因为它主要处理 tool_result，而不是让模型生成整段摘要。
 
 `query.ts` 在 autocompact 前调用 microcompact。源码注释强调顺序：tool result budget 先跑，snip 再跑，microcompact 再跑，最后才是 autocompact。
 
@@ -235,6 +292,16 @@ const microcompactResult = await deps.microcompact(
 messagesForQuery = microcompactResult.messages
 ```
 
+这个顺序是一个重要机制。工具结果预算先冻结大输出 replacement；snip 如果开启，会先移除中间历史并计算 `snipTokensFreed`；microcompact 再处理旧 tool_result；最后 autocompact 根据已经释放的 token 判断是否还需要全局摘要。
+
+<StepFlow
+  title="为什么 snip 在 microcompact 前"
+  steps="工具结果预算|snip 移除中间历史|microcompact 清工具结果|context collapse 可选|autocompact 阈值判断"
+  descriptions="大工具输出先被 persistence 或 aggregate replacement 稳定下来。|HISTORY_SNIP 若开启，会先移除中间历史并记录释放的 token。|microcompact 再处理旧 tool_result，走 time-based 清理或 cached cache_edits。|context collapse 若开启，会在 autocompact 前尝试把上下文压到阈值以下。|autocompact 用已经释放后的 token 判断是否还需要重型 compact，避免误触发。"
+/>
+
+`snip` 是 `HISTORY_SNIP` feature 下的一种局部历史移除机制。本地源码里没有包含完整 `snipCompact.ts` / `SnipTool` 实现，但可见调用点说明它发生在 microcompact 前，并把释放 token 反馈给后续阈值判断。
+
 `microCompact.ts` 里有两条路径。time-based microcompact 在缓存已经冷掉时直接清理旧工具结果；cached microcompact 则使用 cache editing，尽量不改本地 message 内容。
 
 ```ts
@@ -247,6 +314,8 @@ if (mod.isCachedMicrocompactEnabled() && isMainThreadSource(querySource)) {
 }
 return { messages }
 ```
+
+time-based path 的触发条件是“服务端 prompt cache 很可能已经过期”。源码默认用距离上一条 main-loop assistant message 的时间差判断；缓存冷掉后，保持本地消息字节不变已经不能换来 cache hit，于是可以直接把旧工具结果替换成固定清理文本。
 
 cached microcompact 的关键点是“不改本地消息，只生成 cache_edits”。这解释了为什么它能降低 token 压力，又尽量保持缓存前缀稳定。
 
@@ -263,9 +332,20 @@ if (toolsToDelete.length > 0) {
 }
 ```
 
+这段代码的行为很精细：返回的 `messages` 仍是原数组，说明本地 transcript 不变；真正变化的是 `pendingCacheEdits`，后续 API 层会把指定 `tool_use_id` 对应的缓存内容删除。也就是说，本地历史仍完整，但服务端缓存前缀可以被“修剪”。
+
+<SplitBlock
+  leftTitle="time-based microcompact"
+  left="缓存已经冷掉时，本地旧 tool_result 会被替换成固定 cleared 文本。这是有损清理，依赖最近结果保留和可重新执行工具来降低风险。"
+  rightTitle="cached microcompact"
+  right="缓存仍值得保护时，本地消息不改，只生成 cache_edits，让服务端删除缓存层里的旧工具结果。它更像 cache surgery，而不是 transcript rewrite。"
+/>
+
+一个例子：用户吃饭回来，一小时后继续任务，旧 prompt cache 很可能已经没了。time-based microcompact 直接清理早期 grep/bash 输出，下一次请求少发很多历史。反过来，如果会话还热，cached microcompact 尽量不动本地消息，通过 cache edit 删除旧工具结果，避免破坏缓存前缀。
+
 ## 第三层压缩：auto compact
 
-autocompact 有明确阈值。它先从模型 context window 中扣掉摘要输出预算，再留出 `AUTOCOMPACT_BUFFER_TOKENS`。这意味着 compact 不是等完全爆掉才触发，而是提前给摘要生成留空间。
+autocompact 解决的问题是：前面所有局部手段都不够时，系统要主动重写历史，而不是等 API 报 prompt-too-long。它的触发条件来自模型上下文窗口、保留给摘要输出的预算，以及额外 buffer。
 
 ```ts
 // assets/projects/claude-code/src/services/compact/autoCompact.ts
@@ -278,7 +358,9 @@ export function getAutoCompactThreshold(model: string): number {
 }
 ```
 
-它还带 circuit breaker。连续 autocompact 失败太多次，就停止继续烧 API 调用。这种失败恢复比“无限重试总结”重要得多。
+这段代码说明 autocompact 不是“满了再说”。它提前从有效上下文窗口里留出 buffer，给摘要生成、工具 schema、system/user context 这些额外内容留空间。否则 compact 请求本身也可能因为太长而失败。
+
+它还带 circuit breaker。连续 autocompact 失败后，系统会停止继续尝试，避免每一轮都重新烧一次摘要请求。
 
 ```ts
 // assets/projects/claude-code/src/services/compact/autoCompact.ts
@@ -293,7 +375,22 @@ if (tracking?.consecutiveFailures >= MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES) {
   caption="压缩管线：先做便宜、局部、可缓存的处理，再进入会改变历史形态的 compact。"
 />
 
+这里的状态流是：`query.ts` 把 `messagesForQuery`、`snipTokensFreed` 和 tracking 交给 autocompact；autocompact 计算阈值并决定是否 compact；成功后返回 `CompactionResult`；`query.ts` 再用 `buildPostCompactMessages()` 替换当前请求历史。
+
+```ts
+// assets/projects/claude-code/src/query.ts
+const postCompactMessages = buildPostCompactMessages(compactionResult)
+for (const message of postCompactMessages) {
+  yield message
+}
+messagesForQuery = postCompactMessages
+```
+
+这段代码解释了 compact 的后果：它不是在原历史旁边追加一个 summary，而是把后续请求要看的消息数组换成 compact 后的新数组。这个新数组通常包含 boundary、summary、保留尾部、post-compact attachments 和 hook results。
+
 ## Session memory compact 是优先尝试
+
+Session memory compact 解决的问题是：如果系统平时已经维护了一份会话笔记，真正 autocompact 时就不必再让 summarizer 重读全部旧历史。它把“总结”这件事提前摊到普通会话过程中。
 
 autocompact 真正进入重压缩前，会先尝试 session memory compact。它不是再 fork 一个 summarizer，而是读取已经抽取好的 session memory 文件，生成 compact summary，再保留最近未总结的消息尾部。
 
@@ -309,7 +406,30 @@ if (sessionMemoryResult) {
 }
 ```
 
-`sessionMemoryCompact.ts` 里有两个场景：正常会话按 `lastSummarizedMessageId` 找边界；resume 后如果边界未知，就保守地把 session memory 当 summary，并让后续逻辑决定保留哪些消息。
+真正的后台抽取发生在普通会话中。`sessionMemory.ts` 会在满足阈值、feature gate 打开、主 REPL 线程等条件时，用 `querySource: 'session_memory'` 启动 forked agent，更新 session memory 文件。成功后记录 `lastSummarizedMessageId`。
+
+```ts
+// assets/projects/claude-code/src/services/SessionMemory/sessionMemory.ts
+const result = await runForkedAgent({
+  promptMessages,
+  cacheSafeParams,
+  querySource: 'session_memory',
+  forkLabel: 'session_memory',
+  maxTurns: 1,
+})
+updateLastSummarizedMessageIdIfSafe(messages)
+```
+
+这个状态流很像“后台笔记”：旧消息被 session memory 文件覆盖到某个 `lastSummarizedMessageId`；autocompact 到来时，`trySessionMemoryCompaction()` 先等待正在进行的抽取结束，再读取 session memory 文件和这个 message id。
+
+```ts
+// assets/projects/claude-code/src/services/compact/sessionMemoryCompact.ts
+await waitForSessionMemoryExtraction()
+const lastSummarizedMessageId = getLastSummarizedMessageId()
+const sessionMemory = await getSessionMemoryContent()
+```
+
+如果有 `lastSummarizedMessageId`，系统按这个 id 找到已经总结到哪里；如果是 resume 后没有 id，但 session memory 文件存在，则走保守路径。随后 `calculateMessagesToKeepIndex()` 选择原文尾部。
 
 ```ts
 // assets/projects/claude-code/src/services/compact/sessionMemoryCompact.ts
@@ -326,23 +446,46 @@ const messagesToKeep = messages.slice(startIndex)
 
 <SplitBlock
   leftTitle="session memory compact"
-  left="复用已经整理好的 session memory，成本低，适合当前会话已有结构化笔记的情况。它还会检查 postCompactTokenCount 是否仍超过阈值。"
+  left="平时先由 session_memory agent 维护文件；压缩时读取这个文件，生成 compact summary，再保留 lastSummarizedMessageId 之后的原始尾部。"
   rightTitle="legacy compact"
-  right="如果 session memory 不存在、为空、边界失效或压缩后仍太大，就回退到 compactConversation，让模型生成完整摘要。"
+  right="如果没有 session memory、文件为空、边界找不到，或压缩后仍超过 autocompact 阈值，就回退到 compactConversation 重新总结历史。"
 />
+
+具体例子：前 200 轮会话已经被 session memory 覆盖，最近 8 轮还没总结。autocompact 到来时，系统不重读 208 轮消息，而是用 session memory 生成 summary，并保留最近 8 轮原文。`calculateMessagesToKeepIndex()` 还会避免切断 `tool_use` / `tool_result` 配对，必要时往前多留一点。
+
+这个机制的边界也很重要：session memory compact 不是跨 session 的长期偏好记忆，也不是无条件开启。它服务当前长会话的压缩；如果结果仍然太大，源码会返回 `null`，让 autocompact 走 legacy compact。
 
 ## legacy compact 会补回必要上下文
 
-`compactConversation()` 不只是把旧消息变成摘要。它会先跑 PreCompact hook，再清 readFileState，然后把最近读取文件、异步 agent、plan、plan mode、invoked skills、tools delta、agent listing delta、MCP instructions delta、SessionStart hook 结果补回来。
+legacy compact 解决的问题是：当前面所有路径都不能把上下文降下来时，只能让模型生成 compact summary。但 Claude Code 没有把 summary 当成万能替代品；它会额外重建当前运行态。
+
+`compactConversation()` 的状态流可以分成两半。前半段是摘要：跑 PreCompact hook，向 compact agent/模型发送 summary prompt，得到 summary。后半段是重建：保存并清理旧 read state，然后把继续执行所需的 attachment 补回来。
 
 ```ts
 // assets/projects/claude-code/src/services/compact/compact.ts
+const preCompactReadFileState = cacheToObject(context.readFileState)
+
+context.readFileState.clear()
+context.loadedNestedMemoryPaths?.clear()
+
 const [fileAttachments, asyncAgentAttachments] = await Promise.all([
-  createPostCompactFileAttachments(preCompactReadFileState, context, 5),
+  createPostCompactFileAttachments(
+    preCompactReadFileState,
+    context,
+    POST_COMPACT_MAX_FILES_TO_RESTORE,
+  ),
   createAsyncAgentAttachmentsIfNeeded(context),
 ])
+```
 
+这段代码说明了为什么要先保存 `preCompactReadFileState`。compact 会删掉旧历史，也会清掉 readFileState；如果不提前快照最近读过的文件，模型压缩后会只剩 summary，不再拥有刚才完整读过的关键文件内容。`createPostCompactFileAttachments()` 会按最近访问顺序和 token budget 补回一部分文件。
+
+接着系统补 plan、plan mode、invoked skills、异步 agent 状态，以及 tools/agent/MCP delta。
+
+```ts
+// assets/projects/claude-code/src/services/compact/compact.ts
 const planAttachment = createPlanAttachmentIfNeeded(context.agentId)
+const planModeAttachment = await createPlanModeAttachmentIfNeeded(context)
 const skillAttachment = createSkillAttachmentIfNeeded(context.agentId)
 ```
 
@@ -356,20 +499,61 @@ for (const att of getDeferredToolsDeltaAttachment(context.options.tools, ...)) {
 for (const att of getAgentListingDeltaAttachment(context, [])) {
   postCompactFileAttachments.push(createAttachmentMessage(att))
 }
+for (const att of getMcpInstructionsDeltaAttachment(...)) {
+  postCompactFileAttachments.push(createAttachmentMessage(att))
+}
 ```
 
 <StepFlow
-  steps="PreCompact hook|生成摘要|清 readFileState|恢复最近文件|恢复 plan/skill/agent/MCP delta|SessionStart hook"
-  descriptions="compact 后第一轮最危险：模型刚失去旧上下文，所以 Claude Code 主动把运行态关键线索补回来。"
+  title="post-compact 重建路径"
+  steps="生成 summary|保存并清理 read state|恢复最近文件|恢复 plan/plan mode|恢复 skill/agent 状态|重新公告 tool/MCP delta"
+  descriptions="compact summarizer 只负责把旧对话压成可读摘要。|系统先快照 preCompactReadFileState，再清掉会被旧历史污染的读取状态。|createPostCompactFileAttachments 按最近访问和 token 预算补回关键文件。|plan 文件和 plan mode reminder 被重新注入，避免模型压缩后忘记当前权限模式。|已调用 skill、异步 agent 状态会变成 attachment，继续约束后续行为。|deferred tools、agent listing、MCP instructions 从当前状态重新公告，补回被 summary 吃掉的运行态。"
 />
 
-## 边界与可复用设计
+一个具体例子：compact 前模型刚读过 `query.ts`，处于 plan mode，并且调用过一个 skill。summary 可能写“我们正在分析 query.ts 的 compact 流程”，但它不能替代 `query.ts` 的完整片段、plan mode 规则和 skill 指令。post-compact attachment 会把这些继续执行所需的状态重新放回上下文。
+
+`buildPostCompactMessages()` 定义了 compact 后请求历史的顺序。
+
+```ts
+// assets/projects/claude-code/src/services/compact/compact.ts
+export function buildPostCompactMessages(result: CompactionResult): Message[] {
+  return [
+    result.boundaryMarker,
+    ...result.summaryMessages,
+    ...(result.messagesToKeep ?? []),
+    ...result.attachments,
+    ...result.hookResults,
+  ]
+}
+```
+
+这个顺序也解释了“summary 不是全部”。先有 boundary 标记压缩发生，再有 summary 表示旧历史，再保留尾部原文，最后补运行态 attachment 和 hook results。后续模型看到的是一份重新组织过的上下文，而不是一段孤零零的摘要。
+
+## 可复用设计
 
 这套机制最值得复用的不是某个常量，而是顺序：先固定上下文，再动态增量；先局部替换，再局部压缩；最后才做全局摘要。这样能减少不必要的 token、避免 cache 失效，并让恢复后的模型仍然知道当前工具、文件、plan 和 skill 状态。
 
 <CalloutBlock
   title="不要把上下文管理等同于摘要"
-  body="摘要只是最后一层。真正影响体验的是前面的预算纪律：工具结果 storage、content replacement、delta 注入、nested memory 去重、post-compact 重建，以及失败时的 blocking/reactive fallback。"
+  body="摘要只是最后一层。真正影响体验的是前面的预算纪律：动态 delta、工具结果 replacement、snip/microcompact、session memory compact、post-compact 重建，以及失败时的回退。"
 />
 
-读这段源码时，最重要的是看每一层为什么放在这个顺序：先减少重复注入，再替换大工具结果，再压缩局部历史，最后才重写整段会话。只记住“有 compact”会漏掉真正的工程取舍。
+可以把 Claude Code 的做法抽成四条工程原则：
+
+1. 稳定前缀只放稳定事实。会变的信息放到尾部 message 或 attachment。
+2. 大工具结果先替换成稳定 representation，再考虑摘要。
+3. 局部可删的历史和工具结果先局部处理，减少进入全局 compact 的概率。
+4. compact 后必须重建运行态，不要让 summary 假装自己保存了所有状态。
+
+## 边界
+
+这篇没有把所有 context 相关 feature 都展开。`HISTORY_SNIP` 的完整选择逻辑在本地源码中不可见，只能依据 `query.ts` 的调用顺序、message id 注入和 boundary/resume 行为解释可确认部分。`CONTEXT_COLLAPSE`、reactive compact、prompt-too-long fallback 也只作为管线边界出现，没有展开成独立专题。
+
+<SplitBlock
+  leftTitle="本文能确认"
+  left="固定 context、动态 attachment、delta 注入、nested memory 去重、工具结果 persistence、aggregate replacement、microcompact 路径、session memory compact 优先尝试、legacy compact 后重建运行态。"
+  rightTitle="本文不伪装确认"
+  right="snip 内部打分、context collapse 的完整数据结构、不同 provider 的 cache edit 细节，以及 reactive compact 的全部 API error recovery 分支。"
+/>
+
+读这段源码最重要的是不要只记住“有 compact”。真正的设计在 compact 之前：它先把上下文压力拆成一系列更便宜、更可恢复、更 cache-friendly 的局部动作，只有这些动作不够时，才让 summary 接管旧历史。

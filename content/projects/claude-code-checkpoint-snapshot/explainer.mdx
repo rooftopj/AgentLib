@@ -2,28 +2,28 @@
 
 ## 先给结论
 
-Claude Code 的 checkpoint 不是 git commit，也不是完整项目快照。源码里的主路径叫 Rewind：`/rewind` 打开选择器，`/checkpoint` 只是它的别名；用户选择某条历史 user message 后，可以回退 conversation、回退 code，或者两个一起做。
+Claude Code 的 checkpoint 不是 git commit，也不是整个工作区的全量快照。源码里的主路径叫 Rewind：`/rewind` 打开消息选择器，`/checkpoint` 只是它的 alias；用户选中某条历史 user message 后，可以恢复 conversation、恢复 code，或者两者一起恢复。
 
 <CalloutBlock
   title="一句话抓住机制"
-  body="Rewind 由两条并行状态线组成：对话线把当前 messages 截断到某个用户消息之前；代码线用 file-history snapshot 把被 Claude 工具改过的文件复制回旧版本。"
+  body="Rewind 维护两条状态线：conversation 线按消息坐标截断当前对话；code 线用 file-history snapshot 把 Claude 工具写文件前保存的旧版本复制回原路径。"
 />
 
 <FigureBlock
   src="/generated/claude-code-checkpoint-snapshot/architecture.svg"
-  caption="Checkpoint snapshot 全景：命令入口只打开 Rewind UI，真正的状态恢复分成 conversation 和 file history 两条路径。"
+  caption="Checkpoint snapshot 全景：命令入口只打开 Rewind UI，真正恢复分成 conversation 和 file history 两条路径。"
 />
 
 <SplitBlock
   leftTitle="默认路径"
-  left="交互式 Claude Code 默认启用 file checkpointing。每个可选 user message 都会绑定一个 FileHistorySnapshot，文件工具写入前会保存旧版本。"
+  left="交互式会话默认启用 file checkpointing。每个可选择的 user message 会成为一个逻辑 checkpoint；文件工具写入前把旧文件内容补进最近的 snapshot。"
   rightTitle="可选路径"
-  right="SDK/non-interactive 需要显式开启环境变量。CLI 还有隐藏 --rewind-files，SDK control 也有 rewind_files，但这些入口只做文件回滚，不等同完整 UI Rewind。"
+  right="CLI 的 --rewind-files 和 SDK control 的 rewind_files 只做文件恢复；SDK/non-interactive 场景还受显式开关限制，不等同完整 UI Rewind。"
 />
 
-## 不要先误解 snapshot
+## 先排除同名误解
 
-Claude Code 源码里有很多 snapshot：shell snapshot、context-collapse snapshot、agent memory snapshot、attribution snapshot。第二讲只讲 file-history checkpoint，也就是用户看到的 Rewind code restore。
+Claude Code 源码里有多个 snapshot 语境：shell snapshot、context collapse snapshot、agent memory snapshot、attribution snapshot。checkpoint/Rewind 这条线讲的是 `utils/fileHistory.ts` 里的 file-history snapshot，它的目标是恢复会话内由 Claude 工具追踪到的文件状态。
 
 ```ts
 // assets/projects/claude-code/src/commands/rewind/index.ts
@@ -36,7 +36,7 @@ const rewind = {
 }
 ```
 
-这段把入口说得很清楚：`checkpoint` 不是独立命令，它只是 `rewind` 的 alias。真正的命令实现也很薄，只是打开 message selector。
+这段说明 `checkpoint` 没有独立实现，它只是 `rewind` 的别名。真正命令实现也很薄：它不恢复文件，只把 UI 打开。
 
 ```ts
 // assets/projects/claude-code/src/commands/rewind/rewind.ts
@@ -48,35 +48,40 @@ export async function call(_args: string, context: ToolUseContext) {
 }
 ```
 
-本文后面所有结论主要来自这几个文件。它们刚好对应入口、UI、写入、存储、恢复和 headless 控制面。
+核心证据集中在这些文件：
 
 ```text
 # 1 assets/projects/claude-code/src/commands/rewind/index.ts
-# 2 assets/projects/claude-code/src/components/MessageSelector.tsx
-# 3 assets/projects/claude-code/src/utils/fileHistory.ts
-# 4 assets/projects/claude-code/src/utils/sessionStorage.ts
-# 5 assets/projects/claude-code/src/screens/REPL.tsx
-# 6 assets/projects/claude-code/src/cli/print.ts
-# 7 assets/projects/claude-code/src/entrypoints/sdk/controlSchemas.ts
+# 2 assets/projects/claude-code/src/commands/rewind/rewind.ts
+# 3 assets/projects/claude-code/src/components/MessageSelector.tsx
+# 4 assets/projects/claude-code/src/utils/handlePromptSubmit.ts
+# 5 assets/projects/claude-code/src/QueryEngine.ts
+# 6 assets/projects/claude-code/src/utils/fileHistory.ts
+# 7 assets/projects/claude-code/src/utils/sessionStorage.ts
+# 8 assets/projects/claude-code/src/hooks/useFileHistorySnapshotInit.ts
+# 9 assets/projects/claude-code/src/screens/REPL.tsx
+# 10 assets/projects/claude-code/src/cli/print.ts
+# 11 assets/projects/claude-code/src/entrypoints/sdk/controlSchemas.ts
 ```
 
 ## 宏观架构
 
-Rewind UI 负责让用户选“回到哪条消息之前”。之后它把动作分给两套逻辑：`onRestoreMessage` 处理对话，`onRestoreCode` 处理文件。两者可以一起执行，也可以只执行其中一个。
+Rewind 不是一个统一事务，而是一个 UI 入口背后的两套恢复动作。`MessageSelector` 收到 `onRestoreMessage` 和 `onRestoreCode` 两个回调；conversation 恢复由 REPL 层处理，code 恢复由 file history 处理。
 
 <FigureBlock
   src="/generated/claude-code-checkpoint-snapshot/restore-split.svg"
-  caption="恢复不是一个统一事务：conversation rewind 和 code rewind 是两条可单独执行的路径。"
+  caption="恢复不是一个统一事务：conversation rewind 和 code rewind 是两条可以单独执行的路径。"
 />
 
 <StepFlow
-  steps="1. /rewind 或 /checkpoint|2. MessageSelector 选择 user message|3. 展示可恢复文件 diff|4. 执行 conversation/code/both|5. 当前 REPL 状态进入新分叉"
-  descriptions="入口很薄，核心都在 MessageSelector、REPL 和 fileHistory；选择的是“发送这条消息之前”的状态。"
+  title="一次 Rewind 的主路径"
+  steps="/rewind 或 /checkpoint|MessageSelector 选 user message|file history 计算 diff|执行 code/conversation/both|REPL 从新状态继续"
+  descriptions="命令只打开选择器，不直接恢复文件。|用户选择要回到哪条 user message 之前。|fileHistoryGetDiffStats 根据目标 snapshot 预览文件变化。|用户可以只恢复代码、只恢复对话，或两者一起恢复。|恢复后当前会话从这个分叉状态继续运行。"
 />
 
-## 什么时候触发写入
+## 什么时候建立 checkpoint
 
-file-history snapshot 的触发点不是“工具写完之后才想起来保存”。更准确地说，有两种写入：用户消息到来时建 checkpoint，工具真正改文件前把旧内容补进当前 checkpoint。
+file-history snapshot 的第一步发生在用户消息进入系统时，而不是工具写完文件之后。`handlePromptSubmit.ts` 会把新进来的 selectable user message 变成 checkpoint 坐标。
 
 ```ts
 // assets/projects/claude-code/src/utils/handlePromptSubmit.ts
@@ -91,7 +96,7 @@ newMessages.filter(selectableUserMessagesFilter).forEach(message => {
 })
 ```
 
-SDK query loop 也有同样逻辑。只要 `persistSession` 且 file history 开启，`QueryEngine` 会对 `messagesFromUserInput` 里的可选择 user message 建 snapshot。
+SDK query loop 也有同一套逻辑。只要启用了 file history 且持久化 session，`QueryEngine` 会为用户输入里的 selectable user message 建 snapshot。
 
 ```ts
 // assets/projects/claude-code/src/QueryEngine.ts
@@ -104,11 +109,11 @@ if (fileHistoryEnabled() && persistSession) {
 }
 ```
 
-这里的 observe/触发不是 LLM 观察世界，而是“用户消息成为一个可回退坐标”。这个坐标之后会被文件工具拿来关联旧文件版本。
+这一步的状态变化很小：它只是创建一个带 `messageId` 的空或半空 snapshot。它真正的意义是给后续文件备份提供“回到哪条用户请求之前”的坐标。用户不会说“回到 tool_use_abc 之前”，用户会说“回到我让你改登录页之前”。
 
-## 写入什么东西
+## snapshot 里存什么
 
-核心数据结构很小：snapshot 只保存 messageId、文件路径到 backup 版本的映射，以及时间戳。真实文件内容不在 JSONL 里，而是在 file-history 目录里。
+`FileHistorySnapshot` 不保存真实文件内容。它保存 messageId、路径到 backup 的映射，以及时间戳。真实内容被写到 file-history 目录，snapshot 只是索引。
 
 ```ts
 // assets/projects/claude-code/src/utils/fileHistory.ts
@@ -125,16 +130,16 @@ export type FileHistoryBackup = {
 }
 ```
 
-`backupFileName: null` 很关键。它表示“目标时间点这个文件不存在”。如果后来回到这个 snapshot，恢复逻辑会删除这个文件，而不是尝试复制一个不存在的备份。
+`backupFileName: null` 是一个重要状态，不是缺失值。它表示目标 checkpoint 时这个文件不存在。恢复到这个 snapshot 时，当前文件应被删除；如果没有这个状态，系统只能恢复已有文件，无法正确撤销“新建文件”。
 
 <FigureBlock
   src="/generated/claude-code-checkpoint-snapshot/timeline.svg"
-  caption="snapshot 本身是消息坐标；文件旧内容是在工具改写前由 trackEdit 补进最近的 snapshot。"
+  caption="snapshot 是消息坐标；文件旧内容是在工具写入前由 trackEdit 补进最近的 snapshot。"
 />
 
 ## 文件旧版本怎么捕获
 
-`FileWriteTool`、`FileEditTool`、`NotebookEditTool` 都在写入前调用 `fileHistoryTrackEdit()`。这是设计关键：备份必须发生在修改之前，否则保存的就是新内容。
+备份必须发生在工具写文件之前。`FileWriteTool`、`FileEditTool`、`NotebookEditTool` 都会在真正写入前调用 `fileHistoryTrackEdit()`，把当前磁盘上的旧内容记录到当前 checkpoint。
 
 ```ts
 // assets/projects/claude-code/src/tools/FileEditTool/FileEditTool.ts
@@ -147,7 +152,9 @@ if (fileHistoryEnabled()) {
 }
 ```
 
-Bash 也有一条路径，但范围更窄。源码里是 simulated sed edit 场景下才可追踪；普通 shell 命令的任意副作用不能可靠进入 file history。
+这个顺序解释了为什么 checkpoint 可以恢复到“Claude 修改之前”：不是在修改后猜测旧内容，而是在写入发生前先把旧内容存成 backup blob，再让工具继续执行。
+
+Bash 的情况更窄。源码有 simulated sed edit 这类可追踪路径，但普通 shell 命令的任意副作用无法被 file history 完整建模。
 
 ```ts
 // assets/projects/claude-code/src/tools/BashTool/BashTool.tsx
@@ -161,13 +168,13 @@ if (fileHistoryEnabled() && parentMessage) {
 ```
 
 <CalloutBlock
-  title="为什么 UI 警告 bash"
-  body="Rewind 面板会提示手工编辑或 bash 编辑不一定被恢复。原因不是 UI 保守，而是 file history 只知道被工具显式追踪的文件，无法还原外部世界的任意副作用。"
+  title="为什么 UI 会提醒 bash 和手工编辑"
+  body="file history 只知道 Claude Code 工具显式 track 的文件变化。外部编辑器、普通 shell 副作用、数据库写入和网络资源不在这个协议的可靠恢复范围内。"
 />
 
-## 存储在哪里
+## metadata 和 blob 分离
 
-存储被拆成两层。第一层是 transcript metadata：`file-history-snapshot` entry 写入当前 session JSONL。第二层是真实备份文件：按 sessionId 存在 `~/.claude/file-history/<sessionId>/<hash>@v<version>`。
+Claude Code 没有把大文件内容塞进 transcript。它把 snapshot metadata 写成 `file-history-snapshot` entry，把真实文件备份放到 `~/.claude/file-history/<sessionId>/`。
 
 ```ts
 // assets/projects/claude-code/src/utils/sessionStorage.ts
@@ -182,7 +189,7 @@ async insertFileHistorySnapshot(messageId, snapshot, isSnapshotUpdate) {
 }
 ```
 
-真实文件内容由 `createBackup()` 复制，不走数据库，也不塞进 transcript。`resolveBackupPath()` 才是备份文件的物理地址。
+真实备份路径由 `resolveBackupPath()` 决定。sessionId 是路径的一部分，所以 resume 到新 session 时还要处理备份迁移。
 
 ```ts
 // assets/projects/claude-code/src/utils/fileHistory.ts
@@ -201,9 +208,11 @@ function resolveBackupPath(backupFileName: string, sessionId?: string): string {
   caption="JSONL 只保存 snapshot 索引；真实文件内容在独立 file-history 目录。metadata 与 blob 分离，让 transcript 不被大文件撑爆。"
 />
 
-## 冲突、更新与差异预览
+这个拆分解决了两个问题：transcript 保持可追加、可恢复；文件内容不用经过对话日志序列化。代价是 session 恢复时既要重建 metadata chain，也要保证备份 blob 能在新 session 下找到。
 
-这里的更新很机械：同一 messageId 的 snapshot update 会替换链上旧 snapshot；恢复前用 diff stats 告诉用户会改哪些文件。
+## snapshot 如何更新
+
+同一个 messageId 可能会被多次更新，因为工具执行和 snapshot 创建之间存在异步窗口。`sessionStorage.ts` 对 `isSnapshotUpdate` 做了替换语义：同一 messageId 的旧 snapshot 会被新 snapshot 覆盖。
 
 ```ts
 // assets/projects/claude-code/src/utils/sessionStorage.ts
@@ -218,7 +227,9 @@ if (existingIndex === undefined) {
 }
 ```
 
-`fileHistoryGetDiffStats()` 会遍历 tracked files，比较当前文件与目标 backup，给 UI 展示 `filesChanged`、`insertions`、`deletions`。这一步是 dry-run 语义，不负责真正恢复。
+这不是冲突合并算法，而是“同一逻辑 checkpoint 的最新索引 wins”。如果一个工具在 snapshot 创建后补进了新的 tracked file，更新后的 snapshot 会替换旧版本，避免 resume 后少一部分文件映射。
+
+恢复前还有 dry-run 语义：`fileHistoryGetDiffStats()` 会比较当前文件和目标 backup，向 UI 展示哪些文件会改、插入删除大概是多少。
 
 ```ts
 // assets/projects/claude-code/src/utils/fileHistory.ts
@@ -231,9 +242,9 @@ if (stats?.insertions || stats?.deletions) {
 }
 ```
 
-## 什么时候触发恢复
+## resume 后怎么找回 checkpoint
 
-恢复链路从 transcript 里的 snapshot chain 开始：resume 加载 JSONL，收集 `file-history-snapshot` entry，再把它恢复成 `FileHistoryState`。
+恢复能力不能只存在内存里。resume 时，session loader 会从 transcript 里收集 `file-history-snapshot` entry，构造 snapshot chain，再在 REPL 初始化时写回 `FileHistoryState`。
 
 ```ts
 // assets/projects/claude-code/src/hooks/useFileHistorySnapshotInit.ts
@@ -242,7 +253,7 @@ if (initialFileHistorySnapshots) {
 }
 ```
 
-如果 resume 产生新 sessionId，还需要迁移旧备份文件。`copyFileHistoryForResume()` 会把旧 session 的备份 hard link 或 copy 到新 session 的 file-history 目录。
+如果 resume 之后 sessionId 变了，原 session 下的 backup blob 需要被迁移到当前 session 的 file-history 目录。`copyFileHistoryForResume()` 会把旧备份 hard link 或 copy 过去，让后续 `resolveBackupPath()` 能在当前 sessionId 下找到文件。
 
 ```ts
 // assets/projects/claude-code/src/utils/fileHistory.ts
@@ -256,14 +267,14 @@ await mkdir(newBackupDir, { recursive: true })
 
 <SplitBlock
   leftTitle="恢复 metadata"
-  left="resume 时从 transcript 读回 file-history metadata，重建 messageId 到 trackedFiles 的 snapshot chain。"
+  left="transcript 里的 file-history-snapshot entry 重建 messageId -> trackedFileBackups 的 snapshot chain。"
   rightTitle="恢复 backup blob"
-  right="如果 sessionId 改变，旧 session 里的备份文件会 hard link 或 copy 到当前 sessionId 下，供后续 Rewind 使用。"
+  right="旧 session 的备份文件被 hard link 或 copy 到当前 sessionId 下，保证 applySnapshot 可以找到旧内容。"
 />
 
-## 恢复代码怎么做
+## 恢复代码怎么执行
 
-`fileHistoryRewind()` 先按 messageId 找目标 snapshot，再调用 `applySnapshot()`。这个函数逐个 tracked file 判断应该复制备份、删除文件，还是跳过。
+代码恢复入口是 `fileHistoryRewind()`。它按 messageId 找最近的目标 snapshot，然后交给 `applySnapshot()`。
 
 ```ts
 // assets/projects/claude-code/src/utils/fileHistory.ts
@@ -276,7 +287,7 @@ export async function fileHistoryRewind(updateFileHistoryState, messageId) {
 }
 ```
 
-如果 backup 存在，`restoreBackup()` 把备份文件复制回原路径并恢复权限。如果 backup 是 `null`，说明旧状态下文件不存在，恢复时就删除当前文件。
+`applySnapshot()` 对每个 tracked file 做三类动作：如果 `backupFileName` 是 `null`，删除当前文件；如果 backup 存在且当前内容不同，复制备份回原路径；如果没有变化，跳过。
 
 ```ts
 // assets/projects/claude-code/src/utils/fileHistory.ts
@@ -292,9 +303,11 @@ if (await checkOriginFileChanged(filePath, backupFileName)) {
 }
 ```
 
-## 恢复对话怎么做
+这条路径只处理被 tracked 的文件。它不会撤销 git index、数据库、后台进程、外部编辑器保存的文件，也不会理解工具之外的任意文件系统副作用。
 
-UI 层把 `onRestoreCode` 和 `onRestoreMessage` 分开传入。代码恢复调用 `fileHistoryRewind()`；对话恢复走 `handleRestoreMessage`，最终语义是把当前会话状态恢复到所选 user message 之前。
+## 恢复对话怎么执行
+
+REPL 层把 `MessageSelector` 的两个恢复动作分开传入。代码恢复调用 `fileHistoryRewind()`；对话恢复调用 `handleRestoreMessage`，语义上是把当前 conversation 恢复到选中 user message 之前的状态。
 
 ```tsx
 // assets/projects/claude-code/src/screens/REPL.tsx
@@ -306,7 +319,7 @@ UI 层把 `onRestoreCode` 和 `onRestoreMessage` 分开传入。代码恢复调�
 />
 ```
 
-这个设计解释了为什么 UI 选项有 `Restore code and conversation`、`Restore conversation`、`Restore code`。它不是一个不可拆的事务，用户可以只回滚代码、不动当前对话。
+这解释了 UI 为什么有三个选项：Restore code and conversation、Restore conversation、Restore code。它们不是同一个事务的不同名字，而是两个状态面的组合。只恢复 conversation 时，磁盘文件不回滚；只恢复 code 时，对话历史不截断。
 
 <FigureBlock
   src="/generated/claude-code-checkpoint-snapshot/boundary.svg"
@@ -315,7 +328,7 @@ UI 层把 `onRestoreCode` 和 `onRestoreMessage` 分开传入。代码恢复调�
 
 ## Headless 与 SDK 路径
 
-CLI 有隐藏参数 `--rewind-files`，但它要求 `--resume`，并且是 standalone operation。换句话说，headless 场景可以只回滚文件并退出。
+CLI 暴露了隐藏参数 `--rewind-files`，但它要求 `--resume`，且不能和 prompt 同时使用。原因是这条路径只做文件恢复，不启动一次新的对话推理。
 
 ```ts
 // assets/projects/claude-code/src/cli/print.ts
@@ -330,7 +343,7 @@ if (options.rewindFiles && inputPrompt) {
 }
 ```
 
-SDK control schema 也暴露了 `rewind_files`，并支持 `dry_run`。这条路返回 diff 结果，不需要打开交互式 MessageSelector。
+SDK control schema 也有 `rewind_files`，并支持 `dry_run`。这适合自动化场景先拿 diff，再决定是否恢复。
 
 ```ts
 // assets/projects/claude-code/src/entrypoints/sdk/controlSchemas.ts
@@ -343,22 +356,21 @@ export const SDKControlRewindFilesRequestSchema = lazySchema(() =>
 )
 ```
 
+<StepFlow
+  title="文件恢复的完整闭环"
+  steps="用户消息成为坐标|工具写前保存旧内容|metadata 写 transcript|backup 写 file-history|resume 重建链路|applySnapshot 执行恢复"
+  descriptions="fileHistoryMakeSnapshot 绑定 user message uuid。|fileHistoryTrackEdit 在文件工具写入前保存旧内容。|sessionStorage 追加 file-history-snapshot entry。|真实文件内容按 sessionId 存到 ~/.claude/file-history。|resume 时重建 FileHistoryState，并迁移旧 session 的 backup。|目标 snapshot 指导复制旧文件或删除新文件。"
+/>
+
 ## 可复用设计
 
-这个机制最值得复用的不是“做一个撤销按钮”，而是三个工程选择。第一，checkpoint 绑定 user message，而不是绑定工具调用；用户理解的是“回到我说这句话之前”。第二，metadata 和 blob 分离，JSONL 只保存索引。第三，恢复前先给 diff preview，让回滚变成可确认动作。
-
-<StepFlow
-  steps="绑定用户意图|写前备份旧内容|metadata/blob 分离|恢复前 dry-run|代码与对话可分开"
-  descriptions="这些选择让 checkpoint 既贴近用户心智，又不把 transcript 变成大文件仓库。"
-/>
+这个机制最值得复用的不是“做撤销按钮”，而是四个工程选择。第一，checkpoint 绑定用户消息，而不是绑定工具调用，因为用户理解的是“回到我提出某个请求之前”。第二，写前备份旧内容，避免修改后再猜测旧状态。第三，metadata 和 blob 分离，让 transcript 不被大文件撑爆。第四，恢复前做 diff preview，把回滚变成可确认动作。
 
 ## 边界
 
-默认启用不等于覆盖所有变化。手工编辑、普通 bash 副作用、外部进程、数据库写入、网络资源都不在 file-history snapshot 的可靠范围内。它也不是 git 回滚。
+Rewind 的边界也很硬：它不是 git 回滚，不是完整工作区快照，不保证覆盖手工编辑、普通 bash 副作用、数据库写入、网络资源或后台进程状态。它恢复的是 Claude Code file-history 协议能追踪到的文件，以及 REPL 当前 conversation 状态。
 
 <CalloutBlock
-  title="最容易误读的地方"
-  body="Claude Code 的 checkpoint snapshot 是会话内的文件历史协议：它只对被追踪文件有恢复能力。git/worktree、task list、tool result、session memory 都有自己的持久化路径，不属于这条回滚链路。"
+  title="迁移到自己的 Agent 时"
+  body="最小可行设计是：用户 turn 创建 checkpoint，工具写前保存旧内容，transcript 只存 metadata，文件 blob 独立落盘，恢复前展示 diff，并明确哪些副作用不被覆盖。"
 />
-
-如果要在自己的 agent 工程里实现类似能力，最小可行版本不是“保存整个项目目录”。更稳的做法是：在每次用户 turn 创建逻辑 checkpoint；在工具写文件前保存旧内容；把备份 blob 与会话日志分离；恢复前展示 diff；最后明确告诉用户哪些副作用不被覆盖。

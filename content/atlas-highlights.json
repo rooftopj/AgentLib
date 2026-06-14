@@ -577,20 +577,20 @@
           "body": "agent listing 和 MCP instructions 只注入变化量，减少工具描述变化造成的 cache 破坏。"
         },
         {
-          "title": "记忆去重",
-          "body": "nested memory 同时用 loadedNestedMemoryPaths 和 readFileState 防止忙碌会话反复注入。"
+          "title": "状态增量",
+          "body": "queued command、日期、文件变更、plan 和 task reminder 都作为尾部运行态事实注入。"
+        },
+        {
+          "title": "会话记忆压缩",
+          "body": "autocompact 先复用 session memory 文件生成摘要，再保留未总结消息尾部。"
         },
         {
           "title": "工具结果预算",
-          "body": "大工具输出先落到 tool-results，只把路径和预览留给模型，resume 后复原替换决策。"
+          "body": "超预算时按 tool_use_id 冻结替换决策，resume 后重放同一 preview 字符串。"
         },
         {
-          "title": "缓存压缩",
-          "body": "cached microcompact 生成 cache_edits，不改本地消息，降低 token 压力又保留缓存前缀。"
-        },
-        {
-          "title": "失败熔断",
-          "body": "autocompact 连续失败达到阈值会停止继续压缩，避免无限重试摘要烧 API。"
+          "title": "局部裁剪",
+          "body": "cached microcompact 用 cache_edits 删缓存层工具结果，本地 transcript 保持完整。"
         },
         {
           "title": "压后重建",

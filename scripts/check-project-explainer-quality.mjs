@@ -94,6 +94,55 @@ function sourceReferenceCount(text, localSourcePath) {
   return new Set(matches).size;
 }
 
+function componentAttributes(source) {
+  const attrs = {};
+  const attrPattern = /([A-Za-z][A-Za-z0-9_-]*)="([^"]*)"/g;
+  for (const match of source.matchAll(attrPattern)) {
+    attrs[match[1]] = match[2];
+  }
+  return attrs;
+}
+
+function splitPipedItems(value) {
+  return String(value || "")
+    .split("|")
+    .map((item) => item.trim());
+}
+
+function stepFlowIssues(markdown) {
+  const issues = [];
+  const stepFlowPattern = /<StepFlow\b([\s\S]*?)\/>/g;
+  for (const match of markdown.matchAll(stepFlowPattern)) {
+    const attrs = componentAttributes(match[1]);
+    const steps = splitPipedItems(attrs.steps).filter(Boolean);
+    const descriptions = splitPipedItems(attrs.descriptions);
+    const line =
+      markdown.slice(0, match.index).split(/\r?\n/).length;
+
+    if (steps.length === 0) {
+      issues.push(`line ${line}: StepFlow 缺少 steps`);
+      continue;
+    }
+    if (!("descriptions" in attrs)) {
+      issues.push(`line ${line}: StepFlow 缺少 descriptions，渲染后会出现空卡片`);
+      continue;
+    }
+    if (descriptions.length !== steps.length) {
+      issues.push(
+        `line ${line}: StepFlow steps=${steps.length} 但 descriptions=${descriptions.length}，需要一一对应`,
+      );
+      continue;
+    }
+    const emptyDescriptionIndex = descriptions.findIndex((item) => !item);
+    if (emptyDescriptionIndex !== -1) {
+      issues.push(
+        `line ${line}: StepFlow 第 ${emptyDescriptionIndex + 1} 个 description 为空`,
+      );
+    }
+  }
+  return issues;
+}
+
 if (!fs.existsSync(projectsDir)) {
   errors.push("缺少 content/projects 目录。");
 } else {
@@ -116,6 +165,7 @@ if (!fs.existsSync(projectsDir)) {
     const sourceRefs = sourceReferenceCount(explainer, meta.localSourcePath || "");
     const paragraphs = plainParagraphs(explainer);
     const metaNarration = metaNarrationMatches(stripCode(explainer));
+    const stepFlowValidationIssues = stepFlowIssues(explainer);
     const longParagraphs = paragraphs
       .map((paragraph) => ({ paragraph, cjk: cjkCount(paragraph) }))
       .filter((item) => item.cjk > 260);
@@ -137,6 +187,9 @@ if (!fs.existsSync(projectsDir)) {
     }
     if (sourceRefs < 5) {
       errors.push(`${slug}: 源码证据不足，至少引用 5 个本地源码文件或具体源码路径`);
+    }
+    if (stepFlowValidationIssues.length > 0) {
+      errors.push(`${slug}: StepFlow 配置不完整：${stepFlowValidationIssues.join("；")}`);
     }
     if (longParagraphs.length > 0) {
       errors.push(`${slug}: 存在 ${longParagraphs.length} 个超长纯文本段落，请拆分或改成 SplitBlock/StepFlow/CalloutBlock/FigureBlock`);

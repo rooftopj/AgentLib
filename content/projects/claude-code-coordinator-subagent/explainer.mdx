@@ -2,11 +2,11 @@
 
 ## 先给结论
 
-Claude Code 的 coordinator 不是“让模型想起可以多开几个助手”。它把主 agent 的角色改成编排者：主 agent 负责拆任务、综合 worker 结果、给用户汇报；worker 负责并行研究、实现或验证；二者通过 `AgentTool`、task state、transcript、`<task-notification>` 和 `SendMessage` 这些机制连接。
+Claude Code 的 coordinator 不是“让模型知道可以开多个助手”。它把主 agent 的运行模式改成编排者：主 agent 负责判断任务是否值得委派、给 worker 写自包含任务、读取结果、继续追问、停止偏离方向的 worker，并最终面向用户综合；worker 负责研究、实现或验证这些可并行子任务。
 
 <CalloutBlock
   title="一句话抓住机制"
-  body="Coordinator 是提示协议加运行时任务系统：prompt 规定主 agent 何时委派，AgentTool 把委派写入本地 task runtime，LocalAgentTask 把结果以内部通知形式送回主循环。"
+  body="Coordinator 是提示协议加 task runtime：system prompt 改变主 agent 职责，工具池收窄到编排工具，AgentTool 把委派登记成异步 task，LocalAgentTask 再用 task-notification 把结果送回主循环。"
 />
 
 <FigureBlock
@@ -16,14 +16,14 @@ Claude Code 的 coordinator 不是“让模型想起可以多开几个助手”�
 
 <SplitBlock
   leftTitle="默认路径"
-  left="Coordinator mode 下，主 agent 用 AgentTool 创建 worker。worker 默认异步运行，结果以 task-notification 回到主循环；主 agent 再用 SendMessage、TaskStop 或 TaskOutput 控制后续。"
+  left="Coordinator mode 下，主 agent 用 AgentTool 创建 worker。worker 作为 async local_agent task 运行，结果以 task-notification 回流；主 agent 再用 SendMessage、TaskStop 或 output_file/TaskOutput 控制后续。"
   rightTitle="可选路径"
-  right="fork subagent、worktree isolation、remote isolation、命名 teammate、agent frontmatter MCP/skill/hook、后台 summarization 都是增强路径，不是理解 coordinator 的默认前提。"
+  right="fork subagent、worktree isolation、remote isolation、命名 teammate、agent frontmatter MCP/skill/hook、后台输出整理都是增强路径，不是 coordinator 默认编排的前提。"
 />
 
-## 先看证据地图
+## 源码证据地图
 
-这条源码线聚焦 coordinator / subagent 编排。memory、checkpoint、context compact 都可能影响 worker 的输入或运行状态，但它们不是主 agent 调度 worker 的核心控制面。
+这条线只讨论主控 agent 如何调度 worker，不展开普通工具执行、安全沙箱、MCP 协议和 context compact 的完整实现。
 
 ```text
 # 1 assets/projects/claude-code/src/coordinator/coordinatorMode.ts
@@ -33,19 +33,18 @@ Claude Code 的 coordinator 不是“让模型想起可以多开几个助手”�
 # 5 assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
 # 6 assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
 # 7 assets/projects/claude-code/src/tools/AgentTool/agentToolUtils.ts
-# 8 assets/projects/claude-code/src/tasks/LocalAgentTask/LocalAgentTask.tsx
-# 9 assets/projects/claude-code/src/tools/SendMessageTool/SendMessageTool.ts
-# 10 assets/projects/claude-code/src/tools/TaskStopTool/TaskStopTool.ts
-# 11 assets/projects/claude-code/src/tools/TaskOutputTool/TaskOutputTool.tsx
-# 12 assets/projects/claude-code/src/tools/AgentTool/forkSubagent.ts
-# 13 assets/projects/claude-code/src/tools/AgentTool/loadAgentsDir.ts
+# 8 assets/projects/claude-code/src/tools/AgentTool/loadAgentsDir.ts
+# 9 assets/projects/claude-code/src/tasks/LocalAgentTask/LocalAgentTask.tsx
+# 10 assets/projects/claude-code/src/utils/attachments.ts
+# 11 assets/projects/claude-code/src/tools/SendMessageTool/SendMessageTool.ts
+# 12 assets/projects/claude-code/src/tasks/stopTask.ts
+# 13 assets/projects/claude-code/src/tools/TaskOutputTool/TaskOutputTool.tsx
+# 14 assets/projects/claude-code/src/tools/AgentTool/forkSubagent.ts
 ```
 
-读这条源码线时，先把问题收窄：coordinator 关心的是如何启动 worker、如何让 worker 独立运行、如何把结果回流给主 agent，以及主 agent 如何继续或停止 worker。
+## Coordinator 先改变主 Agent
 
-## Coordinator 先改变主 Agent 的职责
-
-`coordinatorMode.ts` 的关键不是某个复杂算法，而是一段极具体的 system prompt。它告诉主 agent：你是 coordinator，你的消息都面向用户，worker 结果只是内部信号，不要把 worker 当聊天对象。
+Coordinator mode 的入口是环境/feature gate。`isCoordinatorMode()` 不是复杂逻辑，但它决定后面 system prompt、工具池和 UI 行为是否进入主控模式。
 
 ```ts
 // assets/projects/claude-code/src/coordinator/coordinatorMode.ts
@@ -57,7 +56,7 @@ export function isCoordinatorMode(): boolean {
 }
 ```
 
-真正的设计含量在 `getCoordinatorSystemPrompt()`。它把 worker 定义成异步执行者，并明确主 agent 应该综合、继续、停止，而不是把理解责任甩给 worker。
+真正的机制在 prompt。`getCoordinatorSystemPrompt()` 把主 agent 定义成 coordinator，要求它 direct workers、synthesize results、communicate with the user。这个提示还把 `<task-notification>` 定义成内部信号，而不是用户消息。
 
 ```ts
 // assets/projects/claude-code/src/coordinator/coordinatorMode.ts
@@ -72,13 +71,7 @@ You are a **coordinator**. Your job is to:
 }
 ```
 
-<CalloutBlock
-  title="负面事实"
-  body="Coordinator 的主语不是 worker，而是主 agent。源码里的提示反复强调：worker 不能替主 agent 理解问题，主 agent 必须读结果、综合判断、写出具体 follow-up。"
-  tone="warning"
-/>
-
-`utils/systemPrompt.ts` 还会在 coordinator mode 下替换有效 system prompt。也就是说，进入 coordinator 不是在默认 prompt 后面附加一段提醒，而是切到专门的主控提示。
+`utils/systemPrompt.ts` 在 coordinator mode 下会直接替换系统提示。这不是在普通 coding prompt 后面补一句“你可以找人帮忙”，而是切换主 agent 的角色定义。
 
 ```ts
 // assets/projects/claude-code/src/utils/systemPrompt.ts
@@ -91,9 +84,15 @@ if (
 }
 ```
 
-## 主线程工具池也会被收窄
+<CalloutBlock
+  title="负面事实"
+  body="worker 不能替主 agent 理解用户需求。源码提示把 worker 结果定义为内部信号，主 agent 必须读、判断、综合，再决定是否继续委派或面向用户回答。"
+  tone="warning"
+/>
 
-Coordinator 自己不是普通 coding agent。它的工具面会被限制到编排相关工具，核心是 `Agent`、`TaskStop`、`SendMessage` 和内部 synthetic output。这样主 agent 更像调度者，而不是一边调度一边自己大量改文件。
+## 主线程工具池被收窄
+
+主 agent 进入 coordinator 后，不再像普通 coding agent 那样直接拿完整工具池。`COORDINATOR_MODE_ALLOWED_TOOLS` 只保留编排相关工具：`Agent`、`TaskStop`、`SendMessage` 和 synthetic output。
 
 ```ts
 // assets/projects/claude-code/src/constants/tools.ts
@@ -105,7 +104,7 @@ export const COORDINATOR_MODE_ALLOWED_TOOLS = new Set([
 ])
 ```
 
-工具过滤在 tool pool 合并阶段发生。源码还留了一个例外：PR subscription 这类 MCP 工具可以保留，因为 coordinator 需要直接订阅外部事件，而不是把订阅管理再委派给 worker。
+过滤发生在 tool pool 合并阶段。代码还给 PR subscription 这类 MCP 工具留了例外，因为主控需要直接订阅外部事件。
 
 ```ts
 // assets/projects/claude-code/src/utils/toolPool.ts
@@ -118,9 +117,11 @@ export function applyCoordinatorToolFilter(tools: Tools): Tools {
 }
 ```
 
+这个设计的效果是：主 agent 更像调度者，不是“自己改文件同时让 worker 改文件”。它能 spawn、继续、停止、读结果，但默认不把大量文件编辑工具留在主线程上。
+
 ## Worker 能力是动态注入的
 
-Coordinator mode 还会把 worker 可用工具、MCP server 和 scratchpad 写进 user context。这不是写死在系统提示里，因为不同会话的工具池和 MCP 连接不同。
+Coordinator prompt 不是静态列出所有 worker 工具。`getCoordinatorUserContext()` 会根据当前会话的 async-agent allowed tools、MCP clients、scratchpad 生成 user context，告诉主 agent worker 真实可用能力。
 
 ```ts
 // assets/projects/claude-code/src/coordinator/coordinatorMode.ts
@@ -143,16 +144,15 @@ export function getCoordinatorUserContext(
   caption="Worker 生命周期：能力说明进入 context，AgentTool 创建 task，worker 独立 query，结果以通知回流。"
 />
 
-这里有一个容易忽略的点：主 agent 的 prompt 不是鼓励“凡事都委派”。它要求能直接回答的问题直接回答，只有研究、实现、验证这类可并行且有收益的任务才交给 worker。
-
 <StepFlow
-  steps="1. 主 agent 判断是否值得委派|2. AgentTool 创建 worker task|3. worker 独立运行 query|4. LocalAgentTask 记录进度和输出|5. task-notification 回流|6. 主 agent 综合或继续"
-  descriptions="Coordinator 的并行不是自动规划器，而是主 agent 按提示协议主动调用 AgentTool。"
+  title="一次委派的状态流"
+  steps="主 agent 判断是否委派|AgentTool 创建 worker|runAgent 重组上下文|LocalAgentTask 记录状态|task-notification 回流|主 agent 综合或继续"
+  descriptions="Coordinator prompt 要求主 agent 只把研究、实现、验证等适合并行的任务交出去。|AgentTool 接收 description、prompt、subagent_type、background/isolation 等输入。|worker 获得自包含 prompt、自己的工具池、权限和 agent 配置。|task state 保存 agentId、prompt、进度、pendingMessages、输出路径。|worker 完成或有状态变化时生成 task-notification。|主 agent 读取内部通知后决定回答、继续发消息、停止或读输出。"
 />
 
 ## AgentTool 把委派写入 Task Runtime
 
-`AgentTool` 的输入 schema 很能说明产品形态：`description` 给 UI 和 task 识别，`prompt` 给 worker 执行，`subagent_type` 选择 agent 定义，`run_in_background` 决定是否后台跑，`isolation` 和 `cwd` 控制运行边界。
+`AgentTool` 的输入 schema 把“给人看的描述”和“给 worker 的任务”分开。`description` 用于 UI/task 识别，`prompt` 才是 worker 执行指令，`subagent_type` 选择 agent 定义。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
@@ -164,7 +164,7 @@ const baseInputSchema = lazySchema(() => z.object({
 }))
 ```
 
-Coordinator mode 下最关键的判断是 `shouldRunAsync`。只要是 coordinator、显式后台、agent 默认 background、fork 或 proactive 等路径，就进入异步 agent 生命周期。
+Coordinator mode 下，worker 默认走 async task。`shouldRunAsync` 把 `isCoordinator` 纳入条件，所以主控模式不需要每次显式写 `run_in_background: true` 才后台运行。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
@@ -178,7 +178,7 @@ const shouldRunAsync =
   !isBackgroundTasksDisabled
 ```
 
-创建 worker 时，`AgentTool` 会分配 agent id，注册 async task，并把 prompt、description、selectedAgent、abort controller 等放进 `AppState.tasks`。这是运行态任务登记：后续 UI 进度、停止、继续和结果通知都依赖这条 task state。
+创建 worker 时，`registerAsyncAgent()` 会把 agentId、description、prompt、selectedAgent、toolUseId 等写入 `AppState.tasks`。后续进度展示、通知、停止、继续和输出读取都依赖这个 task state。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
@@ -192,9 +192,9 @@ const agentBackgroundTask = registerAsyncAgent({
 })
 ```
 
-## 子 Agent 不是复制一个完整主 Agent
+## 子 Agent 不是完整复制主会话
 
-`runAgent.ts` 会为 worker 重新组装上下文。它可以接收 `forkContextMessages`，但普通 subagent 默认只有 caller 给的 prompt message，不自动拥有完整用户对话。
+普通 worker 默认只拿到自包含 prompt message，不自动继承完整用户对话。`runAgent.ts` 只有在 fork path 提供 `forkContextMessages` 时才把父上下文放进来。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
@@ -204,32 +204,18 @@ const contextMessages: Message[] = forkContextMessages
 const initialMessages: Message[] = [...contextMessages, ...promptMessages]
 ```
 
-这解释了 coordinator prompt 里为什么强调“worker prompt 必须自包含”。如果主 agent 只写“根据刚才讨论修一下”，普通 worker 并不知道完整讨论上下文。
+这解释了 coordinator prompt 为什么要求任务说明具体。主 agent 如果只写“按刚才说的修一下”，普通 worker 可能根本不知道“刚才”是什么。worker prompt 必须包含目标、文件、约束、验收方式和需要返回的结果形态。
 
 <SplitBlock
-  leftTitle="普通 worker"
-  left="默认接收自包含 prompt、自己的 system prompt、裁剪后的 user/system context、按 agent 定义解析的工具池。适合研究、实现、验证。"
-  rightTitle="fork worker"
-  right="可选实验路径，继承父会话消息和父 system prompt，并为了 prompt cache 复用保留 byte-identical 前缀。它和 coordinator 的普通 worker 不是一回事。"
+  leftTitle="普通 coordinator worker"
+  left="自包含 prompt + agent 定义 + 裁剪后的 user/system context + 重新计算的工具/权限。适合并行研究、实现、验证。"
+  rightTitle="fork subagent"
+  right="继承父会话消息和父 system prompt，强调 cache-friendly 前缀和一次性 directive；它不是 coordinator 默认路径。"
 />
 
-`runAgent` 还会裁剪不必要上下文。比如 Explore/Plan 这类只读 agent 可以省略 CLAUDE.md 或 stale git status，因为主 agent 才是解释规则和综合结果的人。
+## 工具、权限和扩展点会重算
 
-```ts
-// assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
-const shouldOmitClaudeMd =
-  agentDefinition.omitClaudeMd &&
-  !override?.userContext &&
-  getFeatureValue_CACHED_MAY_BE_STALE('tengu_slim_subagent_claudemd', true)
-
-const resolvedUserContext = shouldOmitClaudeMd
-  ? userContextNoClaudeMd
-  : baseUserContext
-```
-
-## 工具和权限是重新计算的
-
-worker 的工具池不是简单继承父 agent 当前可见工具。`AgentTool` 用 worker 自己的 permission mode 调 `assembleToolPool()`，然后 `runAgent` 再按 agent 定义解析 `tools`、`disallowedTools`、异步 agent 禁用工具等规则。
+worker 的工具池不是简单继承主 agent。`AgentTool` 会基于 worker 的 permission mode 重新 assemble tools，`runAgent` 再根据 agent definition 的 `tools`、`disallowedTools`、skills、MCP servers 和 hooks 继续裁剪/增强。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx
@@ -239,6 +225,8 @@ const workerPermissionContext = {
 }
 const workerTools = assembleToolPool(workerPermissionContext, appState.mcp.tools)
 ```
+
+异步 agent 还会被 `ASYNC_AGENT_ALLOWED_TOOLS` 限制，避免后台 worker 使用不适合异步场景的工具。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/agentToolUtils.ts
@@ -250,33 +238,7 @@ if (isAsync && !ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) {
 }
 ```
 
-<FigureBlock
-  src="/generated/claude-code-coordinator-subagent/isolation.svg"
-  caption="隔离不是只有 worktree：上下文、工具、权限、MCP、hooks、skills 都会在 runAgent 中重新组装。"
-/>
-
-权限上还有一个实用设计：async agent 默认不能弹交互式权限框，所以会设置 `shouldAvoidPermissionPrompts`；如果是 bubble mode 或显式允许提示，才会把权限请求冒泡到父终端。
-
-```ts
-// assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
-const shouldAvoidPrompts =
-  canShowPermissionPrompts !== undefined
-    ? !canShowPermissionPrompts
-    : agentPermissionMode === 'bubble'
-      ? false
-      : isAsync
-
-if (shouldAvoidPrompts) {
-  toolPermissionContext = {
-    ...toolPermissionContext,
-    shouldAvoidPermissionPrompts: true,
-  }
-}
-```
-
-## MCP、Skills、Hooks 是 Agent 级扩展点
-
-`loadAgentsDir.ts` 的 `AgentDefinition` 说明 agent 不只是一个 prompt。它可以声明工具、禁用工具、skills、MCP servers、hooks、permissionMode、maxTurns、background、isolation 等。
+agent definition 本身也不只是 prompt。它可以声明工具、禁用工具、skills、MCP servers、hooks、permissionMode、maxTurns、background 和 isolation。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/loadAgentsDir.ts
@@ -293,22 +255,26 @@ export type BaseAgentDefinition = {
 }
 ```
 
-`runAgent` 会在子 agent 启动时执行 `SubagentStart` hooks，注册 agent frontmatter hooks，预加载 skills，并把 agent-specific MCP servers 合并进工具池。默认路径不需要这些，但它们让 worker 成为可配置运行单元。
+<FigureBlock
+  src="/generated/claude-code-coordinator-subagent/isolation.svg"
+  caption="隔离不是只有 worktree：上下文、工具、权限、MCP、hooks、skills 都会在 runAgent 中重新组装。"
+/>
+
+权限还有一个运行时分支：async worker 默认避免弹出交互式权限框；bubble mode 或显式允许时，权限请求才会冒泡到父终端。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
-for await (const hookResult of executeSubagentStartHooks(
-  agentId,
-  agentDefinition.agentType,
-  agentAbortController.signal,
-)) {
-  additionalContexts.push(...(hookResult.additionalContexts ?? []))
-}
+const shouldAvoidPrompts =
+  canShowPermissionPrompts !== undefined
+    ? !canShowPermissionPrompts
+    : agentPermissionMode === 'bubble'
+      ? false
+      : isAsync
 ```
 
 ## 结果不是 return，而是通知回流
 
-异步 worker 不会让主 agent 当前 turn 一直卡住。`runAsyncAgentLifecycle()` 消费 worker 的 stream，更新进度，结束后调用 `enqueueAgentNotification()`。这个通知之后会作为内部 user-role message 回到主循环。
+异步 worker 结束时不会直接替主 agent 回答用户。`LocalAgentTask` 会生成 `<task-notification>`，里面包含 task id、输出文件路径、状态、摘要、结果和 usage。这个 XML 作为内部消息回到主循环。
 
 ```ts
 // assets/projects/claude-code/src/tasks/LocalAgentTask/LocalAgentTask.tsx
@@ -320,16 +286,11 @@ const message = `<${TASK_NOTIFICATION_TAG}>
 </${TASK_NOTIFICATION_TAG}>`
 ```
 
-Coordinator prompt 也明确告诉主 agent：这些 `<task-notification>` 看起来像 user message，但不是用户；要把它当内部信号读。
+这是一种很实用的桥接：从消息通道看，它像 user-role input；从 prompt 语义看，它不是用户需求，而是内部任务事件。主 agent 要读取它，再决定是否继续。
 
-<CalloutBlock
-  title="关键产品设计"
-  body="worker 结果用 user-role message 回流，是为了复用主 query loop 的输入通道；但 prompt 又明确要求主 agent 不要感谢 worker，也不要把通知当作用户新需求。"
-/>
+## 进度、输出和 pending message 存在哪
 
-## 进度和输出存在哪
-
-运行态状态存在 `AppState.tasks`，完整 sidechain transcript 会写入 subagent transcript，任务输出文件由 `getTaskOutputPath(taskId)` 暴露。可选 worktree isolation 还会把文件修改留在独立 worktree。
+运行态状态存在 `AppState.tasks`。`LocalAgentTaskState` 保存 agentId、prompt、progress、pendingMessages、messages 等字段；sidechain transcript 和 output file 则让 worker 结果可以跨 UI 和恢复路径读取。
 
 ```ts
 // assets/projects/claude-code/src/tasks/LocalAgentTask/LocalAgentTask.tsx
@@ -343,6 +304,8 @@ export type LocalAgentTaskState = TaskStateBase & {
 }
 ```
 
+`runAgent.ts` 会记录 sidechain transcript 和 agent metadata。这样 `SendMessage` 可以恢复 worker，`TaskOutput` 可以按 taskId 读输出，UI 也能展示异步进度。
+
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/runAgent.ts
 void recordSidechainTranscript(initialMessages, agentId)
@@ -353,16 +316,14 @@ void writeAgentMetadata(agentId, {
 })
 ```
 
-这套持久化服务于运行控制：让 `TaskOutput` 能读输出，让 `SendMessage` 能恢复 transcript，让 UI 能展示进度，让 killed worker 仍可能保留 partial result。
-
 <FigureBlock
   src="/generated/claude-code-coordinator-subagent/control-plane.svg"
   caption="控制面：TaskOutput 读输出，SendMessage 继续 worker，TaskStop 停止 task，notification 把结果送回主 agent。"
 />
 
-## SendMessage 是继续，不是重新开聊
+## SendMessage 是续写，不是新开一个 worker
 
-`SendMessageTool` 先查 agent name registry，再尝试把 `to` 解释成 agentId。如果目标 worker 正在运行，它不会立刻打断 worker，而是把消息排进 `pendingMessages`，等 worker 下一次工具轮处理。
+`SendMessageTool` 先把 `to` 解析成 agent name 或 agentId。如果目标 worker 正在运行，它不会打断当前执行，而是把消息加入 `pendingMessages`。
 
 ```ts
 // assets/projects/claude-code/src/tools/SendMessageTool/SendMessageTool.ts
@@ -376,19 +337,7 @@ if (task.status === 'running') {
 }
 ```
 
-如果 task 已停止或已经从内存状态里清掉，`SendMessageTool` 会尝试 `resumeAgentBackground()`，从 transcript 恢复并在后台继续。这里的关键不是相似度检索，而是运行态恢复：按 agentId/name 找状态、读 transcript、继续运行。
-
-```ts
-// assets/projects/claude-code/src/tools/SendMessageTool/SendMessageTool.ts
-const registered = appState.agentNameRegistry.get(input.to)
-const agentId = registered ?? toAgentId(input.to)
-if (agentId) {
-  const task = appState.tasks[agentId]
-  // running: queue; stopped or missing: resume from transcript
-}
-```
-
-排队后的消息在哪里被取走？Planck 的侦察报告指出，`LocalAgentTask` 维护 `pendingMessages`，worker 下一次工具轮会 drain 出来并包装成 coordinator 新指令。这能避免粗暴打断正在运行的 worker。
+pending message 的消费点在 dynamic attachments。`attachments.ts` 会调用 `drainPendingMessages()`，把队列里的消息变成下一轮发给 worker 的上下文。
 
 ```ts
 // assets/projects/claude-code/src/tasks/LocalAgentTask/LocalAgentTask.tsx
@@ -405,14 +354,11 @@ export function drainPendingMessages(
 }
 ```
 
-<StepFlow
-  steps="1. 主 agent 收到 worker 结果|2. 判断信息是否足够|3. 若同一 worker 已有上下文，用 SendMessage 继续|4. 若方向错了，用 TaskStop 停止|5. 若只要输出，用 TaskOutput 读取|6. 主 agent 综合给用户"
-  descriptions="同一个 worker 的后续指令会排队或恢复；方向错了，主 agent 可以停止 task，再重新给出更具体的任务。"
-/>
+如果 worker 已停止或内存状态里没有这个 task，`SendMessage` 会尝试 `resumeAgentBackground()`，从 transcript 恢复同一个 agent 后继续。这就是“续写 worker”的语义，而不是重新开一个没有上下文的新 worker。
 
-## TaskStop 停止运行方向
+## TaskStop 和 TaskOutput 构成控制面
 
-`TaskStopTool` 很薄，真正逻辑在 `tasks/stopTask.ts`。它按 id 找 task，要求 task 仍在 running，调用对应 task implementation 的 `kill()`，然后处理通知语义。
+`TaskStop` 解决的是“这个 worker 方向错了、需求变了、或者已经不需要了”。它按 taskId 找到 running task，再调用对应 task implementation 的 `kill()`。
 
 ```ts
 // assets/projects/claude-code/src/tasks/stopTask.ts
@@ -425,11 +371,7 @@ const taskImpl = getTaskByType(task.type)
 await taskImpl.kill(taskId, setAppState)
 ```
 
-它解决的是编排方向变化：用户改需求、主 agent 发现委派方向错了、或者 worker 正在做不该做的事。停止后可以用 `SendMessage` 继续同一 agent，也可以放弃结果。
-
-## TaskOutput 是主动读取输出
-
-除了等 notification，主 agent 也可以用 `TaskOutputTool` 主动读取 task output。它支持非阻塞读取，也支持 blocking wait。输出会被格式化进 `<output>`，方便模型继续处理。
+`TaskOutput` 解决的是“我需要主动读取这个 task 的输出”。非阻塞模式下，如果 task 已经完成，就直接读输出；blocking 模式可以等待。
 
 ```ts
 // assets/projects/claude-code/src/tools/TaskOutputTool/TaskOutputTool.tsx
@@ -445,16 +387,15 @@ if (!block) {
 }
 ```
 
-另一个细节是：`TaskOutputTool` 在源码里仍可用，但 prompt 层已经提示它偏 deprecated，推荐直接读取 `output_file`。这说明 Claude Code 的主路径更偏向“任务输出文件 + 通知”，不是让模型频繁调用一个专门查询工具。
-
-<CalloutBlock
-  title="不要误读 TaskOutput"
-  body="TaskOutput 不是新的智能检索层，而是运行态控制面：按 task_id 读取某个 worker 的输出。主路径仍然是 output_file 和 task-notification。"
+<StepFlow
+  title="worker 回流后的主控动作"
+  steps="收到通知|判断结果是否足够|SendMessage 继续|TaskStop 停止|读取 output_file 或 TaskOutput|综合给用户"
+  descriptions="task-notification 把内部状态送回主循环。|主 agent 对照原任务判断证据、实现或验证是否缺口。|同一 worker 仍有上下文时，用 SendMessage 追加指令。|方向错误或任务无价值时停止 running task。|需要完整结果时读取 output_file 或调用 TaskOutput。|主 agent 对多个 worker 的结果去重、取舍、汇总。"
 />
 
-## Fork Subagent 是另一条可选路径
+## Fork Subagent 是另一条路径
 
-`forkSubagent.ts` 是容易和 coordinator 混淆的文件。fork 的目标是让子 agent 继承父会话上下文，并尽量复用 prompt cache；coordinator 的普通 worker 则强调自包含 prompt 和异步 task。
+`forkSubagent.ts` 容易和 coordinator 混在一起。fork 的目标是继承父会话上下文，并尽量复用 prompt cache；coordinator 的普通 worker 则强调自包含 prompt、异步 task 和通知回流。源码里甚至在 coordinator mode 下禁用 fork。
 
 ```ts
 // assets/projects/claude-code/src/tools/AgentTool/forkSubagent.ts
@@ -468,58 +409,21 @@ export function isForkSubagentEnabled(): boolean {
 }
 ```
 
-源码里甚至明确互斥：fork subagent 和 coordinator mode 不能同时作为默认编排模型。fork child 还有递归保护，防止子 agent 再无限 fork。
-
-```ts
-// assets/projects/claude-code/src/tools/AgentTool/forkSubagent.ts
-return messages.some(m => {
-  if (m.type !== 'user') return false
-  return content.some(
-    block => block.type === 'text' &&
-      block.text.includes(`<${FORK_BOILERPLATE_TAG}>`),
-  )
-})
-```
-
-<SplitBlock
-  leftTitle="Coordinator worker"
-  left="主 agent 写自包含任务说明，worker 独立执行，结果以 task-notification 回流。适合任务拆分、并行研究、实现和验证。"
-  rightTitle="Fork worker"
-  right="继承父上下文，构造 cache-friendly 前缀，强调一次性 directive 和不能再 fork。适合从当前会话分叉处理明确子任务。"
-/>
+所以默认 coordinator worker 的关键不是“复制当前会话”，而是“主 agent 写一份可执行任务说明”。这也是它能并行跑多个 worker 的前提。
 
 ## 可复用设计
 
-这套设计最值得复用的是“主控保留理解权”。主 agent 可以委派研究，但必须自己综合；可以让 worker 实现，但要给出具体文件和改动约束；可以让 worker 验证，但验证必须真的跑测试和检查错误。
-
-<CalloutBlock
-  title="对我们做源码讲解 Skill 的启发"
-  body="先让 explorer 子代理做只读证据地图，再由主 agent 二次核验并写正文，是很贴近 Claude Code coordinator prompt 的工作法：并行获取证据，但不把最终判断外包。"
-/>
-
-`general-purpose` 和 `Explore` built-in agents 也体现了分工。前者可以做多步任务，后者是严格只读搜索 agent，并显式禁用编辑类工具。
-
-```ts
-// assets/projects/claude-code/src/tools/AgentTool/built-in/exploreAgent.ts
-export const EXPLORE_AGENT: BuiltInAgentDefinition = {
-  agentType: 'Explore',
-  disallowedTools: [
-    AGENT_TOOL_NAME,
-    EXIT_PLAN_MODE_TOOL_NAME,
-    FILE_EDIT_TOOL_NAME,
-    FILE_WRITE_TOOL_NAME,
-  ],
-  omitClaudeMd: true,
-}
-```
+- **主控保留理解权**：worker 产物是证据，不是最终答案；主 agent 负责综合和取舍。
+- **spawn/notify/continue/stop 四个控制面先稳定**：先有 AgentTool、task-notification、SendMessage、TaskStop，再考虑 worktree/remote 等增强。
+- **worker prompt 必须自包含**：普通 worker 不自动拥有完整主对话，任务说明要包含目标、约束和验收标准。
+- **隔离不只靠文件系统**：上下文、工具、权限、MCP、skills、hooks 都是隔离维度。
+- **输出要可寻址**：task id、output file、sidechain transcript 让主 agent 能继续、恢复和审计 worker。
 
 ## 边界
 
-最后把几个边界钉牢：默认 coordinator worker 看不到完整用户对话；默认不创建 worktree；默认不是 remote；默认也不会替主 agent 自动设计完美分工。
+默认 coordinator worker 看不到完整用户对话；默认不创建 worktree；默认不是 remote execution；默认不会自动规划出完美分工；多个 worker 写同一批文件也可能制造冲突。它提供的是编排协议和任务运行时，不是替主 agent 做判断的全自动调度器。
 
-<StepFlow
-  steps="1. 不要把 worker 当聊天对象|2. 不要把研究结果原样转包给实现 worker|3. 不要让多个 worker 写同一批文件|4. 不要把 TaskOutput 当成主编排路径|5. 不要把 fork 当 coordinator 默认路径"
-  descriptions="Coordinator 的价值在编排纪律，不在 worker 数量。"
+<CalloutBlock
+  title="迁移到自己的 Agent 系统时"
+  body="先实现 spawn、notify、continue、stop，再考虑 worktree、remote、agent skills、MCP 和后台输出整理。控制面没稳定之前，过早加隔离层会让调试变复杂。"
 />
-
-如果要迁移到自己的 Agent 系统，优先复用四个接口：spawn、notify、continue、stop。等这四个控制面稳定后，再加 worktree、remote、MCP、skill 和 background summarization。

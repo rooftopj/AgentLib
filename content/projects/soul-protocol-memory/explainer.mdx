@@ -2,13 +2,11 @@
 
 ## 先给结论
 
-soul-protocol 的记忆系统最关键的设计，不是“把每轮对话 embedding 后塞进向量库”。它默认走的是一条更像认知系统的管线：应用层在一次用户和 soul 的交互之后调用 `Soul.observe()`，`MemoryManager.observe()` 再决定哪些内容值得写成情节记忆、哪些内容应抽成语义事实、哪些实体关系要进入图谱、哪些低价值轮次可以跳过昂贵的深处理。
-
-所以它的默认形态可以概括成一句话：**写入靠 observe 后处理，存储靠多层内存 store 加本地 `.soul` 文件持久化，召回靠文本检索候选 + ACT-R activation 排序；向量检索和 LLM rerank 都是可插拔增强，不是默认数据库。**
+soul-protocol 的记忆系统不是“每轮聊天 embedding 后写进向量库”。它更像一条认知管线：交互结束后由 `Soul.observe()` 触发学习，`MemoryManager.observe()` 判断这轮交互是否值得变成情节记忆，事实抽取器再把稳定信息变成语义记忆，冲突更新用 `superseded_by` 保留旧事实的审计线索，召回时再用文本候选、图谱扩展、ACT-R activation 和可选 LLM rerank 逐层筛选。
 
 <CalloutBlock
-  title="读源码时最容易误判的一点"
-  body="看到 embeddings/vector_strategy.py 并不等于项目默认使用向量库。默认 RecallEngine 使用 BM25SearchStrategy；VectorSearchStrategy 只是符合 SearchStrategy 思路的扩展实现。"
+  title="最重要的负面事实"
+  body="看到 embeddings/vector_strategy.py 不代表默认存储是向量库。源码默认的 recall engine 使用 BM25SearchStrategy；VectorSearchStrategy 是可替换的检索策略，不是默认持久化后端。"
 />
 
 <FigureBlock
@@ -17,30 +15,67 @@ soul-protocol 的记忆系统最关键的设计，不是“把每轮对话 embed
 />
 
 <SplitBlock
-  leftTitle="默认主路径"
-  left="observe 后处理交互，按显著性写情节，抽取语义事实，存入内存 store，并通过 .soul / 本地 JSON 持久化。召回默认用 BM25/文本候选加 ACT-R activation 排序。"
+  leftTitle="默认路径"
+  left="observe 后处理一轮交互；运行时写入 episodic、semantic、procedural、social 等内存 store；save/export 时把 MemoryManager.to_dict() 写成本地 .soul 或 JSON 布局；召回默认走 BM25/text candidates + ACT-R activation。"
   rightTitle="可选增强"
-  right="SearchStrategy 可替换为向量相似度，smart_recall 可打开 LLM rerank，domain/custom layer 可扩展命名空间，eternal storage 可做更长期归档。"
+  right="VectorSearchStrategy 可以替换候选检索策略；smart_recall 可以在候选池上做 LLM rerank；domain、layer、visibility、scope 让同一套记忆进入更细的隔离和权限路径。"
 />
+
+## 源码证据地图
+
+当前机制边界是运行时 memory lifecycle：dream、importer、evaluation 和 soul evolution 会消费或补充记忆状态，但不参与 observe 到 recall 的默认主链路。核心证据来自这些文件：
+
+```text
+# 1 assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
+# 2 assets/projects/soul-protocol/src/soul_protocol/runtime/types.py
+# 3 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
+# 4 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/episodic.py
+# 5 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/semantic.py
+# 6 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/dedup.py
+# 7 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/recall.py
+# 8 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/activation.py
+# 9 assets/projects/soul-protocol/src/soul_protocol/runtime/memory/strategy.py
+# 10 assets/projects/soul-protocol/src/soul_protocol/runtime/embeddings/vector_strategy.py
+# 11 assets/projects/soul-protocol/src/soul_protocol/runtime/storage/file.py
+```
 
 ## 宏观架构
 
+读者最容易卡住的问题是：为什么这里叫 memory，但不是一张 `memories` 表？答案是，soul-protocol 把不同“记住方式”拆成不同生命周期。
+
 从宏观看，soul-protocol 把“记忆”拆成几类不同生命周期的东西，而不是统一塞进一个 memory 表。`MemoryType` 里有 `core`、`episodic`、`semantic`、`procedural`、`social` 五类，`MemoryEntry` 又补了 `importance`、`somatic`、`significance`、`access_timestamps`、`superseded_by`、`abstract`、`salience`、`visibility`、`scope`、`user_id`、`layer`、`domain` 等字段。
 
-这意味着它关心的不是“有没有存下来”，而是“这条记忆将来如何被过滤、排序、过期、归档和解释”。比如情节记忆更像自传片段，语义记忆更像抽出的事实，图谱保存实体关系，core memory 则是始终进入上下文的小块 persona/human profile。
+这些字段不是装饰。`importance` 决定基本重要性，`significance` 和 `somatic` 来自 observe 时的心理信号，`access_timestamps` 支撑“越常想起越容易被想起”，`superseded_by` 让事实更新变成软替换，`visibility/scope/user_id/domain/layer` 则把召回变成带权限和命名空间的检索。
 
-源码主线如下：
+```python
+# assets/projects/soul-protocol/src/soul_protocol/runtime/types.py
+class MemoryType(StrEnum):
+    CORE = "core"
+    EPISODIC = "episodic"
+    SEMANTIC = "semantic"
+    PROCEDURAL = "procedural"
+    SOCIAL = "social"
 
-- `runtime/soul.py`：对外 API。`remember()` 显式写入；`observe()` 是每轮交互后的主学习 hook；`recall()` 和 `smart_recall()` 是召回入口。
-- `runtime/memory/manager.py`：编排写入、去重、冲突、图谱和召回 facade。
-- `runtime/memory/episodic.py`：保存重要交互片段。
-- `runtime/memory/semantic.py`：保存抽取出的事实，并过滤 superseded 旧事实。
-- `runtime/memory/recall.py`：跨 store 检索候选，图谱增强，ACT-R 排序。
-- `runtime/storage/file.py`：把 memory dict 持久化为本地文件布局。
+class MemoryEntry(BaseModel):
+    type: MemoryType
+    content: str
+    importance: int = Field(default=5, ge=1, le=10)
+    access_timestamps: list[datetime] = Field(default_factory=list)
+    significance: float = 0.0
+    superseded_by: str | None = None
+    abstract: str | None = None
+    salience: float = Field(default=0.5, ge=0.0, le=1.0)
+    visibility: MemoryVisibility = MemoryVisibility.BONDED
+    user_id: str | None = None
+    layer: str = ""
+    domain: str = "default"
+```
 
-## 什么时候触发写入
+这段代码说明 `MemoryEntry` 同时承担内容、生命周期、召回排序、冲突更新和权限过滤的状态。比如用户说“我搬到 Amsterdam 了”，新事实不会简单覆盖旧事实；旧事实会保留，但 `superseded_by` 会指向新事实或标记 raw-text contradiction，默认召回时旧事实被过滤掉。
 
-默认的自动写入入口在 `Soul.observe()`。注释说得很直接：这是 “call after every user-agent exchange”。也就是说，每轮对话是否进入长期记忆，不是模型回复时同步决定，而是在交互完成后交给 observe 管线做后处理。
+## 写入什么时候触发
+
+自动学习的入口不是 `recall()`，也不是模型生成回复的中途，而是每轮 user-agent exchange 结束后的 `Soul.observe()`。这个入口接收 `Interaction`，再交给 `MemoryManager.observe()` 做分层处理。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
@@ -55,51 +90,22 @@ async def observe(
     result = await self._memory.observe(interaction, user_id=user_id, domain=domain)
 ```
 
-这层 API 还有一个显式写入入口 `remember()`，它适合调用者主动告诉 soul “记住这件事”。它直接构造 `MemoryEntry`，再交给 `MemoryManager.add()` 分发到对应 store。
+机制上可以把 `observe()` 理解成“事后学习 hook”。它的输入是一轮完整交互，输出不是一条单独 memory，而是一组运行结果：是否写了 episodic，抽出了哪些 facts，识别了哪些 entities，是否发生 contradictions，以及这些结果怎样影响 soul 的 bond、skills、evaluation 和 evolution。
 
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
-async def remember(
-    self,
-    content: str,
-    *,
-    type: MemoryType = MemoryType.SEMANTIC,
-    importance: int = 5,
-    domain: str = "default",
-    user_id: str | None = None,
-) -> str:
-    return await self._memory.add(MemoryEntry(
-        type=type,
-        content=content,
-        importance=importance,
-        domain=domain,
-        user_id=user_id,
-    ))
-```
+<FigureBlock
+  src="/generated/soul-protocol-memory/observe-flow.svg"
+  caption="observe 写入管线：先看情绪和显著性，再决定是否保存情节；语义事实单独抽取，低显著性但有事实的交互会被提升为值得保存的情节。"
+/>
 
-这两个入口的区别很重要：`remember()` 是显式存一条内容；`observe()` 是对一轮交互做认知加工，可能写情节、写事实、更新图谱、更新 self-model，也可能跳过一部分昂贵步骤。
+<StepFlow
+  title="一次 observe 的状态流"
+  steps="交互结束|检测情绪和显著性|写 episodic|抽 semantic facts|去重与冲突更新|实体和 self-model 深处理"
+  descriptions="调用者把 Interaction 传给 Soul.observe。|MemoryManager 生成 somatic marker 和 significance score。|显著交互写入 EpisodicStore；低显著但抽到事实时也会被提升。|Cognitive processor 从输入输出里抽取 MemoryType.SEMANTIC。|dedup、prefix conflict 和 contradiction detector 标记旧事实。|没有被短路时继续抽实体、更新 graph 和 self_model。"
+/>
 
 ## 写入什么东西
 
-`MemoryManager.observe()` 的第一步不是存储，而是先检测情绪和显著性。情绪会变成 `SomaticMarker`，显著性决定这轮交互是否值得保存为情节记忆。
-
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
-somatic = await self._cognitive.detect_sentiment(interaction.user_input)
-recent = self._episodic.recent_contents(n=10)
-sig_score = await self._cognitive.assess_significance(interaction, values, recent)
-sig_value = overall_significance(sig_score, token_count=token_count)
-significant = is_significant(sig_score, token_count=token_count)
-
-if significant:
-    episodic_id = await self._episodic.add_with_psychology(
-        interaction,
-        somatic=somatic,
-        significance=sig_value,
-    )
-```
-
-情节记忆写的是完整交互：
+`observe()` 不是无条件把整轮聊天写进长期记忆。它先算情绪和显著性；只有显著交互才写 episodic。episodic 的内容是完整 user/agent 片段，所以它保留上下文和时间感。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/memory/episodic.py
@@ -116,7 +122,7 @@ entry = MemoryEntry(
 )
 ```
 
-语义事实则始终尝试抽取，不依赖情节显著性。源码里还有一个微妙设计：如果某轮对话一开始没过显著性门槛，但抽到了事实，它会被 “promote to episodic”。这说明项目认为“有事实可学”的低显著性对话仍然值得保留上下文片段。
+事实写入走另一条路。`MemoryManager.observe()` 会调用 cognitive extractor 生成 semantic facts；如果某轮对话一开始显著性不高，但抽到了事实，它会反向创建 episodic。这个分支很关键：系统不是“低显著就什么都不学”，而是把“有事实可学”当作晋升信号。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
@@ -135,14 +141,11 @@ if not significant and facts:
     )
 ```
 
-<FigureBlock
-  src="/generated/soul-protocol-memory/observe-flow.svg"
-  caption="observe 写入管线：情节记忆受显著性门控，语义事实单独抽取；如果低显著性轮次抽到了事实，会反向提升为值得保存的情节。"
-/>
+一个具体例子是：用户只是顺手说“以后代码示例尽量用 TypeScript”。这句话可能不算情绪强烈的大事件，但 fact extractor 能抽出偏好事实。于是 semantic store 会写入偏好，episodic 也会保留这轮上下文，后续召回时可以解释这个偏好来自哪次交流。
 
-## 存在哪
+## 存储形态
 
-默认运行时存储是几个 Python dict-backed store：`EpisodicStore._memories`、`SemanticStore._facts`、`ProceduralStore._procedures`、`SocialStore._entries`，再加上 graph、self_model、archives。`MemoryManager.to_dict()` 把这些层统一导出。
+运行时，memory 先存在多个 store 中：`EpisodicStore._memories`、`SemanticStore._facts`、`ProceduralStore._procedures`、`SocialStore._entries`，再加上 graph、self_model、archives 和 custom_layers。`MemoryManager.to_dict()` 把它们合成一个可持久化结构。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
@@ -162,28 +165,30 @@ return {
 }
 ```
 
-落盘发生在 `Soul.save()`、`save_local()`、`export()` 等路径里，本质上都是把 `MemoryManager.to_dict()` 的结果交给文件存储或 soul archive 打包。`storage/file.py` 还区分了两种布局：默认 domain 和内置层使用扁平布局；出现自定义 domain 或 custom layer 时，改用 `memory/<layer>/<domain>/entries.json`。
+持久化发生在 `Soul.save()`、`save_local()`、`export()` 等路径里。`Soul._build_storage_memory_data()` 先拿到 memory dict，再叠加 trust chain 和 keys；文件存储层只负责把这个 dict 写到稳定布局。
+
+```python
+# assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
+def _build_storage_memory_data(self, *, include_keys: bool) -> dict:
+    memory_data = self._memory.to_dict()
+    memory_data["trust_chain"] = self._trust_chain_manager.to_dict()
+    memory_data["keys"] = self._keystore.to_archive_files(include_private=include_keys)
+    return memory_data
+```
+
+默认 domain 和内置层可以走扁平布局；出现自定义 domain 或 custom layer 时，`storage/file.py` 会写成 `memory/<layer>/<domain>/entries.json`。这说明文件系统持久化是默认落点，向量索引不是事实的唯一来源。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/storage/file.py
-if nested:
-    for tier in _LAYER_TIERS:
-        entries = memory_data.get(tier, []) or []
-        grouped: dict[str, list] = {}
-        for entry in entries:
-            domain = entry.get("domain", "default") or "default"
-            grouped.setdefault(domain, []).append(entry)
-        for domain, group in grouped.items():
-            ddir = mem_dir / tier / domain
-            ddir.mkdir(parents=True, exist_ok=True)
-            (ddir / "entries.json").write_text(json.dumps(group, indent=2, default=str))
+for domain, group in grouped.items():
+    ddir = mem_dir / tier / domain
+    ddir.mkdir(parents=True, exist_ok=True)
+    (ddir / "entries.json").write_text(json.dumps(group, indent=2, default=str))
 ```
-
-所以如果问“它存在哪”，答案要分层说：运行时默认在内存 store；持久化时在 `.soul` 或本地 soul 目录里的 JSON 文件；可选的 eternal storage、IPFS/Arweave 是归档扩展；向量策略是检索扩展，不是默认持久化后端。
 
 ## 冲突怎么更新
 
-soul-protocol 没有简单覆盖旧事实，而是保留旧事实并打 supersede 标记。这样有两个好处：召回默认过滤旧事实，但历史仍能在 `include_superseded=True` 时被导出或审计。
+冲突更新要解决的问题是：长期 agent 会持续听到“我搬家了”“我换工作了”“我现在不喜欢 X 了”。如果直接覆盖，历史解释能力会消失；如果什么都不更新，召回会把旧事实当真。soul-protocol 的选择是软替换：旧事实保留，但通过 `superseded_by` 退出默认召回。
 
 第一层是去重。`dedup.py` 用 Jaccard 加 containment 系数判断新事实是 `SKIP`、`MERGE` 还是 `CREATE`。
 
@@ -197,6 +202,8 @@ if best_similarity >= 0.6 and best_match is not None:
 
 return ("CREATE", None)
 ```
+
+这段代码处在 semantic fact 写入之前。`SKIP` 表示新旧事实几乎重复，不再写；`MERGE` 表示新事实是旧事实的补充版，会让旧 fact 指向新 fact；`CREATE` 才真正新增。containment 的作用是避免 “User likes Python” 和 “User likes Python for backend automation” 因为后者更长而被误判成完全不同事实。
 
 第二层是事实冲突。`MemoryManager._resolve_fact_conflicts()` 会按事实前缀找同类旧事实，例如 “User lives in ...” 和新的 “User lives in ...” 不同，就把旧 fact 的 `superseded_by` 指向新 fact。
 
@@ -212,6 +219,8 @@ def _find_conflict(self, new_content: str, existing_facts: list[MemoryEntry]) ->
                     return fact
     return None
 ```
+
+这里的“前缀”是事实模板的简化版本，例如 `User lives in`、`User works at`、`User prefers`。它不是通用逻辑推理，而是对常见个人资料槽位做启发式更新。好处是便宜、可解释；边界是复杂时间事实和多实体事实仍可能需要更结构化的 schema。
 
 第三层是 contradiction detector。它处理否定、实体属性冲突、以及 location/employer/role 这类动词事实冲突。尤其是 raw-text fallback 很关键：如果抽取器没有抽出新 fact，系统仍会拿原始用户输入去扫旧语义事实，捕捉 “I moved to Amsterdam” 这种更新。
 
@@ -229,11 +238,11 @@ for cr in raw_cresults:
             existing_fact.superseded_by = "raw-text-contradiction"
 ```
 
-这套设计有一个明确取舍：它更重视可追溯性，而不是让“最新事实”直接覆盖旧事实。代价是状态字段变多，召回和导出都必须理解 `superseded` / `superseded_by`。
+这个 fallback 解决的是抽取失败后的旧事实污染。比如旧事实是 `User lives in NYC`，用户说 `I moved to Amsterdam`，但 fact extractor 没有成功产出标准 fact。raw-text scan 至少能把旧 location fact 标记过期，避免它继续被默认召回。
 
-## 什么时候触发召回
+## 召回什么时候触发
 
-召回不是自动发生在 observe 里，而是在调用者需要上下文时显式调用 `Soul.recall()` 或 `Soul.smart_recall()`。普通召回负责过滤、检索、排序和写 retrieval trace；智能召回先取更大的候选池，再可选调用 LLM rerank。
+召回是调用者显式触发的，不是 observe 后自动把记忆塞进下一轮 prompt。普通入口是 `Soul.recall()`，智能入口是 `Soul.smart_recall()`。前者负责过滤、候选生成、排序和 trace；后者先取更大的候选池，再根据配置选择是否 LLM rerank。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
@@ -251,7 +260,7 @@ results = await self._memory.recall(
 )
 ```
 
-`smart_recall()` 默认不打开 LLM rerank，因为它会在高频召回路径上增加一次 LLM 调用。只有 `MemorySettings.smart_recall_enabled=True` 或调用时传 `enabled=True`，并且有 engine，才会 rerank。
+`smart_recall()` 不是默认所有召回都会调用 LLM。源码里只有 `enabled` 或 `settings.smart_recall_enabled` 为真，并且存在 engine，且候选数超过 limit 时才 rerank。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
@@ -266,11 +275,29 @@ else:
     results = candidates[:limit]
 ```
 
+<FigureBlock
+  src="/generated/soul-protocol-memory/recall-flow.svg"
+  caption="召回链路：调用者显式请求 recall，MemoryManager 处理 user/domain/layer 过滤，RecallEngine 生成候选并按 activation 排序，smart_recall 再可选 LLM rerank。"
+/>
+
 ## 怎么检索和排序
 
-默认召回分两步：各 store 先做文本候选检索，`RecallEngine` 再用 activation 排序。
+默认 `RecallEngine` 的 strategy 是 `BM25SearchStrategy`。这意味着默认候选生成更接近 lexical/BM25 search，而不是向量数据库查询。
 
-候选检索层面，`EpisodicStore.search()` 和 `SemanticStore.search()` 都先用 token relevance 找匹配项，semantic 还会过滤 `superseded_by is not None` 的旧事实。
+```python
+# assets/projects/soul-protocol/src/soul_protocol/runtime/memory/recall.py
+class RecallEngine:
+    def __init__(
+        self,
+        episodic,
+        semantic,
+        procedural,
+        strategy=None,
+    ):
+        self._strategy = strategy if strategy is not None else BM25SearchStrategy()
+```
+
+store 层负责候选，activation 层负责排序。以 semantic store 为例，它会跳过已经 `superseded_by` 的旧事实，再按文本 relevance 生成候选。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/memory/semantic.py
@@ -284,7 +311,7 @@ for fact in self._facts.values():
         scored.append((score, fact))
 ```
 
-排序层面，`RecallEngine` 默认用 `BM25SearchStrategy` 作为 spreading activation，再把 recency/frequency、query relevance、emotion、significance、salience、personality modulation 合成 ACT-R activation。
+排序不是只看文本相似度。`activation.py` 把 base activation、spreading activation、emotion、significance、salience 和 personality modulation 合成最终分数。一个经常被访问、情绪强、显著性高的记忆，可能超过一条文本更相似但低价值的记忆。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/memory/activation.py
@@ -298,23 +325,7 @@ activation = (
 )
 ```
 
-这不是单纯相似度排序。一个旧记忆如果最近常被访问，或者情绪强、显著性高，可能比一条文本更相似但低价值的记忆更容易浮上来。召回后还会更新 `last_accessed`、`access_count`、`access_timestamps`，让下一次召回体现“用得越多越容易想起”的效果。
-
-图谱增强也在召回里：如果 query 提到了图谱实体，系统会取一跳关系，把相关实体名作为额外检索词去搜 semantic/episodic，补上纯文本 query 可能漏掉的相关记忆。
-
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/memory/recall.py
-if use_graph and self._graph is not None:
-    for entity_name in matched_entities:
-        context = self._graph.progressive_context(entity_name, level=1)
-        for rel in context:
-            related_terms.add(rel["target"])
-            related_terms.add(rel["source"])
-```
-
-这条链路里的“检索”和“排序”最好不要混为一谈。store 层的 search 更像候选生成，目标是别漏掉可能相关的 memory；activation 排序才是真正决定“哪几条进入上下文”的位置。这个拆分很实用，因为候选生成可以从 token overlap 换成 BM25、向量或混合检索，而排序层仍然保留 soul-protocol 自己的长期记忆偏好：重要、近期、常用、情绪强、显著性高的记忆更容易回来。
-
-`MemoryManager.recall()` 还加了一层应用侧过滤：`user_id`、`layer`、`domain` 会扩大候选池后再过滤，避免先按小 limit 取候选导致过滤后结果过少。这个细节说明作者意识到了多用户和 domain 隔离对 recall 的影响：隔离不是简单在最终列表上切一刀，而要让候选池足够大，给过滤后的结果留空间。
+`MemoryManager.recall()` 还会在有 `user_id`、`layer`、`domain` 过滤时扩大候选池。原因很实际：如果先按小 limit 取候选，再过滤 domain，结果可能被过滤到不够用。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
@@ -327,20 +338,11 @@ results = await self._recall_engine.recall(
     types=engine_types,
     min_importance=min_importance,
 )
-
-if user_id is not None:
-    results = [
-        entry for entry in results if entry.user_id == user_id or entry.user_id is None
-    ]
-if domain is not None:
-    results = [entry for entry in results if entry.domain == domain]
 ```
 
-这里也能看出它的权限模型不是一次性完成的。`Soul.recall()` 层处理 `scopes`，`RecallEngine` 层处理 `visibility` 和 bond strength，`MemoryManager.recall()` 层处理 `user_id`、`layer`、`domain`。这带来一点复杂性，但好处是每个过滤维度都贴近自己的语义：bond 属于关系可见性，scope 属于调用者授权，domain 属于记忆命名空间，layer 属于存储层选择。
+## 向量能力到底是什么
 
-## 向量存储到底在哪里
-
-项目里确实有 `runtime/embeddings/vector_strategy.py`，但它是 search strategy，不是 storage backend。它接收一个 `EmbeddingProvider`，可以把 query 和 candidate content 做 embedding 后用 cosine similarity 搜索。
+`VectorSearchStrategy` 接收 embedding provider，对 query 和候选内容算 cosine similarity。它的输入仍然是 candidates，而不是从某个外部向量数据库读取全部事实。
 
 ```python
 # assets/projects/soul-protocol/src/soul_protocol/runtime/embeddings/vector_strategy.py
@@ -353,119 +355,42 @@ class VectorSearchStrategy:
             sim = cosine_similarity(query_vec, vec)
 ```
 
-这说明 soul-protocol 留了向量召回接口，但没有把“记忆系统”绑定到某个向量数据库。更准确的说法是：默认是内存 + 文件持久化 + BM25/ACT-R；如果使用方想要语义相似度，可以注入符合 `SearchStrategy` 思路的向量策略。
+所以更准确的说法是：soul-protocol 把 vector search 放在检索策略扩展层，把文件/JSON 和 `.soul` 放在持久化层。vector storage、vector search、lexical/BM25 search、LLM rerank 是四个不同概念：默认存储不是向量库；默认检索策略是 BM25；向量策略可替换候选生成；LLM rerank 只在 smart recall opt-in 时参与最后重排。
 
-这个取舍很像 library 设计，而不是 SaaS 后端设计。它先把 retrieval abstraction 留出来：`SearchStrategy.score(query, content)` 可以被 BM25、token overlap、embedding cosine similarity 替换；但它没有强制用户安装 Milvus、Pinecone、Qdrant 或 pgvector。对于一个“portable soul” 项目，这很合理，因为 soul 文件要能导出、加密、迁移、恢复；把默认记忆绑定到外部向量库，会让可移植性和最小可运行路径变重。
+<SplitBlock
+  leftTitle="检索策略"
+  left="BM25SearchStrategy 和 VectorSearchStrategy 都是在候选列表上计算相关性。它们决定哪些 memory 可能相关。"
+  rightTitle="持久化后端"
+  right="MemoryManager.to_dict() 和 storage/file.py 决定 memory 如何落盘。默认是本地文件结构，不要求外部向量数据库。"
+/>
 
-换句话说，soul-protocol 的默认目标不是“最大规模语义检索”，而是“一个 soul 的记忆生命周期可以在本地可靠闭环”。向量能力被放在扩展层，是为了在需要更高召回质量时替换 scoring，而不是改变所有记忆的存在方式。
+## 端到端路径
 
-## 源码细读：这套设计的关键取舍
-
-第一处关键取舍在 `MemoryEntry`。它不像很多 demo 那样只存 `content + embedding + metadata`，而是把长期 agent 需要的行为信号显式放进模型：`importance` 决定事实排序和淘汰，`access_timestamps` 支撑 ACT-R 衰减，`superseded_by` 支撑事实更新，`abstract` 和 `salience` 支撑渐进式披露，`visibility`、`scope`、`user_id`、`domain` 支撑多用户和权限隔离。
-
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/types.py
-class MemoryEntry(BaseModel):
-    type: MemoryType
-    content: str
-    importance: int = Field(default=5, ge=1, le=10)
-    access_timestamps: list[datetime] = Field(default_factory=list)
-    significance: float = 0.0
-    superseded_by: str | None = None
-    abstract: str | None = None
-    salience: float = Field(default=0.5, ge=0.0, le=1.0)
-    visibility: MemoryVisibility = MemoryVisibility.BONDED
-    user_id: str | None = None
-    layer: str = ""
-    domain: str = "default"
-```
-
-这解释了为什么它的实现看起来“字段很多”。这些字段不是装饰，而是把记忆生命周期拆成可被程序操作的维度：是否重要、是否新鲜、是否被访问过、是否被新事实替代、是否能被当前请求者看到、属于哪个用户和领域。没有这些字段，后面的召回、更新、归档和权限过滤都会退化成不可解释的 prompt 拼接。
-
-第二处关键取舍在 low-significance short-circuit。`observe()` 在事实处理之后才决定是否跳过实体抽取和 self-model 更新，这个顺序很讲究。如果一轮对话没有意义，也没有事实，那么跳过两个潜在 LLM 调用；但如果抽出了事实，即使一开始显著性低，也会保留情节并继续深处理。
-
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
-skip_deep = not significant and self._settings.skip_deep_processing_on_low_significance
-
-if skip_deep:
-    logger.debug("Low-significance short-circuit: skipping entity extraction")
-else:
-    entities = await self._cognitive.extract_entities(
-        interaction,
-        source_memory_id=episodic_id,
-    )
-    await self._cognitive.update_self_model(interaction, facts, self._self_model)
-```
-
-这是一种很实用的成本控制：不是粗暴地“每轮都做完整记忆更新”，也不是“低显著性就完全不学”。它把低价值寒暄、确认、无新信息轮次从深处理里拿掉，同时保留事实型信息的晋升通道。
-
-第三处关键取舍在 archive。归档不是删除旧情节，而是把旧 episodic 压缩成 `ConversationArchive`，并把原始 episodic 标记为 `archived=True`，让普通 episodic search 不再返回它们。
-
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/memory/manager.py
-old_entries = [
-    entry
-    for entry in self._episodic.entries()
-    if entry.created_at.timestamp() < cutoff and not entry.archived
-]
-```
-
-这和人类记忆的层级有点像：近期片段可以细粒度回忆，久远会话变成摘要和关键 moments。对 agent 工程来说，它解决的是长期运行后 active memory 越积越多的问题。默认检索不用每次扫所有旧会话细节，但归档摘要仍然能作为深层历史存在。
-
-## 端到端运行路径
-
-把上面的模块串成一次真实运行，大概会经历两条闭环：一条是写入闭环，一条是召回闭环。
-
-写入闭环从应用完成一轮交互开始。调用者把 `Interaction` 交给 `Soul.observe()`，这个对象里至少包含 user 和 agent 两个 participant 的内容。`Soul.observe()` 本身不直接操作每个 store，而是先让 skills XP 衰减，再把 interaction 转交给 `MemoryManager.observe()`。这一步返回的 result 不只是 memory id，还包括 `somatic`、`significance`、`facts`、`entities`、`contradictions` 等中间结果。也就是说，MemoryManager 是“认知加工中心”，Soul 层再用这些结果更新图谱、状态、bond、skills、evaluation 和 evolution。
-
-这个分层很重要。MemoryManager 只负责记忆内部机制：该不该存、存成什么、冲突如何处理、召回如何排。Soul 层负责“这个交互对 soul 的其他系统意味着什么”：关系是否增强、情绪状态是否变化、技能经验是否增长、是否触发演化。这样一来，记忆系统不是孤立模块，而是整个 soul 生命周期的输入源。
-
-保存闭环发生在 `Soul.save()` 或 `save_local()`。这时不是重新计算记忆，而是把当前 MemoryManager 的全量状态序列化。`Soul._build_storage_memory_data()` 会先拿到 `self._memory.to_dict()`，再把 trust chain 和 keys 叠进去；文件存储层只负责把这些 dict 写到稳定布局中。这种设计把“记忆如何组织”和“文件如何落盘”解耦了：新增 layer/domain 时，MemoryManager 的语义不必关心 JSON 文件具体怎么分目录；storage 层根据 memory_data 决定是 flat layout 还是 nested layout。
-
-```python
-# assets/projects/soul-protocol/src/soul_protocol/runtime/soul.py
-def _build_storage_memory_data(self, *, include_keys: bool) -> dict:
-    memory_data = self._memory.to_dict()
-    memory_data["trust_chain"] = self._trust_chain_manager.to_dict()
-    memory_data["keys"] = self._keystore.to_archive_files(include_private=include_keys)
-    return memory_data
-```
-
-召回闭环从调用者需要上下文开始。调用 `Soul.recall(query)` 时，Soul 先解析有效 bond strength：如果传了 `user_id`，就取这个用户对应的 bond；否则用默认 bond。这个值会进入 RecallEngine 的 visibility filter，决定 BONDED/PRIVATE 记忆能不能返回。也就是说，召回不只是相关性问题，还是关系权限问题。
-
-`MemoryManager.recall()` 随后决定走哪条检索路径。如果指定了 custom layer，而这个 layer 不属于 episodic/semantic/procedural，系统会走 `_search_in_layer()`；否则走 RecallEngine 的跨 store 检索。这个差异说明 layer 扩展并没有被硬塞进 RecallEngine，后者只认识内置 store。自定义层能用统一入口查询，但不自动获得所有内置 recall 增强能力，这是一种保守的扩展边界。
-
-最后，`Soul.recall()` 会生成 `RetrievalTrace`。这不是给 LLM 看的内容，而是给调用者/系统观察 recall 过程的 receipt。`smart_recall()` 也会覆盖普通 recall 产生的 trace，让最后暴露的 trace 反映真正返回给调用方的结果，而不是 rerank 前的候选池。这个设计对调试很有价值：长期记忆系统最难排查的问题往往不是“没有存”，而是“为什么这次没想起来”。
-
-如果把这两条闭环放在一起看，soul-protocol 的记忆系统并不只是数据结构集合，而是一套生命周期协议：observe 产生记忆和状态变化，save/export 固化当前 soul，recall 在权限和关系约束下取回上下文，trace 再把召回过程变成可观察对象。这个闭环比单独的 vector search demo 更接近真实 agent 产品需要面对的问题。
+把写入、存储、冲突和召回串起来，soul-protocol 的 memory lifecycle 是一条闭环，而不是一个单点功能。
 
 <StepFlow
-  steps="观察交互|分层写入|冲突归并|持久化|按需召回|留下 trace"
-  descriptions="Soul.observe 接收一轮 user-agent exchange|MemoryManager 写 episodic、semantic、graph 和 self-model|dedup、merge、contradiction detector 标记旧事实|to_dict 后写入 .soul 或本地 JSON 布局|RecallEngine 搜索候选并用 activation 排序|RetrievalTrace 记录最终返回集合"
+  title="从一句话到下一次想起"
+  steps="用户说出新信息|observe 抽取事实|dedup/contradiction 更新旧事实|save/export 固化状态|recall 显式请求上下文|activation 与可选 rerank 返回结果"
+  descriptions="例如用户说 I moved to Amsterdam。|MemoryManager 尝试写 episodic，并抽取 User lives in Amsterdam。|旧的 User lives in NYC 被 superseded_by 标记或 raw-text contradiction 标记。|MemoryManager.to_dict 输出 semantic、episodic、graph 等状态，storage 写入本地布局。|下一次 query 问用户所在地时，调用者显式调用 Soul.recall。|旧事实被 semantic search 过滤，新事实按 activation 排序进入返回结果。"
 />
+
+这个闭环的工程意义是：长期记忆的难点不只是“搜得准”，还包括写入时别把噪声永久化，更新时别让旧事实继续污染上下文，存储时别把运行态绑死在某个数据库，召回时还要考虑权限、关系、domain 和使用频率。
 
 ## 可复用设计
 
-- **写入不要和回复生成绑死**：把 observe 作为交互后的学习 hook，可以让主回复路径保持轻量，也方便对低价值交互做短路。
-- **不要把所有记忆混成一种**：情节、事实、关系、自我模型、core profile 的生命周期不同，查询方式也不同。分层能让召回更可控。
-- **冲突更新最好保留历史**：`superseded_by` 比直接覆盖更适合长期 agent，因为人类偏好、位置、项目、组织关系都会变，旧事实有时仍然是解释当前行为的历史证据。
-- **召回排序不能只有相似度**：soul-protocol 的 ACT-R 排序把“最近/常用/情绪/显著性/人格”一起纳入，这比纯向量相似度更接近 agent 长期陪伴场景。
-- **把昂贵能力做成 opt-in**：LLM rerank 默认关闭，向量策略可插拔，这个边界很成熟：质量增强可以存在，但不能默认压垮高频路径。
+- **把回复生成和学习后处理分开**：`observe()` 作为交互后的学习 hook，让主回复路径不必背负所有记忆成本。
+- **把记忆拆成不同生命周期**：episodic 保存发生过什么，semantic 保存抽出的事实，procedural 保存做法，social 保存关系状态，core 保存常驻身份。
+- **事实更新用软替换**：`superseded_by` 让旧事实退出默认召回，但仍然可导出、审计和解释历史。
+- **召回排序不要只看相似度**：ACT-R activation 把近期、频率、情绪、显著性、人格调制一起纳入，更符合长期 agent 的使用场景。
+- **昂贵增强做成 opt-in**：向量策略和 LLM rerank 都存在，但默认路径不依赖它们，降低了最小可运行成本。
 
-## 边界与未完成感
+## 边界
 
-这个系统的强项是层次和可解释性，但也带来复杂度。很多逻辑是启发式的，例如事实前缀冲突、Jaccard 去重、动词事实模式；它们对常见个人资料更新很有效，但面对复杂事实、时间范围和多实体约束时，仍需要更强的结构化抽取和 temporal reasoning。
-
-另一个边界是默认存储还不是生产级外部索引。内存 store 加本地 JSON 很适合 library、demo、可移植 soul 文件和测试，但如果要支撑大规模多用户、多租户、跨设备低延迟召回，仍需要把 SearchStrategy、StorageProtocol、domain/scope 这些接口接到更强的数据库和权限系统上。
-
-第三个边界是抽取质量。`FACT_PATTERNS` 和 heuristic contradiction detector 覆盖了很多常见个人资料句式，但它们仍然依赖模式和 token overlap。用户说“我现在主要 base 在上海，但下季度可能去新加坡”，这类带时间、概率和计划状态的信息，单纯抽成 “User lives in ...” 容易丢语义。真正生产化时，事实 schema 需要区分当前事实、历史事实、偏好、计划、假设和临时上下文。
-
-第四个边界是可解释性和性能的平衡。ACT-R activation、图谱增强、visibility、scope、domain、smart rerank 都有意义，但链条越长，调试一次召回失败需要看的地方越多。项目已经用 RetrievalTrace 往可观测性方向走了一步；如果继续演进，比较自然的方向是把每条候选的过滤原因、分数组成、图谱扩展来源和 rerank 决策也记录下来。
+这套实现的边界也很清楚。第一，事实冲突主要靠模板前缀、启发式 contradiction 和 raw-text fallback；复杂时间事实、多实体事实、计划/假设/历史状态仍然可能被抽得过粗。第二，默认本地文件持久化适合 portable soul 和本地库，但大规模多租户产品还需要外部数据库、索引和权限系统。第三，召回链路越丰富，调试一次“为什么没想起来”越需要可观测性；源码已经有 retrieval trace，但每条候选的过滤原因、分数组成和 rerank 决策还可以更细。
 
 <CalloutBlock
-  title="复用时的判断"
-  body="先复用生命周期拆分和默认/可选边界，再考虑替换向量检索、外部存储或 LLM rerank；否则容易一开始就把系统做重。"
+  title="迁移到自己的 Agent 时"
+  body="先复用 lifecycle：observe 后写入、分层存储、supersede 更新、显式 recall、候选检索和 activation 排序。等默认闭环稳定后，再替换向量检索、外部存储或 LLM rerank。"
 />
 
-因此，soul-protocol 最值得学的不是“某个具体检索算法”，而是它把记忆拆成了一条可解释的生命周期：**交互后观察，显著性门控，事实抽取，分层保存，冲突 supersede，召回时再按权限、图谱、activation 和可选 rerank 逐层筛选。**
+因此，这篇源码最值得带走的不是某个具体算法，而是一条设计原则：**记忆系统要先定义生命周期，再选择检索技术。** 向量搜索可以增强召回，但不能替代写入门控、冲突更新、持久化边界和可解释排序。

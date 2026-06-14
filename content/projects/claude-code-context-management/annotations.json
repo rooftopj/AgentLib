@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "contentType": "project",
+  "slug": "claude-code-context-management",
+  "items": [
+    {
+      "id": "claude-code-context-attachment-cache-001",
+      "sectionTitle": "动态注入不是拼大 prompt",
+      "quote": "`attachments.ts` 里可以看到一组动态 attachment：queued commands、date change、deferred tools delta、agent listing delta、MCP instructions delta、changed files、nested memory、dynamic skill、plan mode、task reminder 等。",
+      "occurrence": 1,
+      "title": "为什么用动态 attachment 承载这些变化？",
+      "body": "动态 attachment 的核心作用是把“会变的信息”从稳定 prompt 前缀里拆出去。\n\nClaude Code 希望 system/user context 和工具 schema 尽量稳定，因为这些内容位于缓存前缀里；如果 agent 列表、MCP instructions、日期、文件变更、plan 状态都直接改写前缀或工具描述，长会话很容易触发大段 cache creation。\n\nattachment 的做法是：稳定规则留在固定 context；运行态变化追加到消息尾部。模型仍然能看到最新状态，但缓存前缀不需要因为一个 MCP server 断开、一个文件被 formatter 改动、午夜日期变化或 plan mode reminder 而整段失效。\n\n因此这些 attachment 可以理解成“状态增量日志”：它们不是用户正文，也不是永久 system prompt，而是把当前 turn 必须知道的运行态事实，用可追踪、可压缩、可在 compact 后重建的形式送进上下文。"
+    },
+    {
+      "id": "claude-code-context-attachment-types-001",
+      "sectionTitle": "动态注入不是拼大 prompt",
+      "quote": "`attachments.ts` 里可以看到一组动态 attachment：queued commands、date change、deferred tools delta、agent listing delta、MCP instructions delta、changed files、nested memory、dynamic skill、plan mode、task reminder 等。",
+      "occurrence": 1,
+      "title": "这组动态 attachment 分别负责什么？",
+      "body": "这组 attachment 都是在会话运行过程中“补给模型”的上下文片段，但来源不同。\n\n1. `queued commands`：用户或系统在模型还没结束当前工具循环时排队进来的输入，例如中途追加的 prompt、任务通知，甚至带图片的粘贴内容。它会被包装成后续模型可见的 user/meta 消息。\n2. `date change`：跨过本地日期后追加新的日期提醒。它不修改最前面的 cached user context，而是在尾部告诉模型今天日期已经变了，用来保护 prompt cache。\n3. `deferred tools delta`：ToolSearch 模式下，告诉模型哪些延迟加载工具现在可通过 ToolSearch 找到，哪些工具因为 MCP 断开已经不可用。\n4. `agent listing delta`：告诉模型 Agent 工具当前可启动哪些 agent 类型，以及哪些类型被移除。它把 agent 列表从工具描述里挪出来，避免工具 schema 经常变化。\n5. `MCP instructions delta`：MCP server 连接、断开或指令变化时，只注入新增/移除的 server instructions，而不是每轮塞全量 MCP 说明。\n6. `changed files`：对已经读进上下文的文件做 mtime 检查。如果文件后来被用户、编辑器或 formatter 改了，就注入相关 diff，提醒模型继续工作时不要无视这些改动。\n7. `nested memory`：当用户提到某个文件或打开某个路径时，沿目录层级查找适用的 `CLAUDE.md` / 条件规则，把更局部的项目记忆注入上下文。\n8. `dynamic skill`：文件操作触发发现新的 skill 目录时，记录有哪些技能目录/技能名被发现。源码渲染层把它标为 UI 信息，技能本身通过 Skill tool 的运行时 registry 可用。\n9. `plan mode`：当前处于 plan 权限模式时，定期提醒模型只能规划、不能直接执行，并告诉它 plan 文件路径、是否已有 plan，以及是 full 还是 sparse reminder。\n10. `task reminder`：如果任务工具长时间没被使用，且 TaskUpdate 可用，就温和提醒模型可以用任务工具跟踪进度，并附上现有任务列表。"
+    },
+    {
+      "id": "claude-code-context-large-tool-output-001",
+      "sectionTitle": "第一层压缩：工具结果预算",
+      "quote": "长上下文最容易爆的不是用户文本，而是工具结果。`toolResultStorage.ts` 先对大工具输出做 persistence：把完整内容写入 `tool-results` 目录，只把文件路径和预览留给模型。",
+      "occurrence": 1,
+      "title": "什么算大工具输出？",
+      "body": "“大工具输出”不是一个凭感觉判断的概念，源码里有两层阈值。\n\n第一层是**单个工具结果阈值**。每个 tool 都声明 `maxResultSizeChars`，但最终阈值会被系统默认上限 `DEFAULT_MAX_RESULT_SIZE_CHARS = 50_000` clamp：\n\n```ts\neffective = Math.min(tool.maxResultSizeChars, 50_000)\n```\n\n所以普通工具即使声明 `100_000`，默认也会按 50,000 字符触发 persistence。例外是声明 `Infinity` 的工具，例如 `FileReadTool`：它由自己的 `maxTokens` 控制读取大小，不走这层持久化，因为“把 Read 的输出写成文件再让模型 Read 回来”会变成循环。\n\n第二层是**同一 API user message 的聚合预算**。即使每个工具结果单独都不超过 50,000 字符，多个并行工具结果合在同一轮里也可能过大。源码用 `MAX_TOOL_RESULTS_PER_MESSAGE_CHARS = 200_000` 作为默认聚合上限；如果同一 message 里的 tool_result 总量超过它，就优先把最大的 fresh tool result 写入 `tool-results`，直到可见内容回到预算内。\n\n还有两个边界：图片 content block 不会被持久化，因为必须原样发给模型；空输出会被替换成一小句完成提示，避免模型看到空 tool_result。"
+    },
+    {
+      "id": "claude-code-context-aggregate-budget-state-001",
+      "sectionTitle": "第一层压缩：工具结果预算",
+      "quote": "第二层是 aggregate tool result budget。它不是简单截断，而是记录每个 tool_use_id 的替换决策，resume 后也能复原同样的 replacement，避免 prompt cache 因模板变化或路径变化被破坏。",
+      "occurrence": 1,
+      "title": "为什么替换决策要冻结？",
+      "body": "aggregate tool result budget 解决的是“同一轮多个工具结果合起来太大”的问题，但真正精细的地方在于：**每个 tool result 第一次被预算器看见时，它的命运就被冻结**。\n\n可以用一个并行工具调用例子理解：\n\n```text\n同一轮返回三个结果：\nA = 120k 字符\nB = 90k 字符\nC = 20k 字符\n聚合预算 = 200k 字符\n```\n\n三者合计 230k，超过预算。预算器会选最大的 fresh 结果替换，例如把 A 写入 `tool-results`，模型只看到 A 的 `<persisted-output>` 预览；B 和 C 保留完整内容。\n\n关键是下一轮不能重新随机决定“这次改成替换 B，A 保留完整”。因为上一轮模型已经见过的是：\n\n```text\nA = persisted preview\nB = full content\nC = full content\n```\n\n如果下一轮历史前缀变成：\n\n```text\nA = full content\nB = persisted preview\nC = full content\n```\n\n即使语义差不多，字节也完全变了，prompt cache prefix 就命不中；更糟的是模型看到的历史也不一致。\n\n所以源码用两张状态表：\n\n1. `seenIds`：某个 `tool_use_id` 已经被预算器看过。看过但没替换的结果以后也不能再替换，否则会改变已缓存历史。\n2. `replacements`：某个 `tool_use_id` 已被替换，保存“模型当时看到的那段 replacement 字符串”。以后每轮直接按这个字符串重放，连模板、路径格式、preview 文本变化都不会影响历史前缀。\n\nresume 时也是同理：系统从 transcript 里的 content-replacement records 重建 `replacements`，用旧的 exact replacement，而不是按新代码重新生成一段预览。这里追求的不是“重新算出等价摘要”，而是“复原模型已经看过的同一串字节”。"
+    },
+    {
+      "id": "claude-code-context-snip-001",
+      "sectionTitle": "第二层压缩：microcompact",
+      "quote": "`query.ts` 在 autocompact 前调用 microcompact。源码注释强调顺序：tool result budget 先跑，snip 再跑，microcompact 再跑，最后才是 autocompact。",
+      "occurrence": 1,
+      "title": "snip 是什么？",
+      "body": "`snip` 是 `HISTORY_SNIP` feature 下的一种**局部历史移除**机制。它不是把整段旧对话总结成一段摘要，也不是简单从最前面截断，而是从活跃上下文里移除某些中间消息范围，让模型后续请求少带这部分历史。\n\n可以把几种机制区分开：\n\n```text\ncompact：把旧前缀压成摘要，留下 compact boundary\nsnip：从中间剪掉一段消息，留下 snip boundary\nmicrocompact：更偏工具结果清理或 cache edit\n```\n\n它选择哪些历史，至少有两层可以从本地源码确认。\n\n第一，API-bound user message 会被追加短消息 id：\n\n```text\n[id:abc123]\n```\n\n源码注释写得很直接：这些 id 是给 snip tool 引用消息用的。因此 snip 不是只能按“第几轮”粗暴裁剪，而是可以按 message id 指定要移除的范围或边界。被移除的消息 UUID 会记录进 snip boundary 的 `removedUuids`，resume 时再按这些 UUID 重放过滤。\n\n第二，系统会在长时间没有 snip、上下文继续增长时注入 `context_efficiency` nudge。注释里说这个提醒按 token 增长节奏触发，间隔会被 prior nudge、snip markers、snip boundaries 和 compact boundaries 重置。也就是说，自动/半自动选择通常发生在“上下文继续膨胀、但还没到全局 compact”的窗口。\n\n这份本地源码没有包含 `snipCompact.ts` / `SnipTool` 的完整实现，所以不能确认内部是否还有更细的打分规则，例如按工具结果密度、消息年龄、任务阶段或模型判断来挑范围。基于可见调用点，更稳妥的理解是：**SnipTool 暴露可引用的消息 id，模型或 slash command 选择可剪范围，snipCompact 再执行并生成 boundary；后续 model-facing view 通过 `projectSnippedView()` 过滤这些消息。**\n\n为什么它排在 `microcompact` 前面？因为 `snip` 先移除一批消息后，会产生 `snipTokensFreed`。后面的 autocompact 阈值判断需要扣掉这部分已释放 token，否则系统可能误以为上下文仍然超阈值，提前进入更重的全局 compact。\n\n`snip` 最难的工程点在 resume。JSONL transcript 是 append-only，被剪掉的消息仍在磁盘上；如果 resume 时不重放删除，系统会重建出完整未 snip 历史。源码通过 snip boundary 里的 `removedUuids` 记录被移除消息，并在加载时删除这些 UUID、重连 surviving messages 的 `parentUuid`，确保恢复后的上下文仍是 snipped view。"
+    },
+    {
+      "id": "claude-code-context-time-based-microcompact-001",
+      "sectionTitle": "第二层压缩：microcompact",
+      "quote": "`microCompact.ts` 里有两条路径。time-based microcompact 在缓存已经冷掉时直接清理旧工具结果；cached microcompact 则使用 cache editing，尽量不改本地 message 内容。",
+      "occurrence": 1,
+      "title": "什么叫缓存已经冷掉？",
+      "body": "“缓存已经冷掉”指的是服务端 prompt cache 很可能已经过期，不是说这些工具结果在语义上一定没用了。\n\nClaude Code 会看“距离上一条主循环 assistant message 已经过了多久”。time-based microcompact 的默认配置里，`gapThresholdMinutes = 60`，也就是如果用户停了一小时以上再继续，源码认为服务端 1 小时 prompt cache TTL 已经过期：下一次请求无论如何都要重新写入完整前缀。\n\n既然这次请求本来就命不中旧缓存，就没有必要为了保护旧缓存而保持本地 message 字节完全不变。于是 time-based microcompact 会在发请求前直接改本地消息：\n\n```text\n旧 tool_result 内容 -> [Old tool result content cleared]\n```\n\n这条路径确实不是 persistence：旧工具输出正文不会像大工具输出那样写到 `tool-results` 里，再留路径给模型回读。它是有损清理。因此效果上当然可能有影响，尤其是后续任务还依赖某个很早的 grep、read、bash 或 web fetch 结果时。\n\n源码靠几层约束降低风险：\n\n1. 只清 `COMPACTABLE_TOOLS`，包括 Read、shell、Grep、Glob、WebSearch、WebFetch、Edit、Write 这类通常可以重新执行或从文件状态恢复线索的工具。\n2. 默认保留最近 `keepRecent = 5` 个 compactable tool result，不清最近工作集。\n3. 系统提示会提醒模型：处理工具结果时，把之后可能需要的重要信息写进自己的回复，因为原始 tool result 可能稍后被清理。\n4. 它只在缓存已经冷掉时触发，目标是减少“反正要重新发送”的旧上下文体积，而不是在热缓存期间随意改历史。\n\n所以它不是无损优化，而是工程取舍：用丢弃较旧、可再获取的工具输出，换取下一次长 prompt 重写时更小的上下文。真正需要长期保留的信息，期待模型在早先回复、计划、文件修改或摘要里显式沉淀；否则被清后就只能重新查工具或从文件系统恢复。"
+    },
+    {
+      "id": "claude-code-context-cached-microcompact-001",
+      "sectionTitle": "第二层压缩：microcompact",
+      "quote": "cached microcompact 的关键点是“不改本地消息，只生成 cache_edits”。这解释了为什么它能降低 token 压力，又尽量保持缓存前缀稳定。",
+      "occurrence": 1,
+      "title": "cached microcompact 是什么？",
+      "body": "cached microcompact 是一种**借助服务端 cache editing 删除旧工具结果**的 microcompact 路径。它和 time-based microcompact 最大的区别是：本地 message / transcript 不被改写，旧 tool result 正文还留在本地历史里。\n\n它的流程可以简化成四步：\n\n```text\n1. 扫描可 compact 的 tool_result\n2. 按配置决定哪些旧 tool_use_id 要删除\n3. 在 API 层给缓存前缀里的 tool_result 加 cache_reference = tool_use_id\n4. 在某个 user message 里插入 cache_edits: delete(cache_reference)\n```\n\n也就是说，模型请求的 API payload 里会出现类似“这些 cache_reference 对应的缓存内容可以删除”的指令；但本地 `messages` 数组并不会变成 `[Old tool result content cleared]`，也不会把工具结果落盘替换成 preview。\n\n为什么这样能保住 prompt cache？因为旧消息内容本身不改，本地历史和已缓存前缀仍然字节稳定；删除发生在服务端缓存层，通过 `cache_edits` 告诉 API：“前缀里的这些 tool_result 块以后不用继续占缓存/注意力预算了”。源码还会把已经插入过的 cache_edits pin 在原来的 user message 位置，后续请求继续在同一位置重发，避免每轮插入位置变化造成缓存前缀漂移。\n\n它适合“缓存还热”的情况。如果 cache 已经过期，源码会优先走 time-based microcompact，直接清本地旧工具结果，因为那时已经没有热缓存前缀值得保护。"
+    },
+    {
+      "id": "claude-code-context-session-memory-compact-001",
+      "sectionTitle": "Session memory compact 是优先尝试",
+      "quote": "autocompact 真正进入重压缩前，会先尝试 session memory compact。它不是再 fork 一个 summarizer，而是读取已经抽取好的 session memory 文件，生成 compact summary，再保留最近未总结的消息尾部。",
+      "occurrence": 1,
+      "title": "session memory compact 是什么？",
+      "body": "session memory compact 可以理解成：**先在平时把会话笔记写好，真正 autocompact 时直接用这份笔记替换旧历史**。\n\n它分成两个阶段：\n\n```text\n平时：后台 session_memory agent 定期更新 session memory 文件\n压缩时：读取这个文件 -> 生成 compact summary -> 保留最近未总结尾部\n```\n\n第一阶段发生在普通对话过程中。上下文达到阈值后，Claude Code 会在主 REPL 线程之外启动一个 `session_memory` forked agent，维护 session memory 文件。成功更新后，系统记录 `lastSummarizedMessageId`，表示“这个消息以前的内容已经进了 session memory”。\n\n第二阶段发生在 autocompact 前。系统先读现成的 session memory 文件，而不是马上让 compact summarizer 重新读完整历史。然后它把 session memory 包装成 compact summary，再从 `lastSummarizedMessageId` 之后保留原始消息尾部。\n\n这个尾部不是随便截：`calculateMessagesToKeepIndex()` 会往前扩一点，满足最小 token / 文本消息数，并避免切断 `tool_use` / `tool_result` 配对。\n\n这样做的收益是：重压缩时不用临时总结全部历史，成本更低，也更快；最近还没被 session memory 覆盖的消息仍保留原文，避免刚发生的操作被摘要吞掉。\n\n它也有回退条件：没有 session memory 文件、文件还是空模板、`lastSummarizedMessageId` 找不到，或者压缩后 token 仍超过 autocompact 阈值，都会返回 `null`，让系统回退到 legacy compact。"
+    },
+    {
+      "id": "claude-code-context-post-compact-attachments-001",
+      "sectionTitle": "legacy compact 会补回必要上下文",
+      "quote": "这就是它精心的地方：compact 会删除大量历史，但不会假装 summary 能替代所有运行态上下文。被压掉的文件阅读、plan mode、skill 指令和工具变化，需要用 post-compact attachment 重建。",
+      "occurrence": 1,
+      "title": "为什么 compact 后还要补 attachment？",
+      "body": "post-compact attachment 解决的是一个很容易混淆的问题：**summary 适合概括对话事实，但不适合冒充当前运行态**。\n\ncompact 之后，旧历史里的很多消息会消失。summary 可以写“我们读过 `foo.ts`，发现入口在 `bar()`”，但它不能可靠替代这些运行态信息：\n\n```text\n最近完整读过哪些文件？\n当前还在 plan mode 吗？\n计划文件内容是什么？\n刚调用过哪些 skill，它们的规则是什么？\n哪些 deferred tools 已经加载？\n哪些 MCP instructions / agent listing 当前有效？\n```\n\n这些信息有两个特点：第一，它们会随运行环境变化；第二，模型后续决策常常要依赖它们的精确版本。如果只靠 summary 复述，很容易变成“摘要里说好像有这个状态”，但实际工具集、plan 状态、skill 指令或文件内容已经不精确了。\n\n所以 compact 后会构造一组新的 attachment。源码里的 `buildPostCompactMessages()` 把新上下文拼成：\n\n```text\ncompact boundary\ncompact summary\n保留的尾部消息\npost-compact attachments\nhook results\n```\n\n这些 post-compact attachments 会补回最近读过的文件、plan 文件、plan mode reminder、已调用 skill 内容、异步 agent 状态，以及 deferred tools、agent listing、MCP instructions 的当前 delta。\n\n因此，summary 负责“旧对话大意”，post-compact attachment 负责“继续执行任务所需的当前环境”。这也是它精心的地方：压缩删除历史，但不把运行态上下文全交给摘要去猜。"
+    }
+  ]
+}
