@@ -22,6 +22,8 @@ import paper10Meta from "@/content/papers/rolememo-persona-driven-dual-memory-ro
 import paper10Reading from "@/content/papers/rolememo-persona-driven-dual-memory-role-playing-agents/reading.json";
 import paper11Meta from "@/content/papers/skillrouter-skill-routing-llm-agents-scale/paper.json";
 import paper11Reading from "@/content/papers/skillrouter-skill-routing-llm-agents-scale/reading.json";
+import paper12Meta from "@/content/papers/videoseek-long-horizon-video-agent-tool-guided-seeking/paper.json";
+import paper12Reading from "@/content/papers/videoseek-long-horizon-video-agent-tool-guided-seeking/reading.json";
 
 export const generatedPaperModules = [
   { meta: paper0Meta, reading: paper0Reading, explainerCoverImagePath: "/generated/aflow-automating-agentic-workflow-generation/FORMULATION.png" },
@@ -35,5 +37,6 @@ export const generatedPaperModules = [
   { meta: paper8Meta, reading: paper8Reading, explainerCoverImagePath: "/generated/magma-foundation-model-multimodal-ai-agents/magma_teaser.png" },
   { meta: paper9Meta, reading: paper9Reading, explainerCoverImagePath: "/generated/magma-multi-graph-agentic-memory-architecture/f1-1.png" },
   { meta: paper10Meta, reading: paper10Reading, explainerCoverImagePath: "/generated/rolememo-persona-driven-dual-memory-role-playing-agents/intro_fig_new.png" },
-  { meta: paper11Meta, reading: paper11Reading, explainerCoverImagePath: "/generated/skillrouter-skill-routing-llm-agents-scale/fig1_pipeline.png" }
+  { meta: paper11Meta, reading: paper11Reading, explainerCoverImagePath: "/generated/skillrouter-skill-routing-llm-agents-scale/fig1_pipeline.png" },
+  { meta: paper12Meta, reading: paper12Reading, explainerCoverImagePath: "/generated/videoseek-long-horizon-video-agent-tool-guided-seeking/overview.png" }
 ];

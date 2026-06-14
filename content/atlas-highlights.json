@@ -416,6 +416,41 @@
       ]
     },
     {
+      "type": "paper",
+      "slug": "videoseek-long-horizon-video-agent-tool-guided-seeking",
+      "topicNodeIds": [
+        "tool-routing",
+        "environment-state",
+        "execution-feedback"
+      ],
+      "highlights": [
+        {
+          "title": "主动寻证",
+          "body": "把长视频问答改成 think-act-observe 轨迹，按问题主动寻找答案关键证据。"
+        },
+        {
+          "title": "三粒度工具",
+          "body": "overview 建全局故事线，skim 缩小候选段，focus 对短片段做高帧率确认。"
+        },
+        {
+          "title": "轨迹状态",
+          "body": "每轮 thought、action、observation 都追加进上下文，下一步工具选择由累计证据驱动。"
+        },
+        {
+          "title": "帧数前沿",
+          "body": "LVBench 加字幕达到 76.7%，平均只用 27.2 帧，比 GPT-5 少约 93% 帧数。"
+        },
+        {
+          "title": "工具消融",
+          "body": "去掉 overview 掉 13.3 个点，说明全局逻辑流地图是后续寻证的关键入口。"
+        },
+        {
+          "title": "推理依赖",
+          "body": "换成 GPT-4.1 或 o4-mini 后准确率显著下降，工具收益依赖强证据判断能力。"
+        }
+      ]
+    },
+    {
       "type": "project",
       "slug": "claude-code-permission-sandbox",
       "topicNodeIds": [

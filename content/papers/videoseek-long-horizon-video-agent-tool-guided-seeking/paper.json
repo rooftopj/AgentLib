@@ -1,0 +1,50 @@
+{
+  "slug": "videoseek-long-horizon-video-agent-tool-guided-seeking",
+  "title": "VideoSeek: Long-Horizon Video Agent with Tool-Guided Seeking",
+  "authors": [
+    "Jingyang Lin",
+    "Jialian Wu",
+    "Jiang Liu",
+    "Ximeng Sun",
+    "Ze Wang",
+    "Xiaodong Yu",
+    "Jiebo Luo",
+    "Zicheng Liu",
+    "Emad Barsoum"
+  ],
+  "institutions": [
+    "AMD",
+    "University of Rochester"
+  ],
+  "authorAffiliations": [
+    { "name": "Jingyang Lin", "institutionIds": [1, 2] },
+    { "name": "Jialian Wu", "institutionIds": [1] },
+    { "name": "Jiang Liu", "institutionIds": [1] },
+    { "name": "Ximeng Sun", "institutionIds": [1] },
+    { "name": "Ze Wang", "institutionIds": [1] },
+    { "name": "Xiaodong Yu", "institutionIds": [1] },
+    { "name": "Jiebo Luo", "institutionIds": [2] },
+    { "name": "Zicheng Liu", "institutionIds": [1] },
+    { "name": "Emad Barsoum", "institutionIds": [1] }
+  ],
+  "institutionDetails": [
+    { "id": 1, "name": "AMD", "translation": "AMD" },
+    { "id": 2, "name": "University of Rochester", "translation": "罗切斯特大学" }
+  ],
+  "year": 2026,
+  "venue": "arXiv",
+  "category": "tools",
+  "categoryLabel": "工具使用",
+  "tags": [
+    "视频智能体",
+    "工具调用",
+    "长视频理解",
+    "ReAct",
+    "证据搜索"
+  ],
+  "summary": "VideoSeek 将视频问答视为一个长程 think-act-observe 过程：模型不再密集解析整段视频，而是借助 overview、skim、focus 三类工具沿着视频逻辑流主动寻找与答案相关的证据。论文在 LVBench、Video-MME、LongVideoBench 和 Video-Holmes 上显示，该方法能在显著减少帧数的同时提升或保持准确率。",
+  "arxivId": "2603.20185",
+  "arxivUrl": "https://arxiv.org/abs/2603.20185",
+  "codeUrl": "https://github.com/jylins/videoseek",
+  "sourcePath": "assets/papers/arXiv-2603.20185v1"
+}

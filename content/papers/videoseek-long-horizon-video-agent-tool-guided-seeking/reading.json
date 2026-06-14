@@ -1,0 +1,32 @@
+[
+  {
+    "section": "Title",
+    "page": 1,
+    "sourceText": "VideoSeek: Long-Horizon Video Agent with Tool-Guided Seeking",
+    "translation": "VideoSeek：一种由工具引导主动寻证的长程视频智能体。"
+  },
+  {
+    "section": "Abstract",
+    "page": 1,
+    "sourceText": "VideoSeek is a long-horizon video agent that leverages video logic flow to actively seek answer-critical evidence instead of exhaustively parsing the full video.",
+    "translation": "VideoSeek 是一个长程视频智能体，它利用视频中的逻辑流主动寻找对答案关键的证据，而不是穷尽式解析完整视频。"
+  },
+  {
+    "section": "Methodology",
+    "page": 3,
+    "sourceText": "At each reasoning step t, the video agent produces a think-act-observe triplet <z_t, a_t, o_t>, where z_t denotes the internal reasoning trace, a_t indicates the selected action, and o_t refers to the resulting observation.",
+    "translation": "在每个推理步骤中，视频智能体都会产生一个“思考、行动、观察”三元组：内部推理轨迹决定当前还缺什么证据，行动表示要调用哪个工具，观察则是工具从视频中返回的新信息。"
+  },
+  {
+    "section": "Toolkit Design",
+    "page": 3,
+    "sourceText": "The toolkit consists of overview, skim, and focus tools, operating at different temporal granularities to trade off between global coverage and fine-grained details.",
+    "translation": "工具箱由 overview、skim 和 focus 三类工具组成，它们分别服务于全局扫视、候选片段粗查和短片段精查，让智能体能在全局覆盖与细节确认之间动态取舍。"
+  },
+  {
+    "section": "Experiments",
+    "page": 5,
+    "sourceText": "VideoSeek improves over GPT-5 on LVBench, Video-MME, LongVideoBench, and Video-Holmes while processing far fewer frames.",
+    "translation": "实验显示，这个方法在四个长视频理解与复杂视频推理基准上，都能用远少于基线模型的画面帧数，取得更高或更有竞争力的准确率。"
+  }
+]
