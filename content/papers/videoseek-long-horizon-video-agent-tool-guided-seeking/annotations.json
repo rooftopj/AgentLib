@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "contentType": "paper",
+  "slug": "videoseek-long-horizon-video-agent-tool-guided-seeking",
+  "items": [
+    {
+      "id": "videoseek-long-video-benchmarks-001",
+      "sectionTitle": "实验结果怎么读",
+      "quote": "长视频理解部分覆盖三个 benchmark：LVBench、Video-MME long subset 和 LongVideoBench long subset。",
+      "occurrence": 1,
+      "title": "三个长视频基准怎么分工？",
+      "body": "这三个基准都考长视频，但压力点不同：\n\n- **LVBench** 偏小时级视频和长期记忆，重点看模型能否在很长时间轴里保留人物、事件和场景线索。\n- **Video-MME long subset** 更综合，视频类型和问题类型更杂，适合检查长视频多模态理解的稳健性。\n- **LongVideoBench long subset** 更强调局部定位和细节推理，常要求从长视频中找相关片段，再结合视觉或字幕线索回答。\n\n所以读 VideoSeek 的结果时，不只看“都赢了没有”，还要看它是否同时覆盖长期记忆、综合理解和局部寻证三类能力。"
+    },
+    {
+      "id": "videoseek-subtitle-visual-evidence-001",
+      "sectionTitle": "实验结果怎么读",
+      "quote": "LVBench 有字幕时，VideoSeek 的优势更明显：76.7% 准确率，平均 27.2 帧。字幕让视频逻辑流以文本形式暴露出来，agent 可以更容易判断该跳到哪里，因此帧数反而下降。",
+      "occurrence": 1,
+      "title": "字幕能替代视觉吗？",
+      "body": "字幕在 VideoSeek 里更像 **时间线索地图**，不是视觉证据的替代品。\n\n论文附录说明：初始用户 query 会包含视频时长、问题和可用字幕；工具调用 prompt 也会包含片段起止时间、采样时间戳和该片段字幕。这样 agent 可以先用字幕判断“该跳到哪里”，再调用 `overview / skim / focus` 看对应画面。\n\n仍然需要多模态，是因为很多问题问的是画面事实：人物是谁、动作是否发生、物体位置、数量、标牌文字、无对白镜头或视觉暗示。字幕帮助缩小搜索范围，视觉工具负责确认那里到底看到了什么。\n\n论文没有报告“只用字幕、不看视频”的基线，所以不能推出多模态不需要；它证明的是 **字幕 + 主动视觉寻证** 可以显著减少需要看的帧。"
+    }
+  ]
+}
