@@ -2,11 +2,11 @@
 
 ## 先给结论
 
-Claude Code 的安全机制不是一个“执行前问一下用户”的 if。它分成两层：Permission 决定一次 tool call 是否可以继续，Sandbox 决定 Bash 这类 shell 命令是否要包进受限执行环境。
+Claude Code 的安全链路不是“执行工具前问用户一下”。它分成两层：**Permission** 是产品层决策协议，负责把一次 tool call 判成 `allow`、`ask` 或 `deny`；**Sandbox** 是执行层隔离，只在合适的 Bash 命令路径上把进程包进受限 runtime。两者互相配合，但不能互相替代。
 
 <CalloutBlock
   title="一句话抓住机制"
-  body="Permission 是产品层决策协议：allow、ask、deny；Sandbox 是执行层防线：把命令放进带文件和网络限制的 runtime。两者相关，但不能互相替代。"
+  body="一次 tool use 先进入统一执行器，PreToolUse hook 和 canUseTool 共同形成 PermissionDecision；只有 allow 才进入 tool.call。Bash 在执行时还会按 shouldUseSandbox 决定是否套 sandbox runtime。"
 />
 
 <FigureBlock
@@ -16,38 +16,33 @@ Claude Code 的安全机制不是一个“执行前问一下用户”的 if。�
 
 <SplitBlock
   leftTitle="默认路径"
-  left="每个 tool use 进入 runToolUse 后，先运行 PreToolUse hooks，再调用 canUseTool，也就是 hasPermissionsToUseTool。结果是 allow 才执行，ask/deny 都会返回 tool_result 错误给模型。"
+  left="每个 tool use 都走统一 permission pipeline：schema 校验、PreToolUse hook、工具自检、规则/模式合并，最终得到 allow/ask/deny。"
   rightTitle="可选路径"
-  right="bypassPermissions、acceptEdits、auto classifier、PermissionRequest hook、SDK permission prompt、sandbox.autoAllowBashIfSandboxed 都是可选路径；它们改变决策来源，不取消 deny 和 safety check 的优先级。"
+  right="bypassPermissions、acceptEdits、auto classifier、PermissionRequest hook、SDK prompt、sandbox.autoAllowBashIfSandboxed 都会改变决策来源，但不等于取消 deny 和 safety check。"
 />
 
-## 先看证据地图
+## 源码证据地图
 
-这条源码线要横跨工具执行、权限规则、文件路径安全、Bash 语义分析和 sandbox 适配层。不要把它读成“BashTool 的安全逻辑”，因为文件工具、WebFetch、MCP 也共享同一套 decision result。
+这条线横跨工具执行、权限规则、Bash 命令语义、文件路径安全、sandbox adapter 和权限回写。MCP、WebFetch、文件工具会共享统一 permission protocol，但它们不会自动继承 Bash sandbox。
 
 ```text
 # 1 assets/projects/claude-code/src/Tool.ts
-# 2 assets/projects/claude-code/src/types/permissions.ts
-# 3 assets/projects/claude-code/src/utils/permissions/PermissionMode.ts
-# 4 assets/projects/claude-code/src/services/tools/toolExecution.ts
-# 5 assets/projects/claude-code/src/utils/permissions/permissions.ts
-# 6 assets/projects/claude-code/src/tools/BashTool/bashPermissions.ts
-# 7 assets/projects/claude-code/src/tools/BashTool/shouldUseSandbox.ts
-# 8 assets/projects/claude-code/src/utils/sandbox/sandbox-adapter.ts
-# 9 assets/projects/claude-code/src/utils/permissions/filesystem.ts
-# 10 assets/projects/claude-code/src/tools/FileWriteTool/FileWriteTool.ts
-# 11 assets/projects/claude-code/src/tools/MCPTool/MCPTool.ts
+# 2 assets/projects/claude-code/src/services/tools/toolExecution.ts
+# 3 assets/projects/claude-code/src/utils/permissions/permissions.ts
+# 4 assets/projects/claude-code/src/utils/permissions/PermissionMode.ts
+# 5 assets/projects/claude-code/src/utils/permissions/PermissionUpdate.ts
+# 6 assets/projects/claude-code/src/tools/BashTool/BashTool.tsx
+# 7 assets/projects/claude-code/src/tools/BashTool/bashPermissions.ts
+# 8 assets/projects/claude-code/src/tools/BashTool/shouldUseSandbox.ts
+# 9 assets/projects/claude-code/src/utils/sandbox/sandbox-adapter.ts
+# 10 assets/projects/claude-code/src/utils/permissions/filesystem.ts
+# 11 assets/projects/claude-code/src/tools/FileWriteTool/FileWriteTool.ts
+# 12 assets/projects/claude-code/src/tools/MCPTool/MCPTool.ts
 ```
 
-<CalloutBlock
-  title="负面事实"
-  body="bypassPermissions 不是 sandbox；sandbox 也不是完整 VM。源码里二者是不同层面的控制：前者改变权限提示策略，后者只包装支持的命令执行路径。"
-  tone="warning"
-/>
+## Tool Use 先进入统一执行器
 
-## 工具调用先进入统一执行器
-
-`services/tools/toolExecution.ts` 是读这条线的入口。模型吐出 tool use 后，`runToolUse()` 先找到工具定义、校验输入，然后进入 `streamedCheckPermissionsAndCallTool()`。
+读者最容易误解的是把权限逻辑看成某个工具的私有判断。实际入口在 `toolExecution.ts`：模型产出 tool use 后，统一执行器先找到 tool、解析 input，再进入 `streamedCheckPermissionsAndCallTool()`。
 
 ```ts
 // assets/projects/claude-code/src/services/tools/toolExecution.ts
@@ -67,7 +62,7 @@ for await (const update of streamedCheckPermissionsAndCallTool(
 }
 ```
 
-真正执行前还有 PreToolUse hook。hook 可以补充消息、改 input、阻止继续，或者直接给出 permission result。之后才进入 `resolveHookPermissionDecision()`，把 hook 结果和 `canUseTool` 合并成一次最终权限决策。
+真正执行前还有 PreToolUse hook。hook 可以改 input、阻止继续，或者直接返回 permission result。随后 `resolveHookPermissionDecision()` 把 hook 结果与 `canUseTool` 合并成最终决策。
 
 ```ts
 // assets/projects/claude-code/src/services/tools/toolExecution.ts
@@ -84,13 +79,14 @@ const permissionDecision = resolved.decision
 ```
 
 <StepFlow
-  steps="1. tool use streamed in|2. input schema 校验|3. PreToolUse hook|4. resolveHookPermissionDecision|5. allow 执行 tool.call|6. ask/deny 返回 tool_result"
-  descriptions="入口不是某个具体工具，而是统一执行器。|schema 失败不会进入权限判断。|hook 可以改 input 或阻止执行。|这里合并 hook 和 canUseTool。|只有 allow 才进入真实执行。|模型会看到拒绝原因并决定下一步。"
+  title="一次 tool call 的权限路径"
+  steps="tool use 到达|input schema 校验|PreToolUse hook|canUseTool 权限判断|allow 进入 tool.call|ask/deny 返回 tool_result"
+  descriptions="统一执行器接收模型生成的 tool use。|输入不合法时不进入权限判断。|hook 可以修改输入、阻止执行或给出权限结果。|hasPermissionsToUseTool 合并规则、模式和工具自检。|只有 allow 才执行真实工具逻辑。|拒绝或询问会变成模型可见的 tool_result。"
 />
 
-## Permission Context 是决策语言
+## Permission Context 是状态容器
 
-`Tool.ts` 里的 `ToolPermissionContext` 把权限状态压成一个对象。它不是只有 `mode`，还包括额外工作目录、always allow/deny/ask 三类规则、bypass 可用性、异步 agent 是否应避免弹窗等。
+`ToolPermissionContext` 是权限系统的运行态状态。它不只存当前 mode，还存 additional working directories、always allow/deny/ask rules、bypass 是否可用、异步 agent 是否应避免弹窗等。
 
 ```ts
 // assets/projects/claude-code/src/Tool.ts
@@ -107,7 +103,7 @@ export type ToolPermissionContext = DeepImmutable<{
 }>
 ```
 
-`PermissionMode.ts` 给这些 mode 加上产品语义：`default`、`plan`、`acceptEdits`、`bypassPermissions`、`dontAsk`，以及 feature-gated 的 `auto`。这解释了为什么“模式”不是简单布尔值。
+`PermissionMode.ts` 把 mode 定义成产品策略：`default`、`plan`、`acceptEdits`、`bypassPermissions`、`dontAsk`，以及 feature-gated 的 `auto`。所以 mode 不是一个“是否询问”的布尔值，而是后续规则合并时的重要输入。
 
 ```ts
 // assets/projects/claude-code/src/utils/permissions/PermissionMode.ts
@@ -121,15 +117,15 @@ const PERMISSION_MODE_CONFIG = {
 ```
 
 <SplitBlock
-  leftTitle="规则"
-  left="allow/deny/ask rule 描述工具和内容，例如 Bash(prefix:*)、Edit(path)、WebFetch(domain:example.com)、mcp__server__tool。规则可以来自 session、命令、CLI 参数或 settings。"
-  rightTitle="模式"
-  right="mode 描述当前策略，例如 acceptEdits 放行工作目录内编辑，dontAsk 把 ask 转成 deny，bypassPermissions 放行大多数普通 ask，但仍不越过 deny 和 safety check。"
+  leftTitle="规则描述对象"
+  left="allow/deny/ask rule 描述工具和内容，例如 Bash(prefix:git status)、Edit(path)、WebFetch(domain:example.com)、mcp__server__tool。"
+  rightTitle="模式描述策略"
+  right="acceptEdits 倾向放行工作区编辑；dontAsk 把 ask 变成 deny；bypassPermissions 放行大多数普通 ask，但仍不能越过强 deny 和部分 safety check。"
 />
 
-## 主闸口的顺序决定安全边界
+## 主权限闸口的顺序
 
-`hasPermissionsToUseToolInner()` 的顺序非常关键。它先看整个工具是否被 deny，再看 ask，然后调用工具自己的 `checkPermissions()`。这一步会让 Bash、FileWrite、MCP 等工具各自做局部判断。
+`hasPermissionsToUseToolInner()` 的关键不是返回类型，而是顺序。它先看整工具 deny，再看 ask，再调用工具自己的 `checkPermissions()`。工具自检之后，还要把 deny、用户交互要求、内容级 ask、safety check 放在 bypass/allow 前面。
 
 ```ts
 // assets/projects/claude-code/src/utils/permissions/permissions.ts
@@ -149,7 +145,7 @@ if (askRule) {
 toolPermissionResult = await tool.checkPermissions(parsedInput, context)
 ```
 
-工具自检之后，源码继续检查几类“不能被 bypass 轻易越过”的结果：工具返回 deny、需要用户交互、内容级 ask rule、safety check。然后才处理 `bypassPermissions` 和 always allow。
+这段解释了 `autoAllowBashIfSandboxed` 的真实含义：它只是在 Bash、sandbox enabled、auto allow enabled、且命令确实会进 sandbox 时跳过 ask rule。它不是全局免询问，更不是把 deny rule 变成 allow。
 
 ```ts
 // assets/projects/claude-code/src/utils/permissions/permissions.ts
@@ -174,9 +170,11 @@ if (shouldBypassPermissions) return { behavior: 'allow', decisionReason: { type:
   caption="权限判定顺序：越靠前越强。deny、内容 ask、safety check 先于 mode 放行。"
 />
 
-## Bash 是最复杂的工具级判断
+一个具体场景：用户开了 `bypassPermissions`，模型要编辑 `.claude/settings.json`。工具自检会返回 safety check；这类结果在 bypass 之前被拦住，所以便利模式不会自动越过敏感路径。
 
-Bash 的 `checkPermissions()` 只是转发到 `bashToolHasPermission()`。复杂度都藏在 `bashPermissions.ts`：它要处理 exact rule、prefix rule、compound command、重定向、路径约束、sed 约束、read-only 命令、命令注入检查和 sandbox auto-allow。
+## Bash 工具要分析命令语义
+
+Bash 是最复杂的工具级判断，因为命令字符串可以包含环境变量、重定向、管道、compound command 和子 shell。`BashTool.checkPermissions()` 把判断交给 `bashToolHasPermission()`。
 
 ```ts
 // assets/projects/claude-code/src/tools/BashTool/BashTool.tsx
@@ -185,7 +183,7 @@ async checkPermissions(input, context): Promise<PermissionResult> {
 }
 ```
 
-规则匹配的一个核心设计是：allow 要保守，deny/ask 要更难绕过。源码会对 deny/ask 做更 aggressive 的 env var stripping，避免 `FOO=bar rm ...` 绕开 `Bash(rm:*)`。
+Bash 规则匹配有一个重要取舍：deny/ask 要更难绕过，allow 要更保守。源码对 deny/ask 做更 aggressive 的 env var stripping，避免 `FOO=bar rm ...` 这类包装绕开规则；allow 则不会随便扩大匹配范围。
 
 ```ts
 // assets/projects/claude-code/src/tools/BashTool/bashPermissions.ts
@@ -204,7 +202,7 @@ const matchingAllowRules = filterRulesByContentsMatchingInput(
 )
 ```
 
-compound command 也不能只看整串命令。`checkSandboxAutoAllow()` 里会拆子命令，先扫每个 subcommand 的 deny/ask。这样 `echo ok && rm -rf /` 不会因为整串看起来不以 `rm` 开头而绕过。
+compound command 还会被拆开看。`checkSandboxAutoAllow()` 会逐个 subcommand 先查 deny/ask，避免 `echo ok && rm -rf /` 只因为整串命令不以 `rm` 开头而被放过。
 
 ```ts
 // assets/projects/claude-code/src/tools/BashTool/bashPermissions.ts
@@ -224,13 +222,13 @@ if (subcommands.length > 1) {
 ```
 
 <CalloutBlock
-  title="Bash 的核心取舍"
-  body="允许规则要避免过宽，拒绝规则要避免被包装和环境变量绕开。Claude Code 没把 Bash 当普通字符串，而是尽量拆成可判断的子命令和路径约束。"
+  title="Bash 的核心边界"
+  body="Claude Code 不把 Bash 当普通字符串。它尽量拆命令、看路径、看重定向、看安全检查；但 shell 语法本身复杂，所以安全规则更偏保守。"
 />
 
-## Sandbox 只在合适的 Bash 路径生效
+## Sandbox 是 Bash 的执行层
 
-`shouldUseSandbox()` 是一个很好的边界说明。只有 sandbox enabled、命令没有显式危险 override、存在 command、并且不命中 excludedCommands 时，才返回 true。
+Sandbox 不在 permission 之前运行，也不包住整个 Claude Code 进程。`shouldUseSandbox()` 先判断 sandbox 是否启用、命令是否显式关闭 sandbox、是否有 command、是否命中 excluded command。
 
 ```ts
 // assets/projects/claude-code/src/tools/BashTool/shouldUseSandbox.ts
@@ -248,18 +246,18 @@ export function shouldUseSandbox(input: Partial<SandboxInput>): boolean {
 }
 ```
 
-源码注释明确说 `excludedCommands` 是用户便利功能，不是安全边界。真正的安全控制仍然是 permission prompt 和 sandbox runtime；如果命令选择不进 sandbox，就应该重新落回权限审批。
+源码注释把 excluded commands 定义成用户便利功能，不是安全边界。也就是说，命令不进 sandbox 时，仍然要靠 permission prompt、规则和工具自检来保护。
 
 <SplitBlock
-  leftTitle="Sandbox 能做什么"
-  left="在命令执行层限制 filesystem、network、unix socket、本地绑定等能力；还能把违反 sandbox 的输出标注回来，让用户和模型看到执行受限原因。"
-  rightTitle="Sandbox 不是什么"
-  right="它不是把整个 Claude Code 进程放进 VM，也不是 MCP/WebFetch 的统一安全容器；它主要服务 shell command execution。"
+  leftTitle="Sandbox 能限制"
+  left="被 sandbox 包住的 shell 进程能访问哪些文件、网络域名、unix socket、本地绑定等执行资源。"
+  rightTitle="Sandbox 不能替代"
+  right="它不替 MCP server 做安全承诺，不保护 WebFetch 工具自身，也不是整个 CLI 的虚拟机边界。"
 />
 
-## Sandbox Config 从规则翻译而来
+## Sandbox Config 从权限规则翻译而来
 
-`sandbox-adapter.ts` 把 Claude Code 的 settings 和 permission rules 翻译成 `@anthropic-ai/sandbox-runtime` 的配置。这里最关键的是：权限规则不仅影响 app 层审批，也会影响执行层可访问的域名和路径。
+`sandbox-adapter.ts` 把 Claude Code settings 和 permission rules 翻译成 `@anthropic-ai/sandbox-runtime` 配置。这里的关键是：同一份 permission rules 会同时影响产品层审批和执行层限制。
 
 ```ts
 // assets/projects/claude-code/src/utils/sandbox/sandbox-adapter.ts
@@ -275,7 +273,7 @@ export function convertToSandboxRuntimeConfig(
   const allowRead: string[] = []
 ```
 
-WebFetch 的 `domain:` allow/deny 会进入 sandbox network；Edit/Read 的规则会进入 filesystem allow/deny。除此之外，它还硬挡 settings 文件、managed settings drop-in、`.claude/skills` 和裸 git repo 植入路径。
+WebFetch 的 `domain:` rule 会变成 network allow/deny；Edit/Read 的路径规则会变成 filesystem allow/deny。adapter 还会硬挡 settings、managed settings drop-in、`.claude/skills` 等敏感路径。
 
 ```ts
 // assets/projects/claude-code/src/utils/sandbox/sandbox-adapter.ts
@@ -296,11 +294,11 @@ denyWrite.push(resolve(originalCwd, '.claude', 'skills'))
   caption="Sandbox 配置映射：permission rules 与 sandbox.filesystem/network settings 会共同生成 runtime 限制。"
 />
 
-`isSandboxingEnabled()` 还会检查平台支持、依赖和 enabledPlatforms。如果用户显式开启 sandbox 但不可用，`getSandboxUnavailableReason()` 会给出原因；如果 `failIfUnavailable` 为真，CLI 启动时会拒绝继续。
+这条链路的例子是：用户允许 `WebFetch(domain:docs.example.com)`，sandbox runtime 可以把这个 domain 放进 allowedDomains；用户 deny 某个读写路径，adapter 会把它转成 denyRead/denyWrite。这样执行环境和产品权限不会完全脱节。
 
-## 文件工具关注路径和竞态
+## 文件工具关注路径和读写竞态
 
-文件工具不需要 Bash 那种命令语义分析，但它们有自己的风险：路径是否在工作目录内，是否命中 deny/ask/allow，是否是 `.git`、`.claude`、`.vscode` 这类危险路径，写入前文件是否被用户或 linter 改过。
+文件工具没有 Bash 的命令解析问题，但它们有路径和竞态风险。`checkWritePermissionForTool()` 会先查 deny，再查路径安全，再考虑 allow/ask。
 
 ```ts
 // assets/projects/claude-code/src/utils/permissions/filesystem.ts
@@ -317,7 +315,7 @@ export function checkWritePermissionForTool<Input extends AnyObject>(
   }
 ```
 
-安全路径检查在 allow rule 之前。也就是说，普通 allow 不能随便越过 `.git`、`.claude/settings.json`、shell profile 等敏感位置。只有 session-scoped 的 `.claude/**` 特殊 allow 才能在严格范围内放行。
+敏感路径 safety check 在 allow rule 之前。普通 allow 不能随便越过 `.git`、shell profile、settings 等高风险路径。
 
 ```ts
 // assets/projects/claude-code/src/utils/permissions/filesystem.ts
@@ -335,7 +333,7 @@ if (!safetyCheck.safe) {
 }
 ```
 
-`FileWriteTool` 还要求写入已有文件前必须读过，并检查 mtime。这个机制防止模型基于过期视图覆盖用户或工具刚刚改过的内容。
+`FileWriteTool` 还有“写前必须读过”的状态检查。它从 `readFileState` 取上次读取时间，如果文件没读过、只读了 partial view，或读取后被用户/linter 改过，就拒绝写入。
 
 ```ts
 // assets/projects/claude-code/src/tools/FileWriteTool/FileWriteTool.ts
@@ -353,9 +351,9 @@ if (lastWriteTime > readTimestamp.timestamp) {
   caption="不同工具的局部安全逻辑不同：Bash 看命令语义，文件工具看路径和读写前置条件，MCP 主要回到 server/tool rule。"
 />
 
-## 用户批准会变成 PermissionUpdate
+## 用户批准会更新权限状态
 
-当决策是 ask，交互 UI、SDK prompt、PermissionRequest hook 或 bridge 都可能给出结果。核心不是“用户点了 Yes”，而是批准可以携带 `PermissionUpdate`：加规则、改 mode、加目录，并选择 session 或 settings 级持久化。
+当最终决策是 ask，用户、SDK prompt、PermissionRequest hook 或 bridge 可以给出批准/拒绝。批准不是只让当前 call 继续，还可能携带 `PermissionUpdate`：改 mode、加规则、加工作目录。
 
 ```ts
 // assets/projects/claude-code/src/utils/permissions/PermissionUpdate.ts
@@ -379,16 +377,17 @@ export function applyPermissionUpdate(
       }
 ```
 
-持久化和上下文更新是分开的。`session` rule 只影响当前会话；`localSettings`、`userSettings`、`projectSettings` 才会写回 settings。这个分层让“一次批准”和“以后都允许”在数据结构上可区分。
+这里的状态流很重要：session rule 只影响当前会话；local/user/project settings rule 才会持久化。这样“一次允许”和“以后总是允许”不会混成同一种状态。
 
 <StepFlow
-  steps="1. permission result is ask|2. UI / SDK / hook 给出选择|3. 生成 PermissionUpdate|4. apply 到当前 context|5. 可持久化 destination 写回 settings"
-  descriptions="ask 是暂停点，不是失败。|不同前端共享同一种 result。|更新可以是 addRules、setMode、addDirectories。|session 级立即生效。|只有支持 persistence 的 destination 会落盘。"
+  title="一次 ask 如何变成新规则"
+  steps="权限结果为 ask|用户或 hook 决策|生成 PermissionUpdate|更新 ToolPermissionContext|按 destination 持久化"
+  descriptions="ask 是暂停点，不是工具失败。|前端、SDK 或 PermissionRequest hook 都能提供结果。|update 可以 setMode、addRules、addDirectories。|session 级更新立即影响后续 tool call。|local/user/project settings 才会写回配置文件。"
 />
 
-## MCP 和 WebFetch 不等于 Shell Sandbox
+## MCP 和 WebFetch 的边界
 
-`MCPTool` 默认返回 passthrough，让外层权限系统继续决定。MCP 工具名还会按 server/tool 做匹配，例如 server 级 rule 可以覆盖该 server 下的工具。这和 Bash sandbox 是不同层。
+MCP 工具默认返回 passthrough，让外层 permission pipeline 继续做 server/tool 级规则匹配。它不是天然进入 Bash sandbox 的外部程序。
 
 ```ts
 // assets/projects/claude-code/src/tools/MCPTool/MCPTool.ts
@@ -404,34 +403,34 @@ export const MCPTool = buildTool({
 })
 ```
 
-WebFetch 的 domain rule 会同时出现在工具权限和 sandbox network config 的语境里，但语义仍要区分：WebFetch 自己是一个工具调用；sandbox network 限制的是被 sandbox 包住的进程能访问哪些网络。
+WebFetch 也要分两层看：作为工具调用时，它走 WebFetch 自己的 permission rule；作为 sandbox runtime 的网络配置来源时，`domain:` rule 会被 adapter 翻译成 allowed/denied domain。一个是工具权限，一个是被 sandbox 包住的进程网络权限。
 
 <CalloutBlock
-  title="扩展工具的边界"
-  body="外部工具不能假设 shell sandbox 会保护自己。MCP 需要连接/发现层 policy、tool call permission，以及 server 自身实现共同形成边界。"
+  title="不要把 sandbox 当全局安全容器"
+  body="MCP、WebFetch、文件工具、Bash 都进入统一 permission protocol，但只有 Bash 命令执行路径才会经过 shell sandbox。外部 server 仍需要自己的连接策略、工具权限和实现约束。"
   tone="warning"
 />
 
 ## 可复用设计
 
-Claude Code 这套设计最值得学的是分层：统一协议收口，局部工具负责风险判断，执行层 sandbox 作为另一道防线。这样系统能同时覆盖 Bash、文件工具、WebFetch、MCP，而不是把所有风险硬塞进一个全局规则表。
+Claude Code 这套设计最值得复用的是职责分层。统一执行器只消费 `PermissionDecision`；具体风险判断放在最懂风险的工具附近；用户批准变成可审计的 `PermissionUpdate`；执行层 sandbox 再作为 Bash 的第二道边界。
 
 <ConceptTabs
   tabs="统一协议|局部判断|分级回写|执行隔离"
-  panels="所有工具最后都返回 allow/ask/deny、message、suggestions、decisionReason 和可选 updatedInput，主执行器只消费统一结果。|Bash 看命令结构和路径，FileWrite 看文件状态和敏感路径，MCP 看 server/tool rule；风险知识放在最懂它的工具旁边。|PermissionUpdate 把 session 临时授权和 settings 持久授权分开，避免一次批准自然膨胀成永久规则。|sandbox 只负责它能负责的执行环境，不伪装成产品层权限，也不替 MCP server 做安全承诺。"
+  panels="所有工具最后都产出 allow/ask/deny、message、decisionReason 和可选 updatedInput，执行器不需要理解每个工具的内部风险。|Bash 看命令结构，文件工具看路径和读写状态，MCP 看 server/tool rule。|session 临时授权和 settings 持久授权分开，避免一次批准膨胀成永久规则。|sandbox 只做它能做的 shell 执行限制，不伪装成所有工具的安全边界。"
 />
 
-一个很实用的工程原则是“强拒绝先于便利放行”。源码把 deny、ask rule、safety check 放在 bypass/acceptEdits 前面，说明 convenience mode 不是最高权力。
+一个工程原则很清楚：强拒绝先于便利放行。源码把 deny、requiresUserInteraction、safety check 放在 bypass/acceptEdits 之前，说明便利模式是减少打扰，不是最高权限。
 
 ## 边界与风险
 
-这套机制不是完整 VM，不是 git 权限模型，也不是所有外部能力的单点拦截器。尤其是 `dangerouslyDisableSandbox`、`allowUnsandboxedCommands`、MCP server、SDK bridge、hooks 都会引入额外边界。
+Permission / Sandbox 不是完整 VM，不是 git 权限模型，也不是所有外部能力的单点拦截器。`dangerouslyDisableSandbox`、`allowUnsandboxedCommands`、MCP server、SDK bridge、hooks、auto classifier 都会带来额外分支。
 
 <SplitBlock
   leftTitle="能相信的部分"
-  left="一次 tool call 会集中形成 PermissionDecision；deny 和 safetyCheck 在顺序上强于普通模式放行；Bash sandbox 配置会从 settings 和 rules 翻译到 runtime。"
+  left="每次 tool call 会形成统一 PermissionDecision；deny 和 safetyCheck 在顺序上强于普通模式放行；Bash sandbox config 会从 settings 和 rules 翻译到 runtime。"
   rightTitle="不能误读的部分"
-  right="sandbox 不包整个进程；excludedCommands 不是安全边界；WebFetch/MCP 不是自动进 shell sandbox；bypassPermissions 更接近少问权限，不是更强隔离。"
+  right="sandbox 不包整个进程；excludedCommands 不是安全边界；WebFetch/MCP 不自动进入 shell sandbox；bypassPermissions 更接近少问权限，不是更强隔离。"
 />
 
-如果要把这个设计搬到自己的 agent，关键不是复制这些规则名，而是复制职责边界：工具调用前先有统一决策协议，危险判断靠工具局部实现，用户授权要能区分临时和持久，命令执行再用独立 sandbox 做第二层约束。
+迁移到自己的 agent 系统时，先复用四件事：工具执行前的统一决策协议、工具局部风险判断、临时/持久授权分离、命令执行的独立 sandbox。这样安全机制才不会变成一个越来越长的全局 if。

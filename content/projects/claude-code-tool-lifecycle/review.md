@@ -1,51 +1,42 @@
-# Review Report: claude-code-tool-lifecycle
+# Project Explainer Review: claude-code-tool-lifecycle
 
 ## Review Scope
-
-审查对象是 `content/projects/claude-code-tool-lifecycle/explainer.mdx`，配套元数据为 `content/projects/claude-code-tool-lifecycle/project.json`，图像为 `public/generated/claude-code-tool-lifecycle/*.svg`。本次 review 聚焦第六讲“Tool 调度与工具结果生命周期”的覆盖完整性、源码证据强度、读者体验，以及是否存在过于抽象或制作说明式文字。
+- Source repo/path: `assets/projects/claude-code`
+- Focus question: Tool 调度与工具结果生命周期如何从 `tool_use` 到 `tool_result`，并处理并发、hooks、permission、失败和结果预算。
+- Plan path: `content/projects/claude-code-tool-lifecycle/plan.md`
+- Explainer path: `content/projects/claude-code-tool-lifecycle/explainer.mdx`
 
 ## Coverage Review
+- Covered: query loop 发现 tool_use、streaming/non-streaming 两条调度路径、Tool 接口契约、非流式批次、StreamingToolExecutor 状态机、最终顺序保证、单工具 schema/validate/hook/permission/call、result mapping、MCP PostToolUse 分支、单次大输出持久化、历史 aggregate budget、Bash/Agent/MCP/ToolSearch 特殊路径、失败 tool_result。
+- Missing or weak: Permission/Sandbox 细节只作为执行插槽出现；完整安全链路属于 05，不在当前主轴内。
+- Decision: PASS。
 
-覆盖通过。正文没有停留在 tool 列表，而是围绕完整生命周期展开：`query.ts` 发现 tool_use，`StreamingToolExecutor` 和 `runTools` 负责流式/非流式调度，`Tool.ts` 定义并发与结果映射契约，`toolExecution.ts` 包住 schema、hook、permission、call 和 failure hook，`toolResultStorage.ts` 处理单次持久化与历史预算。
-
-已覆盖默认路径与可选路径。默认路径讲清了“工具默认独占，显式声明并发安全才并行，最终结果按原顺序输出”。可选和特殊路径覆盖了 streaming execution、Bash background/persisted output、Agent 嵌套 query、MCP PostToolUse 输出更新、ToolSearch deferred schema。
-
-遗漏风险检查：本主题容易漏掉结果生命周期，只讲调度。正文已用“第一层结果治理是单次持久化”和“第二层结果治理是历史预算”补齐，并说明 `tool-results`、`ContentReplacementState`、`applyToolResultBudget()` 与 prompt cache 的关系。
+## Mechanism Teaching Review
+- Sections that explain cause -> state -> effect well: “Query Loop 先发现工作项”解释 tool_use 如何进入调度；“流式调度是状态机”解释 queued/executing/completed/yielded；“Hooks 和 Permission 包住 tool.call”解释执行插槽；“第二层结果治理是历史预算”解释 ContentReplacementState 如何稳定替换。
+- Sections that only list files/functions: 无。证据地图只定位源码，正文按触发、状态流、分支、源码和边界讲解。
+- Reader questions still unanswered: UI 展示和每个工具的业务能力没有展开；这些不是 tool lifecycle 的核心机制。
+- Revisions needed: 无。
 
 ## Source Evidence Review
-
-源码证据通过。正文引用的关键本地源码路径超过 5 个，并且每个源码片段都服务于机制说明，而不是堆引用：
-
-- `assets/projects/claude-code/src/query.ts`
-- `assets/projects/claude-code/src/services/tools/StreamingToolExecutor.ts`
-- `assets/projects/claude-code/src/services/tools/toolOrchestration.ts`
-- `assets/projects/claude-code/src/services/tools/toolExecution.ts`
-- `assets/projects/claude-code/src/Tool.ts`
-- `assets/projects/claude-code/src/utils/toolResultStorage.ts`
-- `assets/projects/claude-code/src/tools/BashTool/BashTool.tsx`
-- `assets/projects/claude-code/src/tools/AgentTool/AgentTool.tsx`
-- `assets/projects/claude-code/src/tools/MCPTool/MCPTool.ts`
-- `assets/projects/claude-code/src/tools/ToolSearchTool/ToolSearchTool.ts`
-
-证据链也覆盖了失败路径：`runPostToolUseFailureHooks()` 和 error `tool_result` 被单独解释，避免读者以为异常只是普通 throw。
+- Strong evidence: `query.ts` 证明流式/非流式结果收集和 `applyToolResultBudget()`。
+- Strong evidence: `StreamingToolExecutor.ts` 和 `toolOrchestration.ts` 证明并发安全判断、状态机和顺序回填。
+- Strong evidence: `Tool.ts` 证明工具接口的调度和结果契约。
+- Strong evidence: `toolExecution.ts` 与 `toolHooks.ts` 证明 schema、hooks、permission、call、MCP 分支和 failure hooks。
+- Strong evidence: `toolResultStorage.ts` 证明 `tool-results`、`persisted-output`、`ContentReplacementState` 和历史预算替换。
+- Strong evidence: `BashTool.tsx`、`AgentTool.tsx`、`MCPTool.ts`、`ToolSearchTool.ts` 证明特殊工具仍服从统一外壳。
+- Weak or unsupported claims: 无。
+- Revisions needed: 无。
 
 ## Reader Experience Review
-
-读者体验通过。正文使用 4 张图、多个 `SplitBlock`、`StepFlow` 和 `CalloutBlock` 拆分信息，没有连续大段纯文本。每个章节只承担一个问题：工作项发现、接口契约、非流式调度、流式状态机、结果顺序、单工具生命周期、结果治理、特殊工具、失败路径和可复用设计。
-
-抽象度检查：并发安全、结果顺序、持久化、历史预算都配了具体源码片段。`ContentReplacementState` 没有只说“做压缩”，而是解释为“稳定替换记录，避免破坏 prompt cache”。Agent 和 MCP 也没有泛泛说“特殊”，而是指出它们仍回到统一 tool_result 外壳，但内部运行时或输出更新时机不同。
-
-制作说明检查：正文没有“后续补充”“另篇再讲”“本篇只讲”这类面向作者的安排文字，内容语气保持知识讲解。
+- Over-abstract parts: 已把 tool 系统拆成调度层、执行层和结果层，每层都有源码片段和结构化组件。
+- Long prose / fatigue points: 正文使用 4 张 FigureBlock、2 个 StepFlow、多个 SplitBlock、CalloutBlock 和短代码片段。
+- Visual or structured component opportunities: 现有四张 SVG 覆盖架构、调度、生命周期和结果预算，无需新增。
 
 ## Revision Actions
+- Applied: 重写 `explainer.mdx`，按 query -> scheduler -> execution -> result governance -> special tools -> failure 组织。
+- Applied: 更新 `plan.md` 为标准项目解读模板。
+- Applied: 更新 `review.md` 为机制教学审查结构。
+- Deferred with reason: 未新增图，现有图已经覆盖核心机制。
 
-已完成以下修改动作：
-
-1. 新增 `architecture.svg`，把 query、scheduler、execution pipeline、result storage 和 next context 串成总览。
-2. 新增 `scheduling.svg`，用状态和规则解释并发安全工具与独占工具的调度差异。
-3. 新增 `lifecycle.svg`，把单个 tool_use 的 schema、hooks、permission、call、mapping、failure hook 画成生命周期。
-4. 新增 `result-budget.svg`，明确单次持久化和历史 aggregate budget 是两层不同结果治理。
-5. 在正文中补充 Bash、Agent、MCP、ToolSearch 的特殊路径，防止讲解过窄。
-6. 在结尾补充可复用设计，把源码机制落到工程启发。
-
-最终判断：PASS。当前版本覆盖主轴完整，源码证据足够，图文密度合适，没有发现需要二次修改的遗漏或过于抽象段落。
+## Final Verdict
+PASS
